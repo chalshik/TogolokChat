@@ -28,7 +28,7 @@ create_tables()
 # Serve the main application
 @app.route('/')
 def index():
-    return render_template('index.html')
+    return render_template('main.html')
 
 # Serve static files from the uploads directory
 @app.route('/uploads/<path:filename>')
