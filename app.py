@@ -28,7 +28,7 @@ create_tables()
 # Serve the main application
 @app.route('/')
 def index():
-    return render_template('main.html')
+    return render_template('index.html')
 
 # Serve static files from the uploads directory
 @app.route('/uploads/<path:filename>')
@@ -36,4 +36,6 @@ def serve_upload(filename):
     return app.send_static_file(f'uploads/{filename}')
 
 if __name__ == '__main__':
-    app.run(debug=True) 
+    app.debug = True  # Enable debug mode
+    app.config['TEMPLATES_AUTO_RELOAD'] = True  # Enable template auto-reloading
+    app.run(debug=True, use_reloader=True)  # Enable auto-reloader 

@@ -15,7 +15,8 @@ def create_tables():
             username TEXT NOT NULL,
             password TEXT NOT NULL,
             email TEXT NOT NULL,
-            key_word TEXT NOT NULL
+            security_question TEXT NOT NULL,
+            secret_word TEXT NOT NULL
         );
     ''')
     
