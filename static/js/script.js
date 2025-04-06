@@ -1,4 +1,30 @@
+// Add this at the beginning of the file, before any event listeners
+function togglePasswordVisibility(button) {
+    const input = button.previousElementSibling;
+    const icon = button.querySelector('i');
+    
+    if (input && icon) {
+        if (input.type === 'password') {
+            input.type = 'text';
+            icon.classList.remove('fa-eye');
+            icon.classList.add('fa-eye-slash');
+        } else {
+            input.type = 'password';
+            icon.classList.remove('fa-eye-slash');
+            icon.classList.add('fa-eye');
+        }
+    }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
+    // Remove old toggle password event listeners since we're using onclick in HTML
+    const oldToggleButtons = document.querySelectorAll('.toggle-password');
+    oldToggleButtons.forEach(button => {
+        // Remove any existing event listeners
+        const newButton = button.cloneNode(true);
+        button.parentNode.replaceChild(newButton, button);
+    });
+
     // Form switching
     const loginForm = document.getElementById('login-form');
     const registerForm = document.getElementById('register-form');
@@ -17,30 +43,6 @@ document.addEventListener('DOMContentLoaded', () => {
         e.preventDefault();
         registerForm.classList.add('hidden');
         loginForm.classList.remove('hidden');
-    });
-
-    // Password visibility toggle
-    const toggleButtons = document.querySelectorAll('.toggle-password');
-    
-    toggleButtons.forEach(button => {
-        button.addEventListener('click', (e) => {
-            e.preventDefault();
-            e.stopPropagation(); // Prevent event from bubbling up
-            console.log('Toggle button clicked');
-            const input = button.parentElement.querySelector('input');
-            const type = input.getAttribute('type');
-            const img = button.querySelector('img');
-            
-            console.log('Current input type:', type);
-            
-            if (type === 'password') {
-                input.setAttribute('type', 'text');
-                img.style.opacity = '1';
-            } else {
-                input.setAttribute('type', 'password');
-                img.style.opacity = '0.6';
-            }
-        });
     });
 
     // Get modal elements
@@ -507,13 +509,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 console.log('Re-attaching event listeners to toggle buttons:', toggleButtons.length);
                 
                 toggleButtons.forEach(button => {
-                    button.addEventListener('click', (e) => {
+                    // Remove any existing event listeners
+                    const newButton = button.cloneNode(true);
+                    button.parentNode.replaceChild(newButton, button);
+                    
+                    newButton.addEventListener('click', (e) => {
                         e.preventDefault();
                         e.stopPropagation();
                         console.log('Toggle button clicked (re-attached)');
-                        const input = button.parentElement.querySelector('input');
+                        const input = newButton.parentElement.querySelector('input');
                         const type = input.getAttribute('type');
-                        const img = button.querySelector('img');
+                        const img = newButton.querySelector('img');
                         
                         console.log('Current input type:', type);
                         
@@ -541,48 +547,68 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Validate new password in forgot password modal
     function validateForgotPassword() {
+        if (!newPasswordInput || !newPasswordIndicator) {
+            console.error('Missing elements for new password validation:', {
+                newPasswordInput: !!newPasswordInput,
+                newPasswordIndicator: !!newPasswordIndicator
+            });
+            return false;
+        }
+
+        const newPasswordMessage = document.querySelector('#new-password-message');
         const password = newPasswordInput.value;
         let isValid = true;
-        
-        Object.entries(forgotPasswordValidationRules).forEach(([type, rule]) => {
-            const requirement = document.querySelector(`#forgot-password-modal [data-requirement="${type}"]`);
-            const meetsRequirement = rule(password);
-            if (requirement) {
-                requirement.classList.toggle('valid', meetsRequirement);
-                if (!meetsRequirement) isValid = false;
-            }
-        });
 
-        if (newPasswordIndicator) {
-            newPasswordIndicator.style.display = password && !isValid ? 'block' : 'none';
+        // Check password requirements
+        const hasLength = password.length >= 8;
+        const hasUppercase = /[A-Z]/.test(password);
+        const hasLowercase = /[a-z]/.test(password);
+        const hasNumber = /[0-9]/.test(password);
+        const hasSpecial = /[!@#$%^&*]/.test(password);
+
+        isValid = hasLength && hasUppercase && hasLowercase && hasNumber && hasSpecial;
+
+        // Update the new password indicator
+        if (password) {
+            newPasswordIndicator.style.cssText = 'display: block !important;';
+            newPasswordIndicator.classList.remove('valid', 'invalid');
+            newPasswordIndicator.classList.add(isValid ? 'valid' : 'invalid');
+
+            if (newPasswordMessage) {
+                newPasswordMessage.style.cssText = 'display: block !important;';
+                newPasswordMessage.textContent = isValid ? 'Password is valid' : 'Password does not meet requirements';
+            }
+        } else {
+            newPasswordIndicator.style.display = 'none';
+            if (newPasswordMessage) {
+                newPasswordMessage.style.display = 'none';
+            }
         }
+
         return isValid;
     }
 
-    // Validate password match in forgot password modal
-    function validateForgotPasswordMatch() {
-        const newPassword = newPasswordInput.value;
-        const confirmPassword = confirmNewPasswordInput.value;
-        
-        if (newPassword || confirmPassword) {
-            if (newPassword !== confirmPassword) {
-                forgotPasswordMatchValidation.style.display = 'block';
-                forgotPasswordConfirmIndicator.style.display = 'block';
-                return false;
+    // Add event listeners for password fields in forgot password modal
+    document.addEventListener('DOMContentLoaded', () => {
+        const forgotPasswordModal = document.getElementById('forgot-password-modal');
+        if (forgotPasswordModal) {
+            const newPasswordInput = forgotPasswordModal.querySelector('input.new-password');
+            const confirmPasswordInput = forgotPasswordModal.querySelector('input.confirm-password');
+            
+            if (newPasswordInput) {
+                newPasswordInput.addEventListener('input', () => {
+                    validateForgotPassword();
+                    if (confirmPasswordInput.value) {
+                        validatePasswordMatch();
+                    }
+                });
+            }
+            
+            if (confirmPasswordInput) {
+                confirmPasswordInput.addEventListener('input', validatePasswordMatch);
             }
         }
-        forgotPasswordMatchValidation.style.display = 'none';
-        forgotPasswordConfirmIndicator.style.display = 'none';
-        return true;
-    }
-
-    // Add event listener for new password validation
-    if (newPasswordInput) {
-        newPasswordInput.addEventListener('input', () => {
-            validateForgotPassword();
-            validateForgotPasswordMatch();
-        });
-    }
+    });
 
     // Show validation message when clicking indicator
     if (newPasswordIndicator) {
@@ -633,11 +659,24 @@ document.addEventListener('DOMContentLoaded', () => {
             if (securityQuestionDisplay) {
                 securityQuestionDisplay.textContent = 'Коопсуздук суроосу көрсөтүлөт';
             }
-            if (forgotPasswordMatchValidation) {
-                forgotPasswordMatchValidation.style.display = 'none';
+            
+            // Reset validation indicators
+            const confirmPasswordIndicator = document.querySelector('#forgot-password-modal .confirm-password-indicator');
+            const confirmPasswordMessage = document.querySelector('#forgot-password-modal .confirm-password-message');
+            
+            if (confirmPasswordIndicator) {
+                confirmPasswordIndicator.classList.remove('valid', 'invalid');
             }
-            if (forgotPasswordConfirmIndicator) {
-                forgotPasswordConfirmIndicator.style.display = 'none';
+            
+            if (confirmPasswordMessage) {
+                confirmPasswordMessage.textContent = '';
+                confirmPasswordMessage.classList.remove('show');
+            }
+            
+            // Hide password requirements
+            const requirements = document.querySelector('#forgot-password-modal .password-requirements');
+            if (requirements) {
+                requirements.classList.remove('show');
             }
         });
     }
@@ -653,11 +692,24 @@ document.addEventListener('DOMContentLoaded', () => {
                 if (securityQuestionDisplay) {
                     securityQuestionDisplay.textContent = 'Коопсуздук суроосу көрсөтүлөт';
                 }
-                if (forgotPasswordMatchValidation) {
-                    forgotPasswordMatchValidation.style.display = 'none';
+                
+                // Reset validation indicators
+                const confirmPasswordIndicator = document.querySelector('#forgot-password-modal .confirm-password-indicator');
+                const confirmPasswordMessage = document.querySelector('#forgot-password-modal .confirm-password-message');
+                
+                if (confirmPasswordIndicator) {
+                    confirmPasswordIndicator.classList.remove('valid', 'invalid');
                 }
-                if (forgotPasswordConfirmIndicator) {
-                    forgotPasswordConfirmIndicator.style.display = 'none';
+                
+                if (confirmPasswordMessage) {
+                    confirmPasswordMessage.textContent = '';
+                    confirmPasswordMessage.classList.remove('show');
+                }
+                
+                // Hide password requirements
+                const requirements = document.querySelector('#forgot-password-modal .password-requirements');
+                if (requirements) {
+                    requirements.classList.remove('show');
                 }
             }
         });
@@ -715,7 +767,7 @@ document.addEventListener('DOMContentLoaded', () => {
             console.log('Form submission attempted');
 
             const isPasswordValid = validateForgotPassword();
-            const isPasswordMatch = validateForgotPasswordMatch();
+            const isPasswordMatch = validatePasswordMatch();
 
             if (!isPasswordValid) {
                 const requirements = document.querySelector('#forgot-password-modal .password-requirements');
@@ -726,15 +778,19 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             if (!isPasswordMatch) {
-                forgotPasswordMatchValidation.style.display = 'block';
+                const confirmPasswordMessage = document.querySelector('#forgot-password-modal .confirm-password-message');
+                if (confirmPasswordMessage) {
+                    confirmPasswordMessage.classList.add('show');
+                }
                 return;
             }
 
             const email = resetEmailInput.value.trim();
             const secretWord = secretAnswerInput.value.trim();
             const newPassword = newPasswordInput.value;
+            const confirmPassword = document.querySelector('#forgot-password-modal .confirm-password').value;
 
-            if (!email || !secretWord || !newPassword) {
+            if (!email || !secretWord || !newPassword || !confirmPassword) {
                 alert('Бардык талааларды толтуруңуз');
                 return;
             }
@@ -767,4 +823,191 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         });
     }
+
+    // Add event listeners for validation indicators in register form
+    if (registerForm) {
+        const validationIndicators = registerForm.querySelectorAll('.validation-indicator');
+        const validationMessages = registerForm.querySelectorAll('.validation-message');
+        
+        // Add click event listeners to validation indicators
+        validationIndicators.forEach((indicator, index) => {
+            indicator.addEventListener('click', () => {
+                // Toggle the corresponding validation message
+                if (validationMessages[index]) {
+                    validationMessages[index].classList.toggle('show');
+                }
+            });
+        });
+        
+        // Add input event listeners to form fields
+        const formInputs = registerForm.querySelectorAll('input');
+        formInputs.forEach((input, index) => {
+            input.addEventListener('input', () => {
+                // Show validation indicator when input has value
+                if (input.value.trim() !== '') {
+                    if (validationIndicators[index]) {
+                        validationIndicators[index].classList.add('show');
+                    }
+                } else {
+                    if (validationIndicators[index]) {
+                        validationIndicators[index].classList.remove('show');
+                    }
+                    if (validationMessages[index]) {
+                        validationMessages[index].classList.remove('show');
+                    }
+                }
+            });
+        });
+        
+        // Add specific validation for password fields
+        const passwordInput = registerForm.querySelector('input[type="password"]');
+        const confirmPasswordInput = registerForm.querySelector('input[name="confirm-password"]');
+        const passwordIndicator = registerForm.querySelector('.password-indicator');
+        const confirmPasswordIndicator = registerForm.querySelector('.confirm-password-indicator');
+        
+        if (passwordInput && confirmPasswordInput && passwordIndicator && confirmPasswordIndicator) {
+            // Validate password match
+            function validatePasswordMatch() {
+                const password = passwordInput.value;
+                const confirmPassword = confirmPasswordInput.value;
+                
+                if (confirmPassword) {
+                    if (password === confirmPassword) {
+                        confirmPasswordIndicator.classList.remove('invalid');
+                        confirmPasswordIndicator.classList.add('valid');
+                    } else {
+                        confirmPasswordIndicator.classList.remove('valid');
+                        confirmPasswordIndicator.classList.add('invalid');
+                    }
+                }
+            }
+            
+            // Add event listeners for password validation
+            passwordInput.addEventListener('input', () => {
+                if (passwordInput.value.trim() !== '') {
+                    passwordIndicator.classList.add('show');
+                } else {
+                    passwordIndicator.classList.remove('show');
+                }
+                validatePasswordMatch();
+            });
+            
+            confirmPasswordInput.addEventListener('input', validatePasswordMatch);
+        }
+    }
+
+    // Add event listeners for forgot password modal
+    document.addEventListener('DOMContentLoaded', function() {
+        const forgotPasswordModal = document.getElementById('forgot-password-modal');
+        if (!forgotPasswordModal) return;
+
+        const newPasswordInput = forgotPasswordModal.querySelector('#new-password');
+        const confirmPasswordInput = forgotPasswordModal.querySelector('#confirm-password');
+        const newPasswordIndicator = forgotPasswordModal.querySelector('#new-password-indicator');
+        const confirmPasswordIndicator = forgotPasswordModal.querySelector('#confirm-password-indicator');
+        const newPasswordMessage = forgotPasswordModal.querySelector('#new-password-message');
+        const confirmPasswordMessage = forgotPasswordModal.querySelector('#confirm-password-message');
+
+        console.log('Elements found:', {
+            newPasswordInput,
+            confirmPasswordInput,
+            newPasswordIndicator,
+            confirmPasswordIndicator,
+            newPasswordMessage,
+            confirmPasswordMessage
+        });
+
+        if (!newPasswordInput || !confirmPasswordInput || !newPasswordIndicator || !confirmPasswordIndicator) {
+            console.error('Missing elements for password validation');
+            return;
+        }
+
+        // Initialize indicators as hidden
+        newPasswordIndicator.style.display = 'none';
+        confirmPasswordIndicator.style.display = 'none';
+        newPasswordMessage.style.display = 'none';
+        confirmPasswordMessage.style.display = 'none';
+
+        function validateNewPassword() {
+            const password = newPasswordInput.value;
+            const hasLength = password.length >= 8;
+            const hasUpper = /[A-Z]/.test(password);
+            const hasLower = /[a-z]/.test(password);
+            const hasNumber = /\d/.test(password);
+            const hasSpecial = /[!@#$%^&*(),.?":{}|<>]/.test(password);
+            
+            const isValid = hasLength && hasUpper && hasLower && hasNumber && hasSpecial;
+            
+            newPasswordIndicator.style.display = 'block';
+            newPasswordIndicator.classList.toggle('valid', isValid);
+            newPasswordIndicator.classList.toggle('invalid', !isValid);
+            
+            if (newPasswordMessage) {
+                let message = '';
+                if (!hasLength) message = 'Password must be at least 8 characters long';
+                else if (!hasUpper) message = 'Password must contain an uppercase letter';
+                else if (!hasLower) message = 'Password must contain a lowercase letter';
+                else if (!hasNumber) message = 'Password must contain a number';
+                else if (!hasSpecial) message = 'Password must contain a special character';
+                else message = 'Password is valid';
+                
+                newPasswordMessage.textContent = message;
+            }
+            
+            return isValid;
+        }
+
+        function validatePasswordMatch() {
+            const isMatching = newPasswordInput.value === confirmPasswordInput.value && confirmPasswordInput.value !== '';
+            
+            confirmPasswordIndicator.style.display = 'block';
+            confirmPasswordIndicator.classList.toggle('valid', isMatching);
+            confirmPasswordIndicator.classList.toggle('invalid', !isMatching);
+            
+            if (confirmPasswordMessage) {
+                confirmPasswordMessage.textContent = isMatching ? 'Passwords match' : 'Passwords do not match';
+            }
+            
+            return isMatching;
+        }
+
+        newPasswordInput.addEventListener('input', function() {
+            validateNewPassword();
+            if (confirmPasswordInput.value) {
+                validatePasswordMatch();
+            }
+        });
+
+        confirmPasswordInput.addEventListener('input', validatePasswordMatch);
+
+        newPasswordIndicator.addEventListener('mouseenter', () => {
+            newPasswordMessage.style.display = 'block';
+        });
+
+        newPasswordIndicator.addEventListener('mouseleave', () => {
+            newPasswordMessage.style.display = 'none';
+        });
+
+        confirmPasswordIndicator.addEventListener('mouseenter', () => {
+            confirmPasswordMessage.style.display = 'block';
+        });
+
+        confirmPasswordIndicator.addEventListener('mouseleave', () => {
+            confirmPasswordMessage.style.display = 'none';
+        });
+
+        // Handle form submission
+        const forgotPasswordForm = forgotPasswordModal.querySelector('form');
+        if (forgotPasswordForm) {
+            forgotPasswordForm.addEventListener('submit', function(e) {
+                const isPasswordValid = validateNewPassword();
+                const isMatchValid = validatePasswordMatch();
+                
+                if (!isPasswordValid || !isMatchValid) {
+                    e.preventDefault();
+                    alert('Please ensure both passwords are valid and matching.');
+                }
+            });
+        }
+    });
 }); 

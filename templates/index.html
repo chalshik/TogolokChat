@@ -7,6 +7,7 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="/static/css/styles.css">
 </head>
 <body>
@@ -237,67 +238,57 @@
     </div>
 
     <!-- Forgot Password Modal -->
-    <div id="forgot-password-modal" class="modal">
-        <div class="modal-content">
-            <h2>Сырсөздү калыбына келтирүү</h2>
-            <form id="forgot-password-form">
-                <div class="form-group">
-                    <input type="email" id="reset-email" placeholder="Электрондук почтаңыз" required>
+    <div class="modal fade" id="forgot-password-modal" tabindex="-1" role="dialog" aria-labelledby="forgotPasswordModalLabel" aria-hidden="true">
+        <div class="modal-dialog" role="document">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="forgotPasswordModalLabel">Reset Password</h5>
+                    <button type="button" class="close" data-dismiss="modal" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
                 </div>
-                <div id="security-question-display" class="show">
-                    Коопсуздук суроосу көрсөтүлөт
-                </div>
-                <div class="form-group">
-                    <input type="text" id="secret-answer" placeholder="Жооп" required>
-                </div>
-                <div class="form-group">
-                    <div class="password-field">
-                        <input type="password" id="new-password" placeholder="Жаңы сырсөз" required>
-                        <span class="toggle-password" tabindex="0" role="button" aria-label="Toggle password visibility">
-                            <img src="/static/images/eye.svg" alt="Toggle password visibility">
-                        </span>
-                        <div class="validation-indicator" id="new-password-indicator"></div>
-                    </div>
-                    <div class="password-requirements">
-                        <div class="requirement" data-requirement="length">
-                            <i class="fas fa-circle"></i>
-                            <span>Камтылган символдордун саны 8ден кем болбошу керек</span>
+                <div class="modal-body">
+                    <form id="forgot-password-form" method="POST" action="/reset-password">
+                        <div class="form-group">
+                            <label for="reset-email">Email</label>
+                            <input type="email" class="form-control" id="reset-email" name="email" required>
                         </div>
-                        <div class="requirement" data-requirement="uppercase">
-                            <i class="fas fa-circle"></i>
-                            <span>Камтылган чоң тамгалар</span>
+                        <div id="security-question-display" class="form-group">
+                            Security question will be displayed here
                         </div>
-                        <div class="requirement" data-requirement="lowercase">
-                            <i class="fas fa-circle"></i>
-                            <span>Камтылган кичине тамгалар</span>
+                        <div class="form-group">
+                            <label for="secret-answer">Security Answer</label>
+                            <input type="text" class="form-control" id="secret-answer" name="secret_answer" required>
                         </div>
-                        <div class="requirement" data-requirement="number">
-                            <i class="fas fa-circle"></i>
-                            <span>Камтылган сандар</span>
+                        <div class="form-group password-field">
+                            <label for="new-password">New Password</label>
+                            <div class="input-wrapper">
+                                <input type="password" class="form-control" id="new-password" name="new_password" required>
+                                <button type="button" class="toggle-password" onclick="togglePasswordVisibility(this)">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <div id="new-password-indicator" class="validation-indicator"></div>
+                                <div id="new-password-message" class="validation-message"></div>
+                            </div>
                         </div>
-                        <div class="requirement" data-requirement="special">
-                            <i class="fas fa-circle"></i>
-                            <span>Камтылган атайын символдор (!@#$%^&*)</span>
+                        <div class="form-group password-field">
+                            <label for="confirm-password">Confirm Password</label>
+                            <div class="input-wrapper">
+                                <input type="password" class="form-control" id="confirm-password" name="confirm_password" required>
+                                <button type="button" class="toggle-password" onclick="togglePasswordVisibility(this)">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+                                <div id="confirm-password-indicator" class="validation-indicator"></div>
+                                <div id="confirm-password-message" class="validation-message"></div>
+                            </div>
                         </div>
-                    </div>
+                        <div class="form-actions">
+                            <button type="submit" class="btn btn-primary">Reset Password</button>
+                            <button type="button" class="btn btn-secondary" id="cancel-forgot-password">Cancel</button>
+                        </div>
+                    </form>
                 </div>
-                <div class="form-group">
-                    <div class="password-field">
-                        <input type="password" id="confirm-new-password" placeholder="Жаңы сырсөздү ырастаңыз" required>
-                        <span class="toggle-password" tabindex="0" role="button" aria-label="Toggle password visibility">
-                            <img src="/static/images/eye.svg" alt="Toggle password visibility">
-                        </span>
-                        <div class="validation-indicator" id="confirm-password-indicator"></div>
-                    </div>
-                    <div class="validation-message" id="forgot-password-match-validation">
-                        Сырсөздөр дал келбейт
-                    </div>
-                </div>
-                <div class="form-actions">
-                    <button type="submit" class="primary-btn">Сырсөздү өзгөртүү</button>
-                    <button type="button" class="secondary-btn" id="cancel-forgot-password">Жокко чыгаруу</button>
-                </div>
-            </form>
+            </div>
         </div>
     </div>
 

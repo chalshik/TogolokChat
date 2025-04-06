@@ -1,0 +1,102 @@
+<!DOCTYPE html>
+<html lang="ky">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TogolokChat</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="/static/css/chat.css">
+</head>
+<body>
+    <!-- Chat Container -->
+    <div class="chat-container" id="chat-container">
+        <div class="app">
+            <!-- Sidebar -->
+            <div class="sidebar">
+                <div class="sidebar-header">
+                    <div class="user-avatar">
+                        <div class="chat-avatar">U</div>
+                    </div>
+                    <div class="sidebar-header-right">
+                        <span class="icon">⟳</span>
+                        <span class="icon">✉</span>
+                        <span class="icon">⋮</span>
+                    </div>
+                </div>
+                
+                <div class="sidebar-search">
+                    <div class="search-container">
+                        <span>🔍</span>
+                        <input type="text" placeholder="Search or start new chat" />
+                    </div>
+                </div>
+                
+                <div class="sidebar-chats">
+                    <div class="chat active">
+                        <div class="chat-avatar">J</div>
+                        <div class="chat-info">
+                            <h2>John Smith</h2>
+                            <p>Hey, how are you?</p>
+                        </div>
+                        <span class="chat-timestamp">3:45 PM</span>
+                    </div>
+                    
+                    <div class="chat">
+                        <div class="chat-avatar">S</div>
+                        <div class="chat-info">
+                            <h2>Sarah Johnson</h2>
+                            <p>Did you get the files I sent?</p>
+                        </div>
+                        <span class="chat-timestamp">1:30 PM</span>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Chat -->
+            <div class="chat-body">
+                <div class="chat-header">
+                    <div class="chat-avatar">J</div>
+                    <div class="chat-header-info">
+                        <h3>John Smith</h3>
+                        <p>Last seen today at 3:55 PM</p>
+                    </div>
+                    <div class="chat-header-right">
+                        <span class="icon">🔍</span>
+                        <span class="icon">📎</span>
+                        <span class="icon">⋮</span>
+                    </div>
+                </div>
+                
+                <div class="chat-messages">
+                    <div class="chat-message">
+                        <span class="chat-name">John</span>
+                        Hey there! How's it going?
+                        <span class="chat-timestamp">3:30 PM</span>
+                    </div>
+                    
+                    <div class="chat-message chat-receiver">
+                        <span class="chat-name">You</span>
+                        Hi John! I'm doing well, thanks for asking. How about you?
+                        <span class="chat-timestamp">3:32 PM</span>
+                    </div>
+                </div>
+                
+                <div class="chat-footer">
+                    <div class="icon">😊</div>
+                    <div class="icon">📎</div>
+                    <form id="chat-form">
+                        <input type="text" placeholder="Type a message" />
+                        <button type="submit" class="send-button">➤</button>
+                    </form>
+                    <div class="icon">🎤</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/chat.js"></script>
+</body>
+</html> 

@@ -133,7 +133,7 @@ body::before {
 .input-group {
     position: relative;
     width: 100%;
-    margin-bottom: 8px;
+    margin-bottom: 15px;
 }
 
 /* Register form specific styles */
@@ -150,6 +150,52 @@ body::before {
     margin-top: 15px;
 }
 
+.password-field {
+    position: relative;
+    width: 100%;
+    margin-bottom: 15px;
+}
+
+.input-wrapper {
+    position: relative;
+    width: 100%;
+}
+
+.toggle-password {
+    position: absolute;
+    right: 10px;
+    top: 50%;
+    transform: translateY(-50%);
+    background: none;
+    border: none;
+    cursor: pointer;
+    z-index: 102;
+    padding: 5px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+}
+
+.toggle-password i {
+    color: #666;
+    font-size: 16px;
+    pointer-events: none;
+}
+
+.toggle-password:hover i {
+    color: #333;
+}
+
+.form-control {
+    width: 100%;
+    padding: 8px 35px 8px 12px;
+    border: 1px solid #ddd;
+    border-radius: 4px;
+    font-size: 14px;
+}
+
 input[type="text"],
 input[type="email"],
 input[type="password"] {
@@ -161,32 +207,6 @@ input[type="password"] {
     font-size: 0.9rem;
     background: rgba(255, 255, 255, 0.8);
     color: #333;
-}
-
-.password-field {
-    position: relative;
-    width: 100%;
-}
-
-.toggle-password {
-    position: absolute;
-    right: 40px;
-    top: 50%;
-    transform: translateY(-50%);
-    cursor: pointer;
-    width: 24px;
-    height: 24px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(255, 255, 255, 0.1);
-    border-radius: 50%;
-    transition: background 0.3s ease;
-    z-index: 2;
-}
-
-input[type="password"] {
-    padding-right: 75px !important;
 }
 
 .remember-me {
@@ -612,297 +632,175 @@ input[type="password"] {
 
 /* Password Requirements Styles */
 .password-requirements {
-    position: absolute;
-    background: rgba(0, 0, 0, 0.8);
-    padding: 12px;
-    border-radius: 15px;
-    text-align: left;
-    color: white;
-    font-size: 0.9rem;
-    z-index: 100;
-    display: none;
-    width: 250px;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-    top: 0;
-    left: 0;
+    position: absolute !important;
+    right: 100% !important;
+    top: 0 !important;
+    background-color: rgba(0, 0, 0, 0.9) !important;
+    color: white !important;
+    padding: 15px !important;
+    border-radius: 4px !important;
+    font-size: 12px !important;
+    display: none !important;
+    z-index: 1000 !important;
+    width: 300px !important;
+    margin-right: 10px !important;
 }
 
 .password-requirements.show {
-    display: block;
+    display: block !important;
 }
 
 .requirement {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    margin: 4px 0;
+    margin: 5px 0 !important;
+    display: flex !important;
+    align-items: center !important;
+    gap: 8px !important;
 }
 
 .requirement i {
-    width: 16px;
-    height: 16px;
-    display: inline-flex;
-    align-items: center;
-    justify-content: center;
-    border-radius: 50%;
-    font-size: 12px;
+    width: 8px !important;
+    height: 8px !important;
+    border-radius: 50% !important;
+    background-color: #ccc !important;
+    display: inline-block !important;
 }
 
 .requirement.valid i {
-    background-color: #2F7A4D;
-    color: white;
-}
-
-.requirement.invalid i {
-    background-color: rgba(255, 255, 255, 0.2);
-    color: rgba(255, 255, 255, 0.6);
+    background-color: #4CAF50 !important;
 }
 
 /* Validation Styles */
-input:invalid {
-    border: 2px solid rgba(255, 87, 87, 0.5);
-}
-
 .validation-indicator {
     position: absolute;
-    right: 40px;
+    right: 45px;
     top: 50%;
     transform: translateY(-50%);
     width: 12px;
     height: 12px;
     border-radius: 50%;
-    background-color: #ff5757;
-    display: none;
+    background-color: transparent;
+    border: 2px solid #ccc;
+    z-index: 10;
     cursor: pointer;
+    display: none;
+}
+
+.validation-indicator.valid {
+    background-color: #4CAF50;
+    border-color: #4CAF50;
+    display: block;
+}
+
+.validation-indicator.invalid {
+    background-color: #f44336;
+    border-color: #f44336;
+    display: block;
 }
 
 .validation-message {
-    display: none;
-    color: #ff5757;
-    font-size: 0.85rem;
-    margin-top: 8px;
-    text-align: left;
-    padding: 8px 12px;
-    background: rgba(255, 87, 87, 0.1);
-    border-radius: 12px;
-}
-
-/* Adjust remember-me spacing for login form */
-#login-form .remember-me {
-    margin: 12px 0;
-}
-
-.security-input-group {
-    margin-bottom: 15px;
-    text-align: left;
-}
-
-.security-input-group label {
-    display: block;
-    color: #333;
-    margin-bottom: 5px;
-    font-size: 0.9rem;
-}
-
-.security-input-group input {
-    width: 100%;
-    padding: 10px 15px;
-    border: 1px solid #ddd;
-    border-radius: 25px;
-    font-size: 0.9rem;
-    background: white;
-    color: #333;
-}
-
-.security-input-group input:focus {
-    outline: none;
-    border-color: #2F7A4D;
-}
-
-.modal {
-    display: none;
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100%;
-    height: 100%;
-    background: rgba(0, 0, 0, 0.5);
-    z-index: 1000;
-    justify-content: center;
-    align-items: center;
-}
-
-.modal.show {
-    display: flex;
-}
-
-.modal-content {
-    background: white;
-    padding: 2rem;
-    border-radius: 25px;
-    width: 90%;
-    max-width: 400px;
-    text-align: center;
-    position: relative;
-}
-
-.modal-content h2 {
-    margin-bottom: 1rem;
-    color: #333;
-    font-size: 1.5rem;
-}
-
-.modal-content p {
-    margin-bottom: 1.5rem;
-    color: #666;
-    font-size: 0.9rem;
-    line-height: 1.4;
-}
-
-.modal-buttons {
-    display: flex;
-    justify-content: center;
-    gap: 1rem;
-    margin-top: 1.5rem;
-}
-
-.modal-btn {
-    padding: 10px 25px;
-    border: none;
-    border-radius: 25px;
-    cursor: pointer;
-    font-size: 0.9rem;
-    transition: background-color 0.3s ease;
-}
-
-.modal-btn.primary {
-    background: #2F7A4D;
-    color: white;
-}
-
-.modal-btn.primary:hover {
-    background: #266B42;
-}
-
-.modal-btn.secondary {
-    background: #e0e0e0;
-    color: #333;
-}
-
-.modal-btn.secondary:hover {
-    background: #d0d0d0;
-}
-
-#forgot-password-modal .modal-content {
-    max-width: 400px;
-    padding: 30px;
-}
-
-#forgot-password-modal h2 {
-    text-align: center;
-    margin-bottom: 25px;
-    color: #333;
-}
-
-#forgot-password-form .form-group {
-    margin-bottom: 20px;
-}
-
-#forgot-password-form input {
-    width: 100%;
-    padding: 12px;
-    border: 1px solid #ddd;
-    border-radius: 25px;
-    font-size: 14px;
-    transition: border-color 0.3s;
-}
-
-#forgot-password-form input:focus {
-    border-color: #007bff;
-    outline: none;
-}
-
-#forgot-password-form .form-actions {
-    display: flex;
-    gap: 10px;
-    justify-content: space-between;
-}
-
-#forgot-password-form .form-actions button {
-    flex: 1;
-    padding: 12px;
-    border-radius: 25px;
-    cursor: pointer;
-    font-weight: 500;
-    transition: background-color 0.3s;
-}
-
-#forgot-password-form .primary-btn {
-    background: #007bff;
-    color: white;
-    border: none;
-}
-
-#forgot-password-form .secondary-btn {
-    background: #f8f9fa;
-    color: #333;
-    border: 1px solid #ddd;
-}
-
-#forgot-password-form .primary-btn:hover {
-    background: #0056b3;
-}
-
-#forgot-password-form .secondary-btn:hover {
-    background: #e9ecef;
-}
-
-#forgot-password-form .validation-message {
-    display: none;
-    color: #ff5757;
-    font-size: 0.85rem;
-    margin-top: 8px;
-    text-align: left;
-    padding: 8px 12px;
-    background: rgba(255, 87, 87, 0.1);
-    border-radius: 12px;
-}
-
-#forgot-password-form .password-field {
-    position: relative;
-    width: 100%;
-}
-
-#forgot-password-form .toggle-password {
     position: absolute;
-    right: 12px;
+    right: 65px;
     top: 50%;
     transform: translateY(-50%);
-    cursor: pointer;
-    width: 24px;
-    height: 24px;
+    background-color: rgba(0, 0, 0, 0.8);
+    color: white;
+    padding: 6px 12px;
+    border-radius: 4px;
+    font-size: 12px;
+    white-space: nowrap;
+    z-index: 11;
+    display: none;
+}
+
+#forgot-password-modal .validation-indicator {
+    position: absolute !important;
+    right: 35px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    width: 12px !important;
+    height: 12px !important;
+    border-radius: 50% !important;
+    background-color: transparent !important;
+    border: 2px solid #ccc !important;
+    z-index: 100 !important;
+    pointer-events: auto !important;
+    cursor: pointer !important;
+}
+
+#forgot-password-modal .validation-indicator.valid {
+    background-color: #4CAF50 !important;
+    border-color: #4CAF50 !important;
+    display: block !important;
+}
+
+#forgot-password-modal .validation-indicator.invalid {
+    background-color: #f44336 !important;
+    border-color: #f44336 !important;
+    display: block !important;
+}
+
+#forgot-password-modal .validation-message {
+    position: absolute !important;
+    right: 55px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    background-color: rgba(0, 0, 0, 0.7) !important;
+    color: white !important;
+    padding: 6px 12px !important;
+    border-radius: 4px !important;
+    font-size: 12px !important;
+    white-space: nowrap !important;
+    z-index: 101 !important;
+}
+
+#forgot-password-modal .password-field {
+    position: relative !important;
+    margin-bottom: 1rem !important;
+    width: 100% !important;
+}
+
+#forgot-password-modal .toggle-password {
+    position: absolute !important;
+    right: 8px !important;
+    top: 50% !important;
+    transform: translateY(-50%) !important;
+    z-index: 102 !important;
+}
+
+#forgot-password-modal .password-requirements {
+    position: absolute;
+    right: 100%;
+    top: 0;
+    background-color: rgba(0, 0, 0, 0.9);
+    color: white;
+    padding: 15px;
+    border-radius: 4px;
+    font-size: 12px;
+    display: none;
+    z-index: 1000;
+    width: 300px;
+    margin-right: 10px;
+}
+
+#forgot-password-modal .password-requirements.show {
+    display: block;
+}
+
+#forgot-password-modal .requirement {
+    margin: 5px 0;
     display: flex;
     align-items: center;
-    justify-content: center;
-    z-index: 10;
-    pointer-events: auto;
-    background: transparent;
-    border: none;
-    padding: 0;
+    gap: 8px;
 }
 
-#forgot-password-form .toggle-password img {
-    width: 20px;
-    height: 20px;
-    opacity: 0.6;
-    transition: opacity 0.3s;
-    pointer-events: none;
+#forgot-password-modal .requirement i {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: #ccc;
+    display: inline-block;
 }
 
-#forgot-password-form .toggle-password:hover img {
-    opacity: 1;
-}
-
-#forgot-password-form input[type="password"] {
-    padding-right: 40px;
+#forgot-password-modal .requirement.valid i {
+    background-color: #4CAF50;
 }
