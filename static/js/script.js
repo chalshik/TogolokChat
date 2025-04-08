@@ -1,18 +1,28 @@
 // Add this at the beginning of the file, before any event listeners
 function togglePasswordVisibility(button) {
-    const input = button.previousElementSibling;
+    console.log('Toggle password visibility clicked');
+    
+    // Find the input field - it's the previous sibling of the button's parent
+    const input = button.closest('.password-field').querySelector('input[type="password"], input[type="text"]');
     const icon = button.querySelector('i');
+    
+    console.log('Input found:', input);
+    console.log('Icon found:', icon);
     
     if (input && icon) {
         if (input.type === 'password') {
             input.type = 'text';
             icon.classList.remove('fa-eye');
             icon.classList.add('fa-eye-slash');
+            console.log('Password now visible');
         } else {
             input.type = 'password';
             icon.classList.remove('fa-eye-slash');
             icon.classList.add('fa-eye');
+            console.log('Password now hidden');
         }
+    } else {
+        console.error('Could not find input or icon');
     }
 }
 
