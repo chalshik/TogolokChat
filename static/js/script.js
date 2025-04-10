@@ -1,9 +1,21 @@
-// Add this at the beginning of the file, before any event listeners
 function togglePasswordVisibility(button) {
     console.log('Toggle password visibility clicked');
     
-    // Find the input field - it's the previous sibling of the button's parent
-    const input = button.closest('.password-field').querySelector('input[type="password"], input[type="text"]');
+    // Find the input field - it's within the same container as the button
+    let input;
+    
+    // Check if we're in the forgot password modal
+    if (button.closest('#forgot-password-modal')) {
+        input = button.closest('.input-wrapper').querySelector('input[type="password"], input[type="text"]');
+        if (!input) {
+            // Fallback to password-field if input-wrapper doesn't contain the input
+            input = button.closest('.password-field').querySelector('input[type="password"], input[type="text"]');
+        }
+    } else {
+        // For login and register forms
+        input = button.closest('.password-field').querySelector('input[type="password"], input[type="text"]');
+    }
+    
     const icon = button.querySelector('i');
     
     console.log('Input found:', input);
@@ -476,19 +488,9 @@ document.addEventListener('DOMContentLoaded', () => {
             e.preventDefault();
             e.stopPropagation(); // Prevent event from bubbling up
             console.log('Forgot password toggle button clicked');
-            const input = button.parentElement.querySelector('input');
-            const type = input.getAttribute('type');
-            const img = button.querySelector('img');
             
-            console.log('Current input type:', type);
-            
-            if (type === 'password') {
-                input.setAttribute('type', 'text');
-                img.style.opacity = '1';
-            } else {
-                input.setAttribute('type', 'password');
-                img.style.opacity = '0.6';
-            }
+            // Use the togglePasswordVisibility function directly
+            togglePasswordVisibility(button);
         });
     });
 
@@ -527,18 +529,28 @@ document.addEventListener('DOMContentLoaded', () => {
                         e.preventDefault();
                         e.stopPropagation();
                         console.log('Toggle button clicked (re-attached)');
-                        const input = newButton.parentElement.querySelector('input');
-                        const type = input.getAttribute('type');
-                        const img = newButton.querySelector('img');
                         
-                        console.log('Current input type:', type);
+                        // Use the same approach as the main togglePasswordVisibility function
+                        const input = newButton.closest('.input-wrapper').querySelector('input[type="password"], input[type="text"]');
+                        const icon = newButton.querySelector('i');
                         
-                        if (type === 'password') {
-                            input.setAttribute('type', 'text');
-                            img.style.opacity = '1';
+                        console.log('Input found:', input);
+                        console.log('Icon found:', icon);
+                        
+                        if (input && icon) {
+                            if (input.type === 'password') {
+                                input.type = 'text';
+                                icon.classList.remove('fa-eye');
+                                icon.classList.add('fa-eye-slash');
+                                console.log('Password now visible');
+                            } else {
+                                input.type = 'password';
+                                icon.classList.remove('fa-eye-slash');
+                                icon.classList.add('fa-eye');
+                                console.log('Password now hidden');
+                            }
                         } else {
-                            input.setAttribute('type', 'password');
-                            img.style.opacity = '0.6';
+                            console.error('Could not find input or icon');
                         }
                     });
                 });

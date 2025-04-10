@@ -11,87 +11,412 @@
     <link rel="stylesheet" href="/static/css/chat.css">
 </head>
 <body>
-    <!-- Chat Container -->
-    <div class="chat-container" id="chat-container">
-        <div class="app">
-            <!-- Sidebar -->
-            <div class="sidebar">
-                <div class="sidebar-header">
-                    <div class="user-avatar">
-                        <div class="chat-avatar">U</div>
+    <div class="chat-container">
+        <!-- Left Sidebar -->
+        <div class="sidebar">
+            <!-- Logo and Header -->
+            <div class="logo-header">
+                <img src="/static/images/logo.png" alt="TogolokChat Logo" class="logo-icon">
+                <span class="logo-text">TogolokChat</span>
+            </div>
+            
+            <!-- Search Bar -->
+            <div class="search-container">
+                <div class="search-box">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="Тегерек үстөлдү издөө">
+                </div>
+            </div>
+            
+            <!-- Chats List -->
+            <div class="chats-list">
+                <!-- Groups -->
+                <div class="chat-item" data-chat-id="group1" data-chat-type="group">
+                    <div class="chat-avatar">
+                        <img src="/static/images/group_icon.png" alt="Group">
                     </div>
-                    <div class="sidebar-header-right">
-                        <span class="icon">⟳</span>
-                        <span class="icon">✉</span>
-                        <span class="icon">⋮</span>
+                    <div class="chat-info">
+                        <div class="chat-header">
+                            <h3>AIT-CS'24</h3>
+                            <span class="time">11:51 PM</span>
+                        </div>
+                        <div class="last-message">
+                            <p>Эртең саат 11:00де сабак болот</p>
+                            <span class="message-status unread">2</span>
+                        </div>
                     </div>
                 </div>
                 
-                <div class="sidebar-search">
-                    <div class="search-container">
-                        <span>🔍</span>
-                        <input type="text" placeholder="Search or start new chat" />
+                <!-- Personal Chats -->
+                <div class="chat-item" data-chat-id="user1" data-chat-type="user">
+                    <div class="chat-avatar">
+                        <img src="/static/images/contact_logo.png" alt="User">
                     </div>
-                </div>
-                
-                <div class="sidebar-chats">
-                    <div class="chat active">
-                        <div class="chat-avatar">J</div>
-                        <div class="chat-info">
-                            <h2>John Smith</h2>
-                            <p>Hey, how are you?</p>
+                    <div class="chat-info">
+                        <div class="chat-header">
+                            <h3>Нурмухаммед</h3>
+                            <span class="time">12:38 AM</span>
                         </div>
-                        <span class="chat-timestamp">3:45 PM</span>
-                    </div>
-                    
-                    <div class="chat">
-                        <div class="chat-avatar">S</div>
-                        <div class="chat-info">
-                            <h2>Sarah Johnson</h2>
-                            <p>Did you get the files I sent?</p>
+                        <div class="last-message">
+                            <p>Классикага кошумча балл берилебү?</p>
+                            <span class="message-status read"></span>
                         </div>
-                        <span class="chat-timestamp">1:30 PM</span>
                     </div>
                 </div>
             </div>
             
-            <!-- Chat -->
-            <div class="chat-body">
-                <div class="chat-header">
-                    <div class="chat-avatar">J</div>
-                    <div class="chat-header-info">
-                        <h3>John Smith</h3>
-                        <p>Last seen today at 3:55 PM</p>
+            <!-- Bottom Navigation -->
+            <div class="bottom-nav">
+                <div class="nav-item">
+                    <i class="fas fa-users"></i>
+                </div>
+                <div class="nav-item">
+                    <i class="fas fa-cog"></i>
+                </div>
+                <div class="nav-item">
+                    <i class="fas fa-user-plus"></i>
+                </div>
+                <div class="nav-item">
+                    <i class="fas fa-user"></i>
+                </div>
+            </div>
+        </div>
+
+        <!-- Main Chat Area -->
+        <div class="main-chat">
+            <!-- Chat Header -->
+            <div class="chat-header" id="chat-header">
+                <div class="chat-info">
+                    <div class="chat-avatar">
+                        <img src="/static/images/group_icon.png" alt="Current Chat" id="current-chat-avatar">
                     </div>
-                    <div class="chat-header-right">
-                        <span class="icon">🔍</span>
-                        <span class="icon">📎</span>
-                        <span class="icon">⋮</span>
+                    <div class="chat-details">
+                        <h2 id="current-chat-title">AIT-CS'24</h2>
+                        <p id="current-chat-subtitle">Эмил Агай, Мурат Агай, Нурмухаммед, Акбар, Ынтымак...</p>
+                    </div>
+                </div>
+                <div class="chat-actions">
+                    <i class="fas fa-search"></i>
+                    <i class="fas fa-ellipsis-v"></i>
+                </div>
+            </div>
+
+            <!-- Messages Area -->
+            <div class="messages-container" id="group1-messages">
+                <!-- Group 1 messages -->
+                <div class="message received">
+                    <div class="message-avatar">
+                        <img src="/static/images/contact_logo.png" alt="User">
+                    </div>
+                    <div class="message-content">
+                        <div class="message-info">
+                            <span class="sender-name">Нурмухаммед</span>
+                            <span class="message-time">12:38 AM</span>
+                        </div>
+                        <p>Классикага кошумча балл берилебү?</p>
+                    </div>
+                </div>
+
+                <div class="message sent">
+                    <div class="message-content">
+                        <div class="message-info">
+                            <span class="message-time">12:39 AM</span>
+                            <span class="message-status">
+                                <i class="fas fa-check-double"></i>
+                            </span>
+                        </div>
+                        <p>Оо, креативдүү 😊</p>
                     </div>
                 </div>
                 
-                <div class="chat-messages">
-                    <div class="chat-message">
-                        <span class="chat-name">John</span>
-                        Hey there! How's it going?
-                        <span class="chat-timestamp">3:30 PM</span>
+                <div class="message received">
+                    <div class="message-avatar">
+                        <img src="/static/images/contact_logo.png" alt="User">
                     </div>
-                    
-                    <div class="chat-message chat-receiver">
-                        <span class="chat-name">You</span>
-                        Hi John! I'm doing well, thanks for asking. How about you?
-                        <span class="chat-timestamp">3:32 PM</span>
+                    <div class="message-content">
+                        <div class="message-info">
+                            <span class="sender-name">Тоголоктакт(3)</span>
+                            <span class="message-time">10:44 AM</span>
+                        </div>
+                        <p>Бүгүн сабактар болбойт</p>
                     </div>
                 </div>
                 
-                <div class="chat-footer">
-                    <div class="icon">😊</div>
-                    <div class="icon">📎</div>
-                    <form id="chat-form">
-                        <input type="text" placeholder="Type a message" />
-                        <button type="submit" class="send-button">➤</button>
-                    </form>
-                    <div class="icon">🎤</div>
+                <div class="message received">
+                    <div class="message-avatar">
+                        <img src="/static/images/contact_logo.png" alt="User">
+                    </div>
+                    <div class="message-content">
+                        <div class="message-info">
+                            <span class="sender-name">Тоголоктакт(1)</span>
+                            <span class="message-time">10:59 AM</span>
+                        </div>
+                        <p><a href="https://meet.google.com/kvi-foaa-cwy" class="message-link">https://meet.google.com/kvi-foaa-cwy</a></p>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- User 1 messages - initially hidden -->
+            <div class="messages-container" id="user1-messages" style="display: none;">
+                <div class="message received">
+                    <div class="message-avatar">
+                        <img src="/static/images/contact_logo.png" alt="User">
+                    </div>
+                    <div class="message-content">
+                        <div class="message-info">
+                            <span class="sender-name">Нурмухаммед</span>
+                            <span class="message-time">11:44 PM</span>
+                        </div>
+                        <p>Биз эмне кылабыз?</p>
+                    </div>
+                </div>
+                
+                <div class="message sent">
+                    <div class="message-content">
+                        <div class="message-info">
+                            <span class="message-time">11:51 PM</span>
+                            <span class="message-status">
+                                <i class="fas fa-check-double"></i>
+                            </span>
+                        </div>
+                        <p>Сабак башталдыбы?</p>
+                    </div>
+                </div>
+                
+                <div class="message received">
+                    <div class="message-avatar">
+                        <img src="/static/images/contact_logo.png" alt="User">
+                    </div>
+                    <div class="message-content">
+                        <div class="message-info">
+                            <span class="sender-name">Нурмухаммед</span>
+                            <span class="message-time">9:00 AM</span>
+                        </div>
+                        <p>Аа, мен да кеттам, тыгым экен бул жерлер</p>
+                    </div>
+                </div>
+                
+                <div class="message received">
+                    <div class="message-avatar">
+                        <img src="/static/images/contact_logo.png" alt="User">
+                    </div>
+                    <div class="message-content">
+                        <div class="message-info">
+                            <span class="sender-name">Нурмухаммед</span>
+                            <span class="message-time">10:44 AM</span>
+                        </div>
+                        <p>Башталса мага жазып койчу</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Input Area -->
+            <div class="input-container">
+                <div class="input-actions">
+                    <i class="far fa-smile"></i>
+                    <i class="fas fa-paperclip"></i>
+                </div>
+                <div class="input-box">
+                    <input type="text" placeholder="Кабарыңызды жазыңыз">
+                </div>
+                <div class="send-button">
+                    <i class="fas fa-paper-plane"></i>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Group Profile Sidebar -->
+        <div class="profile-sidebar" id="group-profile-sidebar">
+            <div class="profile-header">
+                <div class="close-btn" id="close-group-profile">
+                    <i class="fas fa-times"></i>
+                </div>
+                <div class="group-info">
+                    <div class="group-avatar" id="edit-group-avatar">
+                        <img src="/static/images/group_icon.png" alt="Group" id="group-avatar-img">
+                        <div class="edit-overlay">
+                            <i class="fas fa-camera"></i>
+                        </div>
+                    </div>
+                    <div class="group-name">
+                        <h2 id="group-name-display">AIT-CS'24</h2>
+                        <a href="#" class="edit-group" id="edit-group-name"><i class="fas fa-pen"></i></a>
+                    </div>
+                    <div class="group-members-count">
+                        Катышуучулардын саны: 60
+                    </div>
+                </div>
+            </div>
+            
+            <div class="members-list">
+                <div class="member">
+                    <div class="member-avatar">
+                        <img src="/static/images/contact_logo.png" alt="User">
+                    </div>
+                    <div class="member-name">Эмил Агай</div>
+                </div>
+                
+                <div class="member">
+                    <div class="member-avatar">
+                        <img src="/static/images/contact_logo.png" alt="User">
+                    </div>
+                    <div class="member-name">Мурара Эжеке</div>
+                </div>
+                
+                <div class="member">
+                    <div class="member-avatar">
+                        <img src="/static/images/contact_logo.png" alt="User">
+                    </div>
+                    <div class="member-name">Улан Агай</div>
+                </div>
+                
+                <div class="member">
+                    <div class="member-avatar">
+                        <div class="online-indicator"></div>
+                        <img src="/static/images/contact_logo.png" alt="User">
+                    </div>
+                    <div class="member-name">Нурмухаммед</div>
+                </div>
+                
+                <div class="member">
+                    <div class="member-avatar">
+                        <img src="/static/images/contact_logo.png" alt="User">
+                    </div>
+                    <div class="member-name">Акбар</div>
+                </div>
+                
+                <div class="member">
+                    <div class="member-avatar">
+                        <img src="/static/images/contact_logo.png" alt="User">
+                    </div>
+                    <div class="member-name">Ынтымак</div>
+                </div>
+                
+                <div class="member">
+                    <div class="member-avatar">
+                        <img src="/static/images/contact_logo.png" alt="User">
+                    </div>
+                    <div class="member-name">Атабек</div>
+                </div>
+                
+                <div class="member">
+                    <div class="member-avatar">
+                        <img src="/static/images/contact_logo.png" alt="User">
+                    </div>
+                    <div class="member-name">Нуртилек</div>
+                </div>
+            </div>
+            
+            <div class="profile-actions">
+                <button class="action-btn leave-group">
+                    <i class="fas fa-sign-out-alt"></i> Чыгуу
+                </button>
+                <button class="action-btn add-member">
+                    <i class="fas fa-user-plus"></i> Кошуу
+                </button>
+            </div>
+        </div>
+        
+        <!-- Contact Profile Sidebar -->
+        <div class="profile-sidebar" id="contact-profile-sidebar">
+            <div class="profile-header">
+                <div class="close-btn" id="close-contact-profile">
+                    <i class="fas fa-times"></i>
+                </div>
+                <div class="contact-info">
+                    <div class="contact-avatar" id="contact-avatar">
+                        <img src="/static/images/contact_logo.png" alt="Contact" id="contact-avatar-img">
+                    </div>
+                    <div class="contact-name">
+                        <h2 id="contact-name-display">Нурмухаммед</h2>
+                        <a href="#" class="edit-contact" id="edit-contact-name"><i class="fas fa-pen"></i></a>
+                    </div>
+                    <div class="contact-nickname">
+                        ~Jaman_bala
+                    </div>
+                </div>
+            </div>
+            
+            <div class="contact-details">
+                <h3>Маалымат:</h3>
+                <p id="contact-info-text">
+                    ТоголокЧатты нөлдөн жасап чыккан иштепчыгуучу мына мен болом, аты-жөнүм Нурмухаммед Калмаматов, ЖАМАН БАЛА
+                </p>
+            </div>
+            
+            <div class="profile-actions contact-actions">
+                <button class="action-btn report-contact">
+                    <i class="fas fa-flag"></i> Даттануу
+                </button>
+            </div>
+        </div>
+        
+        <!-- Edit Group Name Modal -->
+        <div class="modal" id="edit-name-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Группа аталышын өзгөртүү</h3>
+                    <span class="modal-close">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="group-name-input">Жаңы аталыш:</label>
+                        <input type="text" id="group-name-input" class="form-control" placeholder="Группанын аталышын киргизиңиз">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn cancel-btn">Жокко чыгаруу</button>
+                    <button class="btn save-btn" id="save-name-btn">Сактоо</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Edit Group Avatar Modal -->
+        <div class="modal" id="edit-avatar-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Группа сүрөтүн өзгөртүү</h3>
+                    <span class="modal-close">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <div class="avatar-upload">
+                        <div class="avatar-preview">
+                            <img src="/static/images/group_icon.png" id="avatar-preview-img" alt="Preview">
+                        </div>
+                        <div class="avatar-options">
+                            <button class="btn upload-btn">
+                                <i class="fas fa-upload"></i> Сүрөт тандоо
+                                <input type="file" id="avatar-upload" accept="image/*" hidden>
+                            </button>
+                            <button class="btn remove-btn" id="remove-avatar-btn">
+                                <i class="fas fa-trash"></i> Сүрөттү алып салуу
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn cancel-btn">Жокко чыгаруу</button>
+                    <button class="btn save-btn" id="save-avatar-btn">Сактоо</button>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Edit Contact Name Modal -->
+        <div class="modal" id="edit-contact-name-modal">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h3>Аталышын өзгөртүү</h3>
+                    <span class="modal-close">&times;</span>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="contact-name-input">Жаңы аталыш:</label>
+                        <input type="text" id="contact-name-input" class="form-control" placeholder="Аталышын киргизиңиз">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn cancel-btn">Жокко чыгаруу</button>
+                    <button class="btn save-btn" id="save-contact-name-btn">Сактоо</button>
                 </div>
             </div>
         </div>
