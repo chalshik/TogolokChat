@@ -285,20 +285,30 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Function to get the active messages container
     function getActiveMessagesContainer() {
-        return document.getElementById(`${currentChatId}-messages`);
+        const containerId = `${currentChatId}-messages`;
+        console.log('Attempting to find messages container with ID:', containerId);
+        const container = document.getElementById(containerId);
+        console.log('Found container:', container);
+        return container;
     }
 
     // Function to send message
     function sendMessage(message) {
+        console.log('sendMessage called for chat ID:', currentChatId, 'Type:', currentChatType);
         if (!message.trim()) return;
 
         const messagesContainer = getActiveMessagesContainer();
-        if (!messagesContainer) return;
+        if (!messagesContainer) {
+            console.error('Could not find the active messages container!');
+            return;
+        }
 
+        console.log('Appending message to container:', messagesContainer.id);
         const messageElement = createMessageElement(message, true);
         messagesContainer.appendChild(messageElement);
         messagesContainer.scrollTop = messagesContainer.scrollHeight;
         inputBox.value = '';
+        console.log('Message sent and input cleared.');
 
         // Simulate received message after a delay (with different responses based on chat type)
         setTimeout(() => {
@@ -358,6 +368,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Function to switch chat
     function switchChat(chatId, chatType) {
+        console.log('Switching chat to ID:', chatId, 'Type:', chatType);
         // Update current chat tracking
         currentChatId = chatId;
         currentChatType = chatType;
@@ -365,10 +376,16 @@ document.addEventListener('DOMContentLoaded', () => {
         // Hide all message containers and show the selected one
         messagesContainers.forEach(container => {
             container.classList.remove('active');
+            container.style.display = 'none'; // Explicitly hide
         });
         const targetContainer = document.getElementById(`${chatId}-messages`);
         if (targetContainer) {
+            console.log('Activating messages container:', targetContainer.id);
             targetContainer.classList.add('active');
+            targetContainer.style.display = 'flex'; // Explicitly show
+            targetContainer.scrollTop = targetContainer.scrollHeight; // Scroll to bottom on switch
+        } else {
+            console.error('Target messages container not found:', `${chatId}-messages`);
         }
         
         // Update chat header

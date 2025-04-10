@@ -229,6 +229,8 @@ body::before {
     display: flex;
     flex-direction: column;
     background: transparent;
+    position: relative;
+    overflow: hidden;
 }
 
 .chat-header {
@@ -238,6 +240,7 @@ body::before {
     justify-content: space-between;
     align-items: center;
     cursor: pointer;
+    flex-shrink: 0;
 }
 
 .chat-header .chat-info {
@@ -274,11 +277,17 @@ body::before {
 
 .messages-container {
     flex: 1;
+    min-height: 0;
     padding: 20px;
     overflow-y: auto;
-    display: flex;
+    display: none;
     flex-direction: column;
     gap: 20px;
+    padding-bottom: 80px;
+}
+
+.messages-container.active {
+    display: flex;
 }
 
 .message {
@@ -359,6 +368,12 @@ body::before {
     display: flex;
     align-items: center;
     gap: 15px;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    width: 100%;
 }
 
 .input-actions {
@@ -870,14 +885,4 @@ body::before {
 
 .report-contact:hover {
     background-color: #d32f2f;
-}
-
-/* Hide messages containers by default */
-.messages-container {
-    display: none;
-}
-
-/* Active messages container */
-.messages-container.active {
-    display: flex;
 } 
