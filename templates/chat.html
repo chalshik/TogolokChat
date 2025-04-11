@@ -9,77 +9,43 @@
     <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <link rel="stylesheet" href="/static/css/chat.css">
+    <link rel="stylesheet" href="/static/css/sidebar-views.css">
 </head>
 <body>
     <div class="chat-container">
         <!-- Left Sidebar -->
         <div class="sidebar">
-            <!-- Logo and Header -->
-            <div class="logo-header">
-                <img src="/static/images/logo.png" alt="TogolokChat Logo" class="logo-icon">
+            <!-- Sidebar Header (Logo/User Info - Keep or adjust as needed) -->
+            <div class="sidebar-header" id="sidebar-header">
+                <img src="/static/images/logo.png" alt="Logo" class="logo-icon">
                 <span class="logo-text">TogolokChat</span>
-            </div>
-            
-            <!-- Search Bar -->
-            <div class="search-container">
-                <div class="search-box">
-                    <i class="fas fa-search"></i>
-                    <input type="text" placeholder="Тегерек үстөлдү издөө">
+                <div class="header-actions">
+                    <button id="logout-btn" title="Logout">
+                        <i class="fas fa-sign-out-alt"></i>
+                    </button>
                 </div>
             </div>
-            
-            <!-- Chats List -->
-            <div class="chats-list">
-                <!-- Groups -->
-                <div class="chat-item" data-chat-id="group1" data-chat-type="group">
-                    <div class="chat-avatar">
-                        <img src="/static/images/group_icon.png" alt="Group">
-                    </div>
-                    <div class="chat-info">
-                        <div class="chat-header">
-                            <h3>AIT-CS'24</h3>
-                            <span class="time">11:51 PM</span>
-                        </div>
-                        <div class="last-message">
-                            <p>Эртең саат 11:00де сабак болот</p>
-                            <span class="message-status unread">2</span>
-                        </div>
-                    </div>
-                </div>
-                
-                <!-- Personal Chats -->
-                <div class="chat-item" data-chat-id="user1" data-chat-type="user">
-                    <div class="chat-avatar">
-                        <img src="/static/images/contact_logo.png" alt="User">
-                    </div>
-                    <div class="chat-info">
-                        <div class="chat-header">
-                            <h3>Нурмухаммед</h3>
-                            <span class="time">12:38 AM</span>
-                        </div>
-                        <div class="last-message">
-                            <p>Классикага кошумча балл берилебү?</p>
-                            <span class="message-status read"></span>
-                        </div>
-                    </div>
-                </div>
+
+            <!-- Dynamic Content Area -->
+            <div id="sidebar-content-area">
+                <!-- Sidebar views will be loaded dynamically by JavaScript -->
             </div>
-            
+
             <!-- Bottom Navigation -->
-            <div class="bottom-nav">
-                <div class="nav-item">
+            <nav class="sidebar-nav" style="display: flex; justify-content: space-around;">
+                <button class="nav-item" data-view="create-group" title="New Group">
                     <i class="fas fa-users"></i>
-                </div>
-                <div class="nav-item">
+                </button>
+                <button class="nav-item" data-view="settings" title="Settings">
                     <i class="fas fa-cog"></i>
-                </div>
-                <div class="nav-item">
+                </button>
+                <button class="nav-item" data-view="add-contact" title="Add Contact">
                     <i class="fas fa-user-plus"></i>
-                </div>
-                <div class="nav-item">
+                </button>
+                <button class="nav-item" data-view="profile" title="Profile">
                     <i class="fas fa-user"></i>
-                </div>
-            </div>
+                </button>
+            </nav>
         </div>
 
         <!-- Main Chat Area -->
@@ -360,8 +326,8 @@
                 </div>
                 <div class="modal-body">
                     <div class="form-group">
-                        <label for="group-name-input">Жаңы аталыш:</label>
-                        <input type="text" id="group-name-input" class="form-control" placeholder="Группанын аталышын киргизиңиз">
+                        <label for="group-name-input-1">Жаңы аталыш:</label>
+                        <input type="text" id="group-name-input-1" class="form-control" placeholder="Группанын аталышын киргизиңиз">
                     </div>
                 </div>
                 <div class="modal-footer">
@@ -422,6 +388,63 @@
         </div>
     </div>
 
+    <!-- Group Edit Modals (Add near the end of body) -->
+    <div id="edit-group-name-modal" class="modal" style="display: none !important;">
+        <div class="modal-content">
+            <span class="close-modal-btn">&times;</span>
+            <h3>Аталышын өзгөртүү</h3>
+            <label for="group-name-input-2">Жаңы аталыш:</label>
+            <input type="text" id="group-name-input-2" placeholder="Группанын жаңы аты">
+            <div class="modal-actions">
+                 <button id="cancel-group-name-btn" class="btn btn-secondary">Жокко чыгаруу</button>
+                <button id="save-group-name-btn" class="btn btn-primary">Сактоо</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="edit-group-avatar-modal" class="modal" style="display: none;">
+        <div class="modal-content">
+            <span class="close-modal-btn">&times;</span>
+            <h3>Группа сүрөтүн өзгөртүү</h3>
+            <div class="avatar-upload-area">
+                <img src="/static/images/group_icon.png" alt="Current Avatar" id="group-avatar-preview" class="avatar-preview">
+                <label for="group-avatar-upload" class="btn btn-secondary">Сүрөт тандоо</label>
+                <input type="file" id="group-avatar-upload" accept="image/*" style="display: none;">
+                 <button id="remove-group-avatar-btn" class="btn btn-danger">Сүрөттү өчүрүү</button>
+            </div>
+             <div class="modal-actions">
+                 <button id="cancel-group-avatar-btn" class="btn btn-secondary">Жокко чыгаруу</button>
+                 <button id="save-group-avatar-btn" class="btn btn-primary">Сактоо</button>
+             </div>
+        </div>
+    </div>
+    <!-- End Group Edit Modals -->
+
     <script src="/static/js/chat.js"></script>
+    <script>
+        // Hide all modals on page load
+        document.addEventListener('DOMContentLoaded', () => {
+            // Hide all modals
+            const modals = document.querySelectorAll('.modal');
+            modals.forEach(modal => {
+                modal.style.display = 'none';
+            });
+            
+            // Make sure sidebar content area exists
+            const sidebarContentArea = document.getElementById('sidebar-content-area');
+            if (sidebarContentArea) {
+                console.log("Sidebar content area found, loading chats view");
+                // Load the default sidebar view
+                if (typeof loadSidebarView === 'function') {
+                    loadSidebarView('chats');
+                } else {
+                    console.error("loadSidebarView function not found");
+                }
+            } else {
+                console.error("Sidebar content area not found");
+            }
+        });
+    </script>
+    <!-- Code injected by live-server -->
 </body>
 </html> 

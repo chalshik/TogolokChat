@@ -1291,4 +1291,257 @@ def get_group_message_status():
     conn.close()
     
     return jsonify({"status": result}), 200
+
+@bp.route('/api/potential-contacts', methods=['GET'])
+def api_potential_contacts():
+    # Get the current user ID from the session
+    from flask import session
+    user_id = session.get('user_id')
+    
+    if not user_id:
+        return jsonify({"message": "Not authenticated", "users": []}), 401
+
+    conn = connect_db()
+    cursor = conn.cursor()
+
+    # Get all users except the current user and those already in contacts
+    cursor.execute('''
+        SELECT id, username FROM users 
+        WHERE id != ? AND id NOT IN (
+            SELECT contact_id FROM contacts WHERE user_id = ?
+        )
+    ''', (user_id, user_id))
+    
+    user_rows = cursor.fetchall()
+    
+    # Format users
+    users = []
+    for row in user_rows:
+        user_id, username = row
+        
+        # Get profile photo if available
+        cursor.execute('''
+            SELECT photo FROM profile_photos
+            WHERE user_id = ?
+            ORDER BY id DESC
+            LIMIT 1
+        ''', (user_id,))
+        
+        photo_row = cursor.fetchone()
+        avatar = "/static/images/contact_logo.png"  # Default avatar
+        
+        if photo_row and photo_row[0]:
+            avatar = f"/uploads/{photo_row[0]}"
+        
+        users.append({
+            "id": user_id,
+            "username": username,
+            "avatar": avatar
+        })
+    
+    conn.close()
+    
+    return jsonify({"users": users}), 200
+
+@bp.route('/api/add-contact', methods=['POST'])
+def api_add_contact():
+    # Get the current user ID from the session
+    from flask import session
+    user_id = session.get('user_id')
+    
+    if not user_id:
+        return jsonify({"success": False, "message": "Not authenticated"}), 401
+    
+    data = request.get_json()
+    contact_id = data.get('contact_id')
+    
+    if not contact_id:
+        return jsonify({"success": False, "message": "Contact ID is required"}), 400
+    
+    # Convert to int if it's a string
+    try:
+        contact_id = int(contact_id)
+    except (ValueError, TypeError):
+        return jsonify({"success": False, "message": "Invalid contact ID"}), 400
+    
+    # Don't allow adding yourself
+    if int(user_id) == contact_id:
+        return jsonify({"success": False, "message": "Cannot add yourself as a contact"}), 400
+    
+    conn = connect_db()
+    cursor = conn.cursor()
+    
+    # Check if the contact exists
+    cursor.execute("SELECT * FROM users WHERE id = ?", (contact_id,))
+    contact = cursor.fetchone()
+    
+    if not contact:
+        conn.close()
+        return jsonify({"success": False, "message": "Contact not found"}), 404
+    
+    # Check if already a contact
+    cursor.execute('''
+        SELECT * FROM contacts 
+        WHERE user_id = ? AND contact_id = ?
+    ''', (user_id, contact_id))
+    
+    existing = cursor.fetchone()
+    
+    if existing:
+        conn.close()
+        return jsonify({"success": False, "message": "Already a contact"}), 400
+    
+    # Add the contact
+    try:
+        cursor.execute('''
+            INSERT INTO contacts (user_id, contact_id) 
+            VALUES (?, ?)
+        ''', (user_id, contact_id))
+        
+        # Also add the reverse relationship (bi-directional contacts)
+        cursor.execute('''
+            INSERT INTO contacts (user_id, contact_id) 
+            VALUES (?, ?)
+        ''', (contact_id, user_id))
+        
+        conn.commit()
+        conn.close()
+        
+        return jsonify({"success": True, "message": "Contact added successfully"}), 200
+    except Exception as e:
+        conn.rollback()
+        conn.close()
+        return jsonify({"success": False, "message": f"Error adding contact: {str(e)}"}), 500
+
+@bp.route('/api/contacts', methods=['GET'])
+def api_contacts():
+    from flask import session
+    # Get the current user ID from the session
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "User not authenticated"}), 401
+
+    conn = connect_db()
+    cursor = conn.cursor()
+
+    try:
+        # Get user's contacts
+        cursor.execute('''
+            SELECT c.contact_id, u.username, u.name, u.email, u.profile_picture
+            FROM contacts c
+            JOIN users u ON c.contact_id = u.id
+            WHERE c.user_id = ?
+        ''', (user_id,))
+        
+        contacts_data = cursor.fetchall()
+        
+        # Process the contacts data
+        contacts = []
+        for contact in contacts_data:
+            contact_id, username, name, email, profile_picture = contact
+            
+            # Check for the latest message between users (if any)
+            cursor.execute('''
+                SELECT message, time 
+                FROM messages 
+                WHERE (sender_id = ? AND receiver_id = ?) OR (sender_id = ? AND receiver_id = ?)
+                ORDER BY time DESC
+                LIMIT 1
+            ''', (user_id, contact_id, contact_id, user_id))
+            
+            last_message_data = cursor.fetchone()
+            last_message = None
+            last_message_time = None
+            
+            if last_message_data:
+                last_message = last_message_data[0]
+                last_message_time = last_message_data[1]
+            
+            # Check for unread messages
+            cursor.execute('''
+                SELECT COUNT(*) 
+                FROM messages 
+                WHERE sender_id = ? AND receiver_id = ? AND status = 'delivered'
+            ''', (contact_id, user_id))
+            
+            unread_count = cursor.fetchone()[0]
+            
+            # Use actual profile picture or default
+            avatar_url = f'/uploads/profile_photos/{profile_picture}' if profile_picture else '/static/images/contact_logo.png'
+            
+            contacts.append({
+                'id': contact_id,
+                'username': username,
+                'name': name or username,  # Use name if available, otherwise username
+                'email': email,
+                'is_group': False,
+                'avatar_url': avatar_url,
+                'last_message': last_message,
+                'last_message_time': last_message_time,
+                'unread_count': unread_count
+            })
+        
+        # Also get user's groups
+        cursor.execute('''
+            SELECT g.id, g.group_name, g.group_picture
+            FROM group_members gm
+            JOIN groups g ON gm.group_id = g.id
+            WHERE gm.user_id = ?
+        ''', (user_id,))
+        
+        groups_data = cursor.fetchall()
+        
+        # Process the groups data
+        for group in groups_data:
+            group_id, group_name, group_picture = group
+            
+            # Check for the latest message in the group (if any)
+            cursor.execute('''
+                SELECT gm.message, gm.time, u.username
+                FROM group_messages gm
+                JOIN users u ON gm.sender_id = u.id
+                WHERE gm.group_id = ?
+                ORDER BY gm.time DESC
+                LIMIT 1
+            ''', (group_id,))
+            
+            last_message_data = cursor.fetchone()
+            last_message = None
+            last_message_time = None
+            
+            if last_message_data:
+                last_message = f"{last_message_data[2]}: {last_message_data[0]}"
+                last_message_time = last_message_data[1]
+            
+            # Check for unread messages in the group for this user
+            cursor.execute('''
+                SELECT COUNT(*) 
+                FROM group_messages gm
+                LEFT JOIN group_message_status gms ON gm.id = gms.message_id AND gms.user_id = ?
+                WHERE gm.group_id = ? AND (gms.status = 'delivered' OR gms.status IS NULL)
+                AND gm.sender_id != ?
+            ''', (user_id, group_id, user_id))
+            
+            unread_count = cursor.fetchone()[0]
+            
+            # Use actual group picture or default
+            avatar_url = f'/uploads/group_images/{group_picture}' if group_picture else '/static/images/group_icon.png'
+            
+            contacts.append({
+                'id': group_id,
+                'name': group_name,
+                'is_group': True,
+                'avatar_url': avatar_url,
+                'last_message': last_message,
+                'last_message_time': last_message_time,
+                'unread_count': unread_count
+            })
+        
+        return jsonify(contacts), 200
+    
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+    
+    finally:
+        conn.close()
         

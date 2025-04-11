@@ -1,8 +1,18 @@
-from flask import Blueprint, request, jsonify
+from flask import Blueprint, request, jsonify, session, redirect, url_for
 from Backend.db import connect_db
 
 # Create blueprint with a unique name
 bp = Blueprint("auth", __name__)
+
+# Helper function to check if user is logged in
+def is_authenticated():
+    return 'user_id' in session
+
+@bp.route('/check_auth', methods=['GET'])
+def check_auth():
+    if is_authenticated():
+        return jsonify({"authenticated": True, "username": session.get('username')}), 200
+    return jsonify({"authenticated": False}), 401
 
 @bp.route('/register', methods=['POST'])
 def register():
@@ -66,9 +76,12 @@ def login():
         user = cursor.fetchone()
         if not user:
             return jsonify({"message": "User not found"}), 400
-        stored_password = user[3]  # Assuming password is stored at index 3
+        
+        # In users table, password is at index 2 (after id, username)
+        stored_password = user[2]
         if stored_password != password:  
             return jsonify({"message": "Incorrect password"}), 400
+        username = user[1]  # Get username from user record
 
     # Login using username
     elif username:
@@ -76,11 +89,24 @@ def login():
         user = cursor.fetchone()
         if not user:
             return jsonify({"message": "User not found"}), 400
-        stored_password = user[3]  # Assuming password is stored at index 3
+        
+        # In users table, password is at index 2 (after id, username)
+        stored_password = user[2]
         if stored_password != password:
             return jsonify({"message": "Incorrect password"}), 400
 
-    return jsonify({"message": "Login successful", "username": username or user[1], "token": "dummy-token"}), 200
+    # Store user info in session
+    session['user_id'] = user[0]
+    session['username'] = user[1]
+    session['email'] = user[3]  # Email is at index 3
+    session.permanent = True
+
+    return jsonify({
+        "message": "Login successful", 
+        "username": user[1], 
+        "user_id": user[0],
+        "email": user[3]
+    }), 200
 
 # Password Reset Endpoint
 @bp.route('/reset-password', methods=['POST'])
@@ -180,3 +206,11 @@ def get_security_question():
     if result:
         return jsonify({'security_question': result[0]}), 200
     return jsonify({'message': 'User not found'}), 404
+
+@bp.route('/logout', methods=['POST'])
+def logout():
+    # Clear the session data
+    session.pop('user_id', None)
+    session.pop('username', None)
+    session.pop('email', None)
+    return jsonify({"message": "Logout successful"}), 200

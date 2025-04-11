@@ -16,7 +16,9 @@ def create_tables():
             password TEXT NOT NULL,
             email TEXT NOT NULL,
             security_question TEXT NOT NULL,
-            secret_word TEXT NOT NULL
+            secret_word TEXT NOT NULL,
+            name TEXT,
+            profile_picture TEXT
         );
     ''')
     
@@ -32,6 +34,7 @@ def create_tables():
             is_edited INTEGER DEFAULT 0,
             delivered_at TEXT,
             read_at TEXT,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
             FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE CASCADE
         );
@@ -42,7 +45,8 @@ def create_tables():
         CREATE TABLE IF NOT EXISTS groups (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             group_name TEXT NOT NULL,
-            admin_id INTEGER NOT NULL
+            admin_id INTEGER NOT NULL,
+            group_picture TEXT
         );
     ''')
 
@@ -64,6 +68,7 @@ def create_tables():
             message TEXT NOT NULL,
             time TEXT NOT NULL,
             is_edited INTEGER DEFAULT 0,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE
         );
     ''')

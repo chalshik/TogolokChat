@@ -885,4 +885,57 @@ body::before {
 
 .report-contact:hover {
     background-color: #d32f2f;
+}
+
+.header-actions {
+    margin-left: auto;
+}
+
+#logout-btn {
+    background: none;
+    border: none;
+    color: white;
+    font-size: 1rem;
+    cursor: pointer;
+    padding: 5px;
+    transition: color 0.3s;
+}
+
+#logout-btn:hover {
+    color: #ff6b6b;
+}
+
+.empty-chat-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 30px 20px;
+    text-align: center;
+    color: #888;
+    height: 200px;
+}
+
+.empty-chat-message p {
+    margin: 5px 0;
+}
+
+.empty-chat-message .sub-message {
+    font-size: 0.9em;
+    color: #666;
+}
+
+.empty-chat-message .fas {
+    color: #555;
+}
+
+.loading-message {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 30px 20px;
+    text-align: center;
+    color: #888;
+    height: 100px;
 } 

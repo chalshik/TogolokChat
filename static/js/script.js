@@ -87,6 +87,7 @@ document.addEventListener('DOMContentLoaded', () => {
         };
 
         try {
+            // Make an actual API call to the backend
             const response = await fetch('/login', {
                 method: 'POST',
                 headers: {
@@ -107,11 +108,10 @@ document.addEventListener('DOMContentLoaded', () => {
                     localStorage.removeItem('password');
                 }
                 
-                // Switch to chat interface
-                authContainer.style.display = 'none';
-                chatContainer.style.display = 'block';
+                // Redirect to chat page
+                window.location.href = '/chat';
             } else {
-                alert(data.message);
+                alert(data.message || 'Login failed. Please check your credentials.');
             }
         } catch (error) {
             alert('An error occurred during login. Please try again.');
@@ -198,8 +198,39 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        // Show security setup modal if validations pass
-        securityModal.classList.add('show');
+        const formData = new FormData(e.target);
+        const registerData = {
+            username: formData.get('username'),
+            email: formData.get('email'),
+            password: formData.get('password'),
+            security_question: "Default security question", // You might want to prompt for this
+            secret_word: "Default secret word" // You might want to prompt for this
+        };
+
+        try {
+            // Make an actual API call to the backend
+            const response = await fetch('/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify(registerData)
+            });
+
+            const data = await response.json();
+
+            if (response.ok) {
+                alert('Registration successful! Please log in.');
+                // Switch to login form
+                registerForm.classList.add('hidden');
+                loginForm.classList.remove('hidden');
+            } else {
+                alert(data.message || 'Registration failed. Please try again.');
+            }
+        } catch (error) {
+            alert('An error occurred during registration. Please try again.');
+            console.error('Registration error:', error);
+        }
     });
 
     // Hide validation messages when clicking outside

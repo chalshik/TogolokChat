@@ -1,0 +1,47 @@
+<div class="sidebar-view" id="profile-view">
+<div class="sidebar-view-header">
+    <span class="view-title">Профиль</span>
+    <button class="close-sidebar-view-btn" data-target-view="chats">&times;</button>
+</div>
+<div class="profile-details">
+    <div class="profile-avatar-large-container">
+        <img src="/static/images/contact_logo.png" alt="User Avatar" class="profile-avatar-large" id="user-profile-avatar">
+        <label for="profile-avatar-upload" class="edit-overlay">
+            <i class="fas fa-camera"></i>
+        </label>
+        <input type="file" id="profile-avatar-upload" accept="image/*" style="display: none;">
+    </div>
+    <div class="profile-name-container">
+        <span class="profile-name" id="user-profile-name">ТОгОлОк Байке</span>
+        <button class="edit-icon-btn" id="edit-profile-name-btn"><i class="fas fa-pen"></i></button>
+    </div>
+    <span class="profile-nickname" id="user-profile-nickname">~Jakshi_bala</span>
+    <div class="profile-info-container">
+        <span class="info-label">Маалымат:</span>
+        <p class="profile-info-text" id="user-profile-info">Тоголок же тегерек</p>
+        <button class="edit-icon-btn" id="edit-profile-info-btn"><i class="fas fa-pen"></i></button>
+    </div>
+    <button class="btn btn-danger logout-btn" id="logout-btn">
+        <i class="fas fa-sign-out-alt"></i> Чыгуу
+    </button>
+</div>
+
+<!-- Modals for editing -->
+<div id="edit-profile-name-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <span class="close-modal-btn">&times;</span>
+        <h3>Атыңызды өзгөртүү</h3>
+        <input type="text" id="profile-name-input" placeholder="Жаңы ат">
+        <button id="save-profile-name-btn" class="btn btn-primary">Сактоо</button>
+    </div>
+</div>
+
+<div id="edit-profile-info-modal" class="modal" style="display: none;">
+    <div class="modal-content">
+        <span class="close-modal-btn">&times;</span>
+        <h3>Маалыматты өзгөртүү</h3>
+        <textarea id="profile-info-input" placeholder="Өзүңүз жөнүндө маалымат"></textarea>
+        <button id="save-profile-info-btn" class="btn btn-primary">Сактоо</button>
+    </div>
+</div>
+</div> 

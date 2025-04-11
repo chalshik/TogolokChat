@@ -1,0 +1,28 @@
+<div class="sidebar-view" id="add-contact-view">
+<div class="sidebar-view-header">
+    <span class="view-title">Тоголоктакт кошуу</span>
+    <button class="close-sidebar-view-btn" data-target-view="chats">&times;</button>
+</div>
+<div class="sidebar-search">
+    <div class="search-container">
+        <i class="fas fa-search"></i>
+        <input type="text" placeholder="издөө" id="add-contact-search-input">
+    </div>
+</div>
+<div class="contact-list-container scrollable-list">
+    <ul class="contact-list" id="add-contact-list">
+        <!-- Users will be loaded dynamically -->
+        <div id="loading-contacts" class="loading-message">
+            <p>Жүктөлүүдө...</p>
+        </div>
+        <div id="empty-users-message" class="empty-chat-message" style="display: none;">
+            <p>Колдонуучулар табылган жок</p>
+        </div>
+    </ul>
+</div>
+<div class="sidebar-view-footer">
+    <button class="btn btn-primary full-width" id="add-selected-contact-btn">
+        <i class="fas fa-user-plus"></i> Кошуу
+    </button>
+</div>
+</div> 
