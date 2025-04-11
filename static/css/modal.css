@@ -1,0 +1,127 @@
+/* Modal styling to ensure visibility */
+.modal {
+    display: none;
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    width: 100% !important;
+    height: 100% !important;
+    background-color: rgba(0, 0, 0, 0.7) !important;
+    z-index: 99999 !important;
+    justify-content: center !important;
+    align-items: center !important;
+    overflow: auto !important;
+}
+
+.modal[style*="flex"] {
+    display: flex !important;
+}
+
+.modal-content {
+    background-color: #fff !important;
+    padding: 20px !important;
+    border-radius: 5px !important;
+    width: 80% !important;
+    max-width: 400px !important;
+    position: relative !important;
+    z-index: 100000 !important;
+    box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5) !important;
+}
+
+.modal-header {
+    display: flex !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    border-bottom: 1px solid #eee !important;
+    padding-bottom: 10px !important;
+    margin-bottom: 15px !important;
+}
+
+.modal-header h4 {
+    margin: 0 !important;
+    color: #333 !important;
+    font-size: 18px !important;
+}
+
+.close-modal-btn {
+    color: #888 !important;
+    font-size: 24px !important;
+    font-weight: bold !important;
+    cursor: pointer !important;
+}
+
+.close-modal-btn:hover {
+    color: #555 !important;
+}
+
+.modal-body {
+    margin-bottom: 15px !important;
+    color: #333 !important;
+}
+
+.modal-footer {
+    display: flex !important;
+    justify-content: flex-end !important;
+    gap: 10px !important;
+    border-top: 1px solid #eee !important;
+    padding-top: 10px !important;
+}
+
+/* Button styling */
+.btn {
+    padding: 8px 16px !important;
+    border-radius: 4px !important;
+    cursor: pointer !important;
+    font-weight: 500 !important;
+    transition: all 0.3s !important;
+}
+
+.btn-primary {
+    background-color: #128c7e !important;
+    color: white !important;
+    border: none !important;
+}
+
+.btn-primary:hover {
+    background-color: #0e7e70 !important;
+}
+
+.btn-secondary {
+    background-color: #f1f1f1 !important;
+    color: #333 !important;
+    border: 1px solid #ddd !important;
+}
+
+.btn-secondary:hover {
+    background-color: #e1e1e1 !important;
+}
+
+/* Form elements within modals */
+.modal-body input[type="text"],
+.modal-body input[type="password"],
+.modal-body input[type="email"] {
+    width: 100% !important;
+    padding: 8px !important;
+    border: 1px solid #ddd !important;
+    border-radius: 4px !important;
+    margin-bottom: 10px !important;
+}
+
+/* Contact-specific styling */
+.selected-user-info {
+    display: flex !important;
+    align-items: center !important;
+    margin-bottom: 15px !important;
+    gap: 10px !important;
+}
+
+.selected-user-info img {
+    width: 50px !important;
+    height: 50px !important;
+    border-radius: 50% !important;
+    object-fit: cover !important;
+}
+
+#contact-name-entry-modal {
+    z-index: 999999 !important;
+} 

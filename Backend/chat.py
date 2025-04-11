@@ -1301,47 +1301,56 @@ def api_potential_contacts():
     if not user_id:
         return jsonify({"message": "Not authenticated", "users": []}), 401
 
+    # Get search query if provided
+    query = request.args.get('query', '')
+    search_condition = ''
+    search_params = [user_id, user_id]
+    
     conn = connect_db()
     cursor = conn.cursor()
 
-    # Get all users except the current user and those already in contacts
-    cursor.execute('''
-        SELECT id, username FROM users 
-        WHERE id != ? AND id NOT IN (
-            SELECT contact_id FROM contacts WHERE user_id = ?
-        )
-    ''', (user_id, user_id))
-    
-    user_rows = cursor.fetchall()
-    
-    # Format users
-    users = []
-    for row in user_rows:
-        user_id, username = row
+    try:
+        # If search query provided, add condition to filter by it
+        if query and len(query) >= 2:
+            search_param = f"%{query}%"
+            search_condition = "AND (username LIKE ? OR email LIKE ? OR name LIKE ?)"
+            search_params.extend([search_param, search_param, search_param])
         
-        # Get profile photo if available
-        cursor.execute('''
-            SELECT photo FROM profile_photos
-            WHERE user_id = ?
-            ORDER BY id DESC
-            LIMIT 1
-        ''', (user_id,))
+        # Get all users except the current user and those already in contacts
+        sql_query = f'''
+            SELECT id, username, email, name, profile_picture FROM users 
+            WHERE id != ? AND id NOT IN (
+                SELECT contact_id FROM contacts WHERE user_id = ?
+            ) {search_condition}
+            LIMIT 20
+        '''
         
-        photo_row = cursor.fetchone()
-        avatar = "/static/images/contact_logo.png"  # Default avatar
+        cursor.execute(sql_query, search_params)
         
-        if photo_row and photo_row[0]:
-            avatar = f"/uploads/{photo_row[0]}"
+        user_rows = cursor.fetchall()
         
-        users.append({
-            "id": user_id,
-            "username": username,
-            "avatar": avatar
-        })
+        # Format users
+        users = []
+        for row in user_rows:
+            user_id, username, email, name, profile_picture = row
+            
+            avatar = f"/uploads/profile_photos/{profile_picture}" if profile_picture else "/static/images/contact_logo.png"
+            
+            users.append({
+                "id": user_id,
+                "username": username,
+                "email": email,
+                "name": name or username,
+                "avatar": avatar
+            })
+        
+        return jsonify({"users": users}), 200
     
-    conn.close()
+    except Exception as e:
+        return jsonify({"error": str(e), "users": []}), 500
     
-    return jsonify({"users": users}), 200
+    finally:
+        conn.close()
 
 @bp.route('/api/add-contact', methods=['POST'])
 def api_add_contact():
@@ -1354,6 +1363,7 @@ def api_add_contact():
     
     data = request.get_json()
     contact_id = data.get('contact_id')
+    display_name = data.get('display_name')
     
     if not contact_id:
         return jsonify({"success": False, "message": "Contact ID is required"}), 400
@@ -1393,16 +1403,26 @@ def api_add_contact():
     
     # Add the contact
     try:
+        # Use provided display_name or username as fallback
+        if not display_name:
+            cursor.execute("SELECT username FROM users WHERE id = ?", (contact_id,))
+            username_row = cursor.fetchone()
+            display_name = username_row[0] if username_row else "Unknown"
+        
         cursor.execute('''
-            INSERT INTO contacts (user_id, contact_id) 
-            VALUES (?, ?)
-        ''', (user_id, contact_id))
+            INSERT INTO contacts (user_id, contact_id, display_name) 
+            VALUES (?, ?, ?)
+        ''', (user_id, contact_id, display_name))
         
         # Also add the reverse relationship (bi-directional contacts)
+        # Use the username of the current user as the display name for the reverse contact
+        cursor.execute("SELECT username FROM users WHERE id = ?", (user_id,))
+        current_username = cursor.fetchone()[0]
+        
         cursor.execute('''
-            INSERT INTO contacts (user_id, contact_id) 
-            VALUES (?, ?)
-        ''', (contact_id, user_id))
+            INSERT INTO contacts (user_id, contact_id, display_name) 
+            VALUES (?, ?, ?)
+        ''', (contact_id, user_id, current_username))
         
         conn.commit()
         conn.close()
@@ -1427,7 +1447,7 @@ def api_contacts():
     try:
         # Get user's contacts
         cursor.execute('''
-            SELECT c.contact_id, u.username, u.name, u.email, u.profile_picture
+            SELECT c.contact_id, u.username, u.email, u.profile_picture, c.display_name
             FROM contacts c
             JOIN users u ON c.contact_id = u.id
             WHERE c.user_id = ?
@@ -1438,7 +1458,7 @@ def api_contacts():
         # Process the contacts data
         contacts = []
         for contact in contacts_data:
-            contact_id, username, name, email, profile_picture = contact
+            contact_id, username, email, profile_picture, display_name = contact
             
             # Check for the latest message between users (if any)
             cursor.execute('''
@@ -1472,7 +1492,7 @@ def api_contacts():
             contacts.append({
                 'id': contact_id,
                 'username': username,
-                'name': name or username,  # Use name if available, otherwise username
+                'name': display_name or username,  # Use display_name if available, otherwise username
                 'email': email,
                 'is_group': False,
                 'avatar_url': avatar_url,
@@ -1541,6 +1561,105 @@ def api_contacts():
     
     except Exception as e:
         return jsonify({"error": str(e)}), 500
+    
+    finally:
+        conn.close()
+
+@bp.route('/api/search-users', methods=['GET'])
+def api_search_users():
+    """Search for users by username or email"""
+    from flask import session
+    user_id = session.get('user_id')
+    
+    if not user_id:
+        return jsonify({"message": "Not authenticated", "users": []}), 401
+    
+    # Get the search query
+    query = request.args.get('query', '')
+    if not query or len(query) < 2:
+        return jsonify({"message": "Search query too short", "users": []}), 400
+    
+    conn = connect_db()
+    cursor = conn.cursor()
+    
+    try:
+        # Search users by username or email
+        search_param = f"%{query}%"
+        cursor.execute('''
+            SELECT id, username, email, name, profile_picture FROM users 
+            WHERE (username LIKE ? OR email LIKE ? OR name LIKE ?) 
+            AND id != ? 
+            AND id NOT IN (
+                SELECT contact_id FROM contacts WHERE user_id = ?
+            )
+        ''', (search_param, search_param, search_param, user_id, user_id))
+        
+        user_rows = cursor.fetchall()
+        
+        # Format users
+        users = []
+        for row in user_rows:
+            user_id, username, email, name, profile_picture = row
+            
+            avatar = f"/uploads/profile_photos/{profile_picture}" if profile_picture else "/static/images/contact_logo.png"
+            
+            users.append({
+                "id": user_id,
+                "username": username,
+                "email": email,
+                "name": name,
+                "avatar": avatar
+            })
+        
+        return jsonify({"users": users}), 200
+    
+    except Exception as e:
+        return jsonify({"error": str(e), "users": []}), 500
+    
+    finally:
+        conn.close()
+
+@bp.route('/api/update-contact-name', methods=['POST'])
+def api_update_contact_name():
+    """Update the display name of a contact"""
+    from flask import session
+    user_id = session.get('user_id')
+    
+    if not user_id:
+        return jsonify({"success": False, "message": "Not authenticated"}), 401
+    
+    data = request.get_json()
+    contact_id = data.get('contact_id')
+    display_name = data.get('display_name')
+    
+    if not contact_id or not display_name:
+        return jsonify({"success": False, "message": "Contact ID and display name are required"}), 400
+    
+    conn = connect_db()
+    cursor = conn.cursor()
+    
+    try:
+        # Check if the contact exists
+        cursor.execute("SELECT * FROM contacts WHERE user_id = ? AND contact_id = ?", (user_id, contact_id))
+        contact = cursor.fetchone()
+        
+        if not contact:
+            return jsonify({"success": False, "message": "Contact not found"}), 404
+        
+        # Update the contact's display name in the users table
+        cursor.execute('''
+            UPDATE contacts 
+            SET display_name = ? 
+            WHERE user_id = ? AND contact_id = ?
+        ''', (display_name, user_id, contact_id))
+        
+        conn.commit()
+        
+        return jsonify({"success": True, "message": "Contact name updated successfully"}), 200
+    
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"success": False, "message": f"Error updating contact name: {str(e)}"}), 500
     
     finally:
         conn.close()
