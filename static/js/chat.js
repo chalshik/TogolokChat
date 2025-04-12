@@ -1,5 +1,203 @@
 // Declare sidebarContentArea globally so it's accessible to all functions
-let sidebarContentArea; 
+let sidebarContentArea;
+
+// Global timestamp utility
+window.getCurrentTimestamp = function() {
+    const now = new Date();
+    return now.toISOString();
+};
+
+// Global function for creating message elements
+window.createMessageElement = function(message, isSent = true, senderName = 'Тоголоктакт(1)') {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${isSent ? 'sent' : 'received'}`;
+
+    if (!isSent) {
+        const avatarDiv = document.createElement('div');
+        avatarDiv.className = 'message-avatar';
+        const avatarImg = document.createElement('img');
+        avatarImg.src = '/static/images/contact_logo.png';
+        avatarImg.alt = 'User';
+        avatarDiv.appendChild(avatarImg);
+        messageDiv.appendChild(avatarDiv);
+    }
+
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'message-content';
+
+    const infoDiv = document.createElement('div');
+    infoDiv.className = 'message-info';
+
+    if (!isSent) {
+        const senderNameSpan = document.createElement('span');
+        senderNameSpan.className = 'sender-name';
+        senderNameSpan.textContent = senderName;
+        infoDiv.appendChild(senderNameSpan);
+    }
+
+    const timeSpan = document.createElement('span');
+    timeSpan.className = 'message-time';
+    // Use a simple time format that doesn't depend on formatTime
+    const now = new Date();
+    timeSpan.textContent = now.getHours().toString().padStart(2, '0') + ':' + 
+                          now.getMinutes().toString().padStart(2, '0');
+
+    if (isSent) {
+        const statusSpan = document.createElement('span');
+        statusSpan.className = 'message-status';
+        const icon = document.createElement('i');
+        icon.className = 'fas fa-check';
+        statusSpan.appendChild(icon);
+        infoDiv.appendChild(timeSpan);
+        infoDiv.appendChild(statusSpan);
+    } else {
+        infoDiv.appendChild(timeSpan);
+    }
+
+    const messageText = document.createElement('p');
+    
+    // Check if message is a URL
+    if (message.startsWith('http')) {
+        const linkElem = document.createElement('a');
+        linkElem.href = message;
+        linkElem.className = 'message-link';
+        linkElem.textContent = message;
+        linkElem.target = '_blank';
+        messageText.appendChild(linkElem);
+    } else {
+        messageText.textContent = message;
+    }
+
+    contentDiv.appendChild(infoDiv);
+    contentDiv.appendChild(messageText);
+    messageDiv.appendChild(contentDiv);
+
+    return messageDiv;
+};
+
+// Global function to load chat messages
+window.loadChatMessages = function(chatId, chatType) {
+    console.log('Loading messages for chat:', chatId, 'Type:', chatType);
+    
+    // Get the messages container
+    const messagesContainer = document.getElementById(`${chatId}-messages`);
+    if (!messagesContainer) {
+        console.error('Messages container not found');
+        return;
+    }
+    
+    // Get current username
+    const currentUsername = window.currentUsername || sessionStorage.getItem('username');
+    if (!currentUsername) {
+        console.error('Current username not found');
+        return;
+    }
+    
+    // Clear any loading or empty state messages
+    const emptyMessage = messagesContainer.querySelector('.empty-chat-message');
+    if (emptyMessage) {
+        emptyMessage.style.display = 'none';
+    }
+    
+    // Add loading indicator
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'loading-messages';
+    loadingDiv.innerHTML = '<p>Loading messages...</p>';
+    messagesContainer.appendChild(loadingDiv);
+    
+    let fetchUrl;
+    
+    if (chatType === 'group') {
+        // For group chats
+        fetchUrl = getApiUrl(`get_group_messages?group_id=${chatId}&username=${currentUsername}`);
+    } else {
+        // For direct messages
+        // Get the other user's username
+        const chatItem = document.querySelector(`.chat-item[data-chat-id="${chatId}"]`);
+        const otherUsername = chatItem?.dataset?.username;
+        
+        if (!otherUsername) {
+            console.error('Other username not found');
+            loadingDiv.innerHTML = '<p>Error: Could not determine chat participant</p>';
+            return;
+        }
+        
+        fetchUrl = getApiUrl(`get_messages?user1=${currentUsername}&user2=${otherUsername}`);
+    }
+    
+    // Fetch messages from the server
+    fetch(fetchUrl)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Messages loaded:', data);
+            
+            // Remove loading indicator
+            messagesContainer.removeChild(loadingDiv);
+            
+            // Clear the container (except for the empty message)
+            const existingMessages = messagesContainer.querySelectorAll('.message');
+            existingMessages.forEach(msg => messagesContainer.removeChild(msg));
+            
+            if (chatType === 'group') {
+                // Handle group messages
+                if (!data.messages || data.messages.length === 0) {
+                    // Show empty state if no messages
+                    if (emptyMessage) emptyMessage.style.display = 'flex';
+                    return;
+                }
+                
+                // Hide empty state
+                if (emptyMessage) emptyMessage.style.display = 'none';
+                
+                // Add each message to the container
+                data.messages.forEach(msg => {
+                    const isSent = msg.sender === currentUsername;
+                    const messageEl = window.createMessageElement(msg.message, isSent, msg.sender);
+                    messagesContainer.appendChild(messageEl);
+                });
+            } else {
+                // Handle direct messages
+                if (!data.messages || data.messages.length === 0) {
+                    // Show empty state if no messages
+                    if (emptyMessage) emptyMessage.style.display = 'flex';
+                    return;
+                }
+                
+                // Hide empty state
+                if (emptyMessage) emptyMessage.style.display = 'none';
+                
+                // Add each message to the container
+                data.messages.forEach(msg => {
+                    const isSent = msg.sender === currentUsername;
+                    const messageEl = window.createMessageElement(msg.message, isSent);
+                    messagesContainer.appendChild(messageEl);
+                });
+            }
+            
+            // Scroll to the bottom
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        })
+        .catch(error => {
+            console.error('Error loading messages:', error);
+            loadingDiv.innerHTML = `<p>Error: ${error.message}</p>`;
+        });
+};
+
+// Utility function to get correct API URLs
+function getApiUrl(endpoint) {
+    // Handle both cases with and without leading slash
+    if (endpoint.startsWith('/')) {
+        endpoint = endpoint.substring(1);
+    }
+    
+    // For message endpoints and API endpoints, just use direct paths
+    return `/${endpoint}`;
+}
 
 document.addEventListener('DOMContentLoaded', () => {
     // Hide all modals at startup
@@ -10,6 +208,23 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize sidebarContentArea
     sidebarContentArea = document.getElementById('sidebar-content-area');
 
+    // Get the username from the server or local storage
+    window.currentUsername = sessionStorage.getItem('username') || '';
+    if (!window.currentUsername) {
+        // Try to get username from the UI if available
+        const usernameElement = document.getElementById('current-username');
+        if (usernameElement) {
+            window.currentUsername = usernameElement.dataset.username || '';
+            // Store it for future use
+            if (window.currentUsername) {
+                sessionStorage.setItem('username', window.currentUsername);
+            }
+        }
+    }
+    
+    // Initialize socket connection for real-time messaging
+    initializeSocket();
+    
     // Selectors for chat elements
     const messagesContainers = document.querySelectorAll('.messages-container');
     const inputBox = document.querySelector('.input-box input');
@@ -229,71 +444,6 @@ document.addEventListener('DOMContentLoaded', () => {
         return `${formattedHours}:${formattedMinutes} ${ampm}`;
     }
 
-    // Function to create a new message element
-    function createMessageElement(message, isSent = true, senderName = 'Тоголоктакт(1)') {
-        const messageDiv = document.createElement('div');
-        messageDiv.className = `message ${isSent ? 'sent' : 'received'}`;
-
-        if (!isSent) {
-            const avatarDiv = document.createElement('div');
-            avatarDiv.className = 'message-avatar';
-            const avatarImg = document.createElement('img');
-            avatarImg.src = '/static/images/contact_logo.png';
-            avatarImg.alt = 'User';
-            avatarDiv.appendChild(avatarImg);
-            messageDiv.appendChild(avatarDiv);
-        }
-
-        const contentDiv = document.createElement('div');
-        contentDiv.className = 'message-content';
-
-        const infoDiv = document.createElement('div');
-        infoDiv.className = 'message-info';
-
-        if (!isSent) {
-            const senderNameSpan = document.createElement('span');
-            senderNameSpan.className = 'sender-name';
-            senderNameSpan.textContent = senderName;
-            infoDiv.appendChild(senderNameSpan);
-        }
-
-        const timeSpan = document.createElement('span');
-        timeSpan.className = 'message-time';
-        timeSpan.textContent = formatTime(new Date());
-
-        if (isSent) {
-            const statusSpan = document.createElement('span');
-            statusSpan.className = 'message-status';
-            const icon = document.createElement('i');
-            icon.className = 'fas fa-check-double';
-            statusSpan.appendChild(icon);
-            infoDiv.appendChild(timeSpan);
-            infoDiv.appendChild(statusSpan);
-        } else {
-            infoDiv.appendChild(timeSpan);
-        }
-
-        const messageText = document.createElement('p');
-        
-        // Check if message is a URL
-        if (message.startsWith('http')) {
-            const linkElem = document.createElement('a');
-            linkElem.href = message;
-            linkElem.className = 'message-link';
-            linkElem.textContent = message;
-            linkElem.target = '_blank';
-            messageText.appendChild(linkElem);
-        } else {
-            messageText.textContent = message;
-        }
-
-        contentDiv.appendChild(infoDiv);
-        contentDiv.appendChild(messageText);
-        messageDiv.appendChild(contentDiv);
-
-        return messageDiv;
-    }
-
     // Function to get the active messages container
     function getActiveMessagesContainer() {
         const containerId = `${currentChatId}-messages`;
@@ -303,62 +453,15 @@ document.addEventListener('DOMContentLoaded', () => {
         return container;
     }
 
-    // Function to send message
-    function sendMessage(message) {
-        console.log('sendMessage called for chat ID:', currentChatId, 'Type:', currentChatType);
-        if (!message.trim()) return;
-
-        const messagesContainer = getActiveMessagesContainer();
-        if (!messagesContainer) {
-            console.error('Could not find the active messages container!');
-            return;
-        }
-
-        console.log('Appending message to container:', messagesContainer.id);
-        const messageElement = createMessageElement(message, true);
-        messagesContainer.appendChild(messageElement);
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        inputBox.value = '';
-        console.log('Message sent and input cleared.');
-
-        // Simulate received message after a delay (with different responses based on chat type)
-        setTimeout(() => {
-            let response;
-            let senderName = currentChatType === 'group' ? 'Тоголоктакт(1)' : document.getElementById('contact-name-display').textContent;
-            
-            if (currentChatType === 'group') {
-                const responses = [
-                    'Бул жерде эмнерсе жазылбаптырго, ошондо билгениоизди кылабыз',
-                    'Классика',
-                    'https://meet.google.com/kvi-foaa-cwy',
-                    'Бүгүн сабактар болбойт'
-                ];
-                response = responses[Math.floor(Math.random() * responses.length)];
-            } else {
-                const responses = [
-                    'Аа, мен да кеттам, тыгым экен бул жерлер',
-                    'Башталса мага жазып койчу',
-                    'Биз эмне кылабыз?',
-                    'Жок, азыр алар иш кылып атышат'
-                ];
-                response = responses[Math.floor(Math.random() * responses.length)];
-            }
-            
-            const responseElement = createMessageElement(response, false, senderName);
-            messagesContainer.appendChild(responseElement);
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        }, 1000);
-    }
-
     // Event listeners for sending messages
     sendButton.addEventListener('click', () => {
-        sendMessage(inputBox.value);
+        window.sendMessage();
     });
 
     inputBox.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
             e.preventDefault();
-            sendMessage(inputBox.value);
+            window.sendMessage();
         }
     });
 
@@ -453,6 +556,9 @@ document.addEventListener('DOMContentLoaded', () => {
         
         if (groupProfileSidebar) groupProfileSidebar.classList.remove('active');
         if (contactProfileSidebar) contactProfileSidebar.classList.remove('active');
+        
+        // Load messages for this chat
+        window.loadChatMessages(chatId, chatType);
     }
 
     // Helper function to update the chat header
@@ -580,6 +686,30 @@ document.addEventListener('DOMContentLoaded', () => {
         console.log(`Attempting to load sidebar view: ${viewName}`);
         if (!sidebarContentArea) {
             console.error('Sidebar content area not found!');
+            throw new Error('Sidebar content area not found');
+        }
+
+        // Check if we should use a local mock template first
+        const mockTemplate = document.getElementById(`mock-${viewName}-template`);
+        if (mockTemplate) {
+            console.log(`Using mock template for ${viewName}`);
+            sidebarContentArea.innerHTML = mockTemplate.innerHTML;
+            
+            // Update current sidebar view
+            currentSidebarView = viewName;
+            
+            // Re-attach necessary event listeners for the new view's content
+            try {
+                attachSidebarViewListeners(viewName);
+            } catch (listenerError) {
+                console.error(`Error attaching listeners for view ${viewName}:`, listenerError);
+            }
+            
+            // If this is the chats view, load contacts
+            if (viewName === 'chats') {
+                loadUserContacts();
+            }
+            
             return;
         }
 
@@ -614,8 +744,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 loadedView.classList.add('active');
                 console.log(`Activated view: ${loadedView.id}`);
             } else {
-                 console.warn('Could not find .sidebar-view element within loaded HTML.');
-                 console.log("Full HTML content:", html);  // Log the full HTML for debugging
+                console.warn('Could not find .sidebar-view element within loaded HTML.');
+                console.log("Full HTML content:", html);  // Log the full HTML for debugging
             }
 
             currentSidebarView = viewName;
@@ -629,7 +759,31 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error(`Could not load sidebar view '${viewName}':`, error);
-            sidebarContentArea.innerHTML = `<p class="error-message">Error loading view: ${error.message}</p>`;
+            
+            // Fallback to built-in templates if the server call fails
+            const mockTemplate = document.getElementById(`mock-${viewName}-template`);
+            if (mockTemplate) {
+                console.log(`Falling back to mock template for ${viewName}`);
+                sidebarContentArea.innerHTML = mockTemplate.innerHTML;
+                
+                // If this is the chats view, load contacts
+                if (viewName === 'chats') {
+                    loadUserContacts();
+                }
+                
+                // Update current sidebar view
+                currentSidebarView = viewName;
+                
+                // Re-attach necessary event listeners for the new view's content
+                try {
+                    attachSidebarViewListeners(viewName);
+                } catch (listenerError) {
+                    console.error(`Error attaching listeners for view ${viewName}:`, listenerError);
+                }
+            } else {
+                sidebarContentArea.innerHTML = `<p class="error-message">Error loading view: ${error.message}</p>`;
+                throw error; // Re-throw to allow catch handlers to work
+            }
         }
     }
 
@@ -874,7 +1028,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     
                     try {
-                        const response = await fetch('/api/add-contact', {
+                        const response = await fetch('/Backend/chat/api/add-contact', {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json'
@@ -969,7 +1123,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Example:
     const chatForm = document.getElementById('chat-form');
     if (chatForm) {
-         chatForm.addEventListener('submit', sendMessage);
+         chatForm.addEventListener('submit', (e) => {
+             e.preventDefault();
+             window.sendMessage();
+         });
      }
 
     // Find references to kg_flag_icon.png and update them
@@ -991,12 +1148,112 @@ document.addEventListener('DOMContentLoaded', () => {
 
 }); // End DOMContentLoaded 
 
+// Initialize Socket.IO connection for real-time messaging
+function initializeSocket() {
+    if (window.chatSocket) {
+        console.log('Socket connection already initialized');
+        setupSocketEventHandlers(window.chatSocket);
+        return;
+    }
+    
+    try {
+        const socket = io('http://localhost:5000', {
+            transports: ['websocket', 'polling'],
+            reconnection: true,
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000
+        });
+        
+        window.chatSocket = socket;
+        console.log('Socket.IO initialized');
+        
+        setupSocketEventHandlers(socket);
+    } catch (error) {
+        console.error('Socket.IO initialization error:', error);
+    }
+}
+
+// Set up socket event handlers for real-time messaging
+function setupSocketEventHandlers(socket) {
+    // Handle socket connection events
+    socket.on('connect', () => {
+        console.log('Socket connected!');
+        
+        // If we have a username, emit a join event to let the server know we're online
+        const username = window.currentUsername || sessionStorage.getItem('username');
+        if (username) {
+            socket.emit('join', { username: username });
+        }
+    });
+    
+    socket.on('disconnect', () => {
+        console.log('Socket disconnected');
+    });
+    
+    socket.on('reconnect', () => {
+        console.log('Socket reconnected');
+        
+        // Rejoin on reconnect
+        const username = window.currentUsername || sessionStorage.getItem('username');
+        if (username) {
+            socket.emit('join', { username: username });
+        }
+    });
+    
+    // Handle incoming messages
+    socket.on('message', (data) => {
+        console.log('Received message via socket:', data);
+        receiveMessage(data);
+    });
+    
+    // Handle message status updates
+    socket.on('message_status', (data) => {
+        const { chat_id, status, message_id } = data;
+        console.log(`Message status update for message ${message_id} in chat ${chat_id}: ${status}`);
+        
+        // Find the message element with the matching ID and update its status
+        const chatContainer = document.getElementById(`${chat_id}-messages`);
+        if (chatContainer) {
+            const messageEl = chatContainer.querySelector(`.message[data-message-id="${message_id}"]`);
+            if (messageEl) {
+                updateMessageStatus(chat_id, status, messageEl);
+            } else {
+                // If specific message not found, update the last message (legacy behavior)
+                updateMessageStatus(chat_id, status);
+            }
+        }
+    });
+    
+    // Handle user online/offline status updates
+    socket.on('user_status', (data) => {
+        const { username, status } = data;
+        console.log(`User ${username} is now ${status}`);
+        
+        // Update UI to show user status
+        const chatItems = document.querySelectorAll(`.chat-item[data-username="${username}"]`);
+        chatItems.forEach(item => {
+            const statusIndicator = item.querySelector('.online-indicator');
+            if (statusIndicator) {
+                statusIndicator.classList.toggle('active', status === 'online');
+            } else if (status === 'online') {
+                // Create status indicator if it doesn't exist
+                const avatar = item.querySelector('.chat-avatar');
+                if (avatar) {
+                    const indicator = document.createElement('div');
+                    indicator.className = 'online-indicator active';
+                    avatar.appendChild(indicator);
+                }
+            }
+        });
+    });
+}
+
 // Add this missing function
 function loadUserContacts() {
     console.log('Loading user contacts...');
     
     // First, check if we can locate the sidebar content area
-    const sidebarContentArea = document.getElementById('sidebar-content-area');
+    sidebarContentArea = document.getElementById('sidebar-content-area');
     if (!sidebarContentArea) {
         console.error('Cannot find sidebar content area');
         return;
@@ -1006,10 +1263,23 @@ function loadUserContacts() {
     let chatView = sidebarContentArea.querySelector('#chats-view');
     if (!chatView) {
         // If not present, we might need to load it
-        console.log('Chat view not found, attempting to create a temporary one');
+        console.log('Chat view not found, creating a temporary one');
         chatView = document.createElement('div');
         chatView.id = 'chats-view';
-        chatView.className = 'sidebar-view';
+        chatView.className = 'sidebar-view active';
+        
+        // Add a header for the view
+        const header = document.createElement('div');
+        header.className = 'view-header';
+        header.innerHTML = `
+            <h2>Маектер</h2>
+            <div class="search-box">
+                <input type="text" id="chat-search-input" placeholder="Издөө...">
+                <i class="fas fa-search"></i>
+            </div>
+        `;
+        chatView.appendChild(header);
+        
         sidebarContentArea.appendChild(chatView);
     }
     
@@ -1036,11 +1306,14 @@ function loadUserContacts() {
     
     console.log('Chat list found or created:', !!chatList);
     
+    // Show loading state
+    chatList.innerHTML = '<div class="loading">Loading contacts...</div>';
+    
     // Make API call to get user contacts
-    fetch('/api/contacts')
+    fetch(getApiUrl('api/contacts'))
         .then(response => {
             if (!response.ok) {
-                throw new Error('Failed to load contacts');
+                throw new Error(`Failed to load contacts: ${response.status}`);
             }
             return response.json();
         })
@@ -1051,8 +1324,20 @@ function loadUserContacts() {
         })
         .catch(error => {
             console.error('Error loading contacts:', error);
-            // Show error message or empty state
-            showEmptyContactsState(chatList);
+            // Show error message
+            chatList.innerHTML = `
+                <div class="empty-chat-message">
+                    <i class="fas fa-exclamation-circle fa-3x"></i>
+                    <p>Контакттерди жүктөөдө ката кетти</p>
+                    <button id="retry-contacts-btn" class="btn btn-primary">Кайталоо</button>
+                </div>
+            `;
+            
+            // Add retry button listener
+            const retryBtn = document.getElementById('retry-contacts-btn');
+            if (retryBtn) {
+                retryBtn.addEventListener('click', loadUserContacts);
+            }
         });
 }
 
@@ -1101,6 +1386,7 @@ function createChatItem(contact) {
     item.className = 'chat-item';
     item.dataset.chatId = contact.id;
     item.dataset.chatType = contact.is_group ? 'group' : 'contact';
+    item.dataset.username = contact.username || contact.name; // Store the contact's username
     
     const avatarSrc = contact.avatar_url || '/static/images/contact_logo.png';
     const lastMessage = contact.last_message || 'No messages yet';
@@ -1247,7 +1533,7 @@ function attachProfileListeners() {
             if (newName) {
                 profileNameDisplay.textContent = newName;
                 // Add logic to save the name to the backend
-                fetch('/api/update-profile', {
+                fetch('/Backend/chat/api/update-profile', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -1597,55 +1883,11 @@ function setUpContactDetailsListeners() {
 // Function to fetch potential contacts
 async function initializePotentialContacts() {
     try {
-        // Use the sidebar-specific elements
-        const contactList = sidebarContentArea?.querySelector('#add-contact-list');
-        const loadingMessage = sidebarContentArea?.querySelector('#loading-contacts');
-        const emptyMessage = sidebarContentArea?.querySelector('#empty-users-message');
-        const addContactBtn = sidebarContentArea?.querySelector('#add-selected-contact-btn');
-        
-        console.log('Initializing potential contacts with elements:', {
-            contactList: !!contactList,
-            loadingMessage: !!loadingMessage,
-            emptyMessage: !!emptyMessage
-        });
-        
-        if (!contactList || !loadingMessage) {
-            console.error('Required DOM elements for contacts not found');
-            return;
-        }
-        
-        // Reset the add button to disabled state
-        if (addContactBtn) {
-            addContactBtn.disabled = true;
-        }
-        
-        loadingMessage.style.display = 'block';
-        if (emptyMessage) emptyMessage.style.display = 'none';
-        
-        console.log('Fetching potential contacts from API...');
-        
-        // Mock data for testing if needed
-        // Uncomment this and comment out the fetch if you want to test with mock data
-        /*
-        const mockData = {
-            users: [
-                { id: '1', username: 'user1', email: 'user1@example.com', avatar: null },
-                { id: '2', username: 'user2', email: 'user2@example.com', avatar: null },
-                { id: '3', username: 'user3', email: 'user3@example.com', avatar: null }
-            ]
-        };
-        
-        // Simulate API delay
-        await new Promise(resolve => setTimeout(resolve, 500));
-        const data = mockData;
-        */
-        
-        const response = await fetch('/api/potential-contacts');
-        
+        // Get potential contacts from API
+        const response = await fetch('/Backend/chat/api/potential-contacts');
         if (!response.ok) {
-            throw new Error('Failed to fetch potential contacts');
+            throw new Error('Failed to load potential contacts');
         }
-        
         const data = await response.json();
         console.log('Potential contacts loaded:', data);
         
@@ -2065,94 +2307,482 @@ function createAndShowModal(id, title, content, buttons) {
 
 // Add a function to send messages to any chat
 window.sendMessage = function() {
-    // Get the input field
-    const inputField = document.querySelector('.input-box input');
-    if (!inputField) {
-        console.error('Message input field not found');
-        return;
+    const inputBox = document.querySelector('.input-box input');
+    const messageText = inputBox.value.trim();
+    
+    if (!messageText) {
+        return; // Don't send empty messages
     }
     
-    const messageText = inputField.value.trim();
-    if (!messageText) return; // Don't send empty messages
-    
-    // Clear the input
-    inputField.value = '';
-    
-    // Get the current active chat ID and type
+    // Get current chat ID and type
     const chatId = window.currentChatId;
     const chatType = window.currentChatType;
     
     if (!chatId) {
-        console.error('No active chat selected');
+        console.error('No active chat selected.');
         return;
     }
     
-    console.log(`Sending message to ${chatType} ${chatId}: ${messageText}`);
+    console.log(`Sending message to chat: ${chatId}, type: ${chatType}`);
     
-    // Create a message element
-    const messageEl = createMessageElement(messageText, true);
+    // Get current username from session storage or global variable
+    const currentUsername = window.currentUsername || sessionStorage.getItem('username') || 'User';
     
-    // Add the message to the chat
+    // Get the container to add the message to
     const messagesContainer = document.getElementById(`${chatId}-messages`);
-    if (messagesContainer) {
-        // Check if this is the first message (remove empty state if present)
-        const emptyState = messagesContainer.querySelector('.empty-chat-message');
-        if (emptyState) {
-            emptyState.remove();
-        }
-        
-        // Add the message
-        messagesContainer.appendChild(messageEl);
-        
-        // Scroll to the bottom
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    if (!messagesContainer) {
+        console.error(`No messages container found for chat ID: ${chatId}`);
+        return;
     }
     
-    // Update the chat list item with the last message
-    updateChatLastMessage(chatId, messageText);
+    // Create the message element with pending status
+    const timestamp = window.getCurrentTimestamp();
+    const messageEl = window.createMessageElement(messageText, true);
+    messageEl.setAttribute('data-status', 'sending');
     
-    // In a real app, we'd send this to the server here
+    // Add the new message to the container
+    messagesContainer.appendChild(messageEl);
+    
+    // Clear input box
+    inputBox.value = '';
+    
+    // Scroll to the bottom of the container
+    messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    
+    // Prepare data for sending
+    const messageData = {
+        sender_username: currentUsername,
+        message: messageText,
+        timestamp: timestamp
+    };
+    
+    // Use WebSocket if available, otherwise fall back to HTTP
+    let usedWebsocket = false;
+    
+    if (window.chatSocket && window.chatSocket.connected) {
+        try {
+            // For group messages
+            if (chatType === 'group') {
+                // Ensure group ID is numeric if needed
+                const groupId = parseInt(chatId, 10) || chatId;
+                
+                // Emit the message via socket.io
+                window.chatSocket.emit('send_message', {
+                    group_id: groupId,
+                    message: messageText,
+                    timestamp: timestamp
+                });
+                
+                usedWebsocket = true;
+                
+                // Also send via HTTP for database storage
+                fetch(getApiUrl('send_group_message'), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        sender_username: currentUsername,
+                        group_id: groupId,
+                        message: messageText
+                    })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Group message saved successfully:', data);
+                    updateMessageStatus(chatId, 'delivered', messageEl);
+                })
+                .catch(error => {
+                    console.error('Error saving group message to database:', error);
+                    updateMessageStatus(chatId, 'error', messageEl);
+                });
+            } else {
+                // For direct messages to a contact
+                // Try to get the username from the chat item
+                const chatItem = document.querySelector(`.chat-item[data-chat-id="${chatId}"]`);
+                const receiverUsername = chatItem?.dataset?.username;
+                
+                if (!receiverUsername) {
+                    throw new Error('Receiver username not found');
+                }
+                
+                // Emit the message via socket.io
+                window.chatSocket.emit('send_message', {
+                    receiver_username: receiverUsername,
+                    message: messageText,
+                    timestamp: timestamp
+                });
+                
+                usedWebsocket = true;
+                
+                // Also send via HTTP for database storage
+                fetch(getApiUrl('send_message'), {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        sender_username: currentUsername,
+                        receiver_username: receiverUsername,
+                        message: messageText
+                    })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    console.log('Direct message saved successfully:', data);
+                    updateMessageStatus(chatId, 'delivered', messageEl);
+                })
+                .catch(error => {
+                    console.error('Error saving direct message to database:', error);
+                    updateMessageStatus(chatId, 'error', messageEl);
+                });
+            }
+        } catch (error) {
+            usedWebsocket = false;
+            console.error('Error sending message via WebSocket:', error);
+            updateMessageStatus(chatId, 'error', messageEl);
+        }
+    }
+    
+    // If WebSocket failed or isn't available, fall back to HTTP only
+    if (!usedWebsocket) {
+        console.warn('WebSocket not connected or failed, using HTTP only');
+        
+        if (chatType === 'group') {
+            // Group messages via HTTP
+            const groupId = parseInt(chatId, 10) || chatId;
+            
+            fetch(getApiUrl('send_group_message'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    sender_username: currentUsername,
+                    group_id: groupId,
+                    message: messageText
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Group message saved successfully:', data);
+                updateMessageStatus(chatId, 'delivered', messageEl);
+            })
+            .catch(error => {
+                console.error('Error saving group message:', error);
+                updateMessageStatus(chatId, 'error', messageEl);
+            });
+        } else {
+            // Direct messages via HTTP
+            const chatItem = document.querySelector(`.chat-item[data-chat-id="${chatId}"]`);
+            const receiverUsername = chatItem?.dataset?.username;
+            
+            if (!receiverUsername) {
+                console.error('Receiver username not found');
+                updateMessageStatus(chatId, 'error', messageEl);
+                return;
+            }
+            
+            fetch(getApiUrl('send_message'), {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    sender_username: currentUsername,
+                    receiver_username: receiverUsername,
+                    message: messageText
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Message saved successfully:', data);
+                updateMessageStatus(chatId, 'delivered', messageEl);
+            })
+            .catch(error => {
+                console.error('Error saving message:', error);
+                updateMessageStatus(chatId, 'error', messageEl);
+            });
+        }
+    }
+    
+    // Update the chat list with the new message
+    updateChatLastMessage(chatId, messageText);
 }
 
-// Function to create a message element
-function createMessageElement(message, isSent = true, senderName = '') {
-    const messageEl = document.createElement('div');
-    messageEl.className = isSent ? 'message sent' : 'message received';
+// Function to handle incoming messages from WebSocket
+function receiveMessage(data) {
+    console.log('Received message:', data);
     
-    // Current timestamp
-    const now = new Date();
-    const hours = now.getHours().toString().padStart(2, '0');
-    const minutes = now.getMinutes().toString().padStart(2, '0');
-    const timeString = `${hours}:${minutes}`;
+    const senderId = data.sender_id;
+    const senderUsername = data.sender_username;
+    const message = data.message;
+    const timestamp = data.timestamp || getCurrentTimestamp();
+    const groupId = data.group_id;
     
-    if (isSent) {
-        messageEl.innerHTML = `
-            <div class="message-content">
-                <div class="message-info">
-                    <span class="message-time">${timeString}</span>
-                    <span class="message-status">
-                        <i class="fas fa-check"></i>
-                    </span>
-                </div>
-                <p>${message}</p>
-            </div>
-        `;
+    // Determine chat ID based on sender or group
+    let chatId = groupId || senderId;
+    
+    // Check if this chat is currently visible
+    const isActiveChat = window.currentChatId === chatId.toString();
+    
+    // Create message element
+    const senderName = senderUsername || getSenderName(senderId) || 'User';
+    const messageEl = window.createMessageElement(message, false, senderName);
+    
+    // Add to appropriate chat container
+    const messagesContainer = document.getElementById(`${chatId}-messages`);
+    
+    if (messagesContainer) {
+        // If container exists, add message
+        messagesContainer.appendChild(messageEl);
+        
+        // Scroll to bottom if this is the active chat
+        if (isActiveChat) {
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        }
+    } else if (isActiveChat) {
+        // If this is supposed to be the active chat but container doesn't exist
+        // Create the container
+        console.log('Creating container for active chat');
+        const chatType = groupId ? 'group' : 'contact';
+        switchChat(chatId, chatType);
+        
+        // Try again after switchChat has created the container
+        setTimeout(() => {
+            const newContainer = document.getElementById(`${chatId}-messages`);
+            if (newContainer) {
+                newContainer.appendChild(messageEl);
+                newContainer.scrollTop = newContainer.scrollHeight;
+            }
+        }, 100);
     } else {
-        messageEl.innerHTML = `
-            <div class="message-avatar">
-                <img src="/static/images/contact_logo.png" alt="User">
-            </div>
-            <div class="message-content">
-                <div class="message-info">
-                    <span class="sender-name">${senderName}</span>
-                    <span class="message-time">${timeString}</span>
-                </div>
-                <p>${message}</p>
-            </div>
-        `;
+        // If the chat is not active, we need to handle this message
+        // 1. Check if the chat exists in the sidebar
+        const chatItem = document.querySelector(`.chat-item[data-chat-id="${chatId}"]`);
+        
+        if (chatItem) {
+            // Update the chat item with the new message
+            const lastMessageEl = chatItem.querySelector('.last-message p');
+            if (lastMessageEl) {
+                lastMessageEl.textContent = message;
+            }
+            
+            // Update timestamp
+            const timeEl = chatItem.querySelector('.time');
+            if (timeEl) {
+                timeEl.textContent = formatTimeForDisplay(timestamp);
+            }
+            
+            // Increment unread count
+            let unreadEl = chatItem.querySelector('.message-status.unread');
+            if (unreadEl) {
+                let unreadCount = parseInt(unreadEl.textContent, 10) || 0;
+                unreadEl.textContent = unreadCount + 1;
+            } else {
+                // Create unread indicator if it doesn't exist
+                unreadEl = document.createElement('div');
+                unreadEl.className = 'message-status unread';
+                unreadEl.textContent = '1';
+                chatItem.querySelector('.last-message').appendChild(unreadEl);
+            }
+            
+            // Move the chat item to the top of the list
+            const chatList = document.getElementById('chat-list');
+            if (chatList && chatList.firstChild) {
+                chatList.insertBefore(chatItem, chatList.firstChild);
+            }
+        } else {
+            // This is a new chat, we need to update contacts list
+            console.log('New chat message received, refreshing contacts list');
+            loadUserContacts();
+        }
     }
     
-    return messageEl;
+    // Update message status
+    if (isActiveChat) {
+        // Mark as read if this is the active chat
+        updateMessageReadStatus(chatId, groupId ? 'group' : 'direct', senderId);
+    }
+}
+
+// Helper function to update the read status of a message
+function updateMessageReadStatus(chatId, chatType, senderId) {
+    if (!chatId || !senderId) return;
+    
+    const endpoint = chatType === 'group' 
+        ? 'update_group_message_status' 
+        : 'update_message_status';
+    
+    const currentUsername = window.currentUsername || sessionStorage.getItem('username');
+    if (!currentUsername) return;
+    
+    fetch(getApiUrl(endpoint), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            username: currentUsername,
+            message_id: senderId,  // For direct message this is actually message_id
+            status: 'read'
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`Failed to update message status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Message marked as read:', data);
+    })
+    .catch(error => {
+        console.error('Error updating message status:', error);
+    });
+}
+
+// Function to update message status in the UI
+function updateMessageStatus(chatId, status, messageEl) {
+    console.log(`Updating message status for chat ${chatId} to ${status}`);
+    
+    // If a specific message element is provided, use that
+    if (messageEl) {
+        const statusIcon = messageEl.querySelector('.message-status i');
+        
+        if (statusIcon) {
+            // Update icon based on status
+            statusIcon.className = ''; // Clear existing classes
+            
+            switch (status) {
+                case 'sent':
+                    statusIcon.classList.add('fas', 'fa-check');
+                    break;
+                case 'delivered':
+                    statusIcon.classList.add('fas', 'fa-check-double');
+                    break;
+                case 'read':
+                    statusIcon.classList.add('fas', 'fa-check-double');
+                    statusIcon.style.color = '#4fc3f7'; // Blue color for read
+                    break;
+                case 'error':
+                    statusIcon.classList.add('fas', 'fa-exclamation-triangle');
+                    statusIcon.style.color = 'red';
+                    break;
+                default:
+                    statusIcon.classList.add('fas', 'fa-clock');
+            }
+            
+            // Update the message element's status attribute
+            messageEl.setAttribute('data-status', status);
+        }
+        return;
+    }
+    
+    // Otherwise find the last sent message in the chat
+    const messagesContainer = document.getElementById(`${chatId}-messages`);
+    if (!messagesContainer) {
+        console.warn(`No messages container found for chat ID: ${chatId}`);
+        return;
+    }
+    
+    const sentMessages = messagesContainer.querySelectorAll('.message.sent');
+    if (sentMessages.length === 0) {
+        console.warn('No sent messages found to update status');
+        return;
+    }
+    
+    const lastMessage = sentMessages[sentMessages.length - 1];
+    const statusIcon = lastMessage.querySelector('.message-status i');
+    
+    if (statusIcon) {
+        // Update icon based on status
+        statusIcon.className = ''; // Clear existing classes
+        
+        switch (status) {
+            case 'sent':
+                statusIcon.classList.add('fas', 'fa-check');
+                break;
+            case 'delivered':
+                statusIcon.classList.add('fas', 'fa-check-double');
+                break;
+            case 'read':
+                statusIcon.classList.add('fas', 'fa-check-double');
+                statusIcon.style.color = '#4fc3f7'; // Blue color for read
+                break;
+            case 'error':
+                statusIcon.classList.add('fas', 'fa-exclamation-triangle');
+                statusIcon.style.color = 'red';
+                break;
+            default:
+                statusIcon.classList.add('fas', 'fa-clock');
+        }
+        
+        // Update the message element's status attribute
+        lastMessage.setAttribute('data-status', status);
+    }
+}
+
+// Helper function to format timestamp for display
+function formatTimeForDisplay(timestamp) {
+    if (!timestamp) return '';
+    
+    // Create Date object from timestamp
+    let date;
+    if (typeof timestamp === 'string') {
+        // Handle different timestamp formats
+        if (timestamp.includes('T')) {
+            // ISO format
+            date = new Date(timestamp);
+        } else if (timestamp.includes('-')) {
+            // YYYY-MM-DD HH:MM:SS format
+            date = new Date(timestamp.replace(' ', 'T'));
+        } else {
+            // Timestamp in milliseconds
+            date = new Date(parseInt(timestamp, 10));
+        }
+    } else {
+        date = new Date(timestamp);
+    }
+    
+    // Check if date is valid
+    if (isNaN(date.getTime())) {
+        return timestamp; // Return original if parsing failed
+    }
+    
+    const now = new Date();
+    const isToday = date.toDateString() === now.toDateString();
+    const isYesterday = new Date(now - 86400000).toDateString() === date.toDateString();
+    
+    if (isToday) {
+        // Format as HH:MM AM/PM for today
+        return date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+    } else if (isYesterday) {
+        return 'Yesterday';
+    } else {
+        // Format as MM/DD/YYYY for other days
+        return date.toLocaleDateString();
+    }
 }
 
 // Function to update the last message in a chat list item
@@ -2181,23 +2811,387 @@ function updateChatLastMessage(chatId, message) {
 }
 
 document.addEventListener('DOMContentLoaded', function() {
-    // Add event listeners for sending messages
-    const sendButton = document.querySelector('.send-button');
-    const inputField = document.querySelector('.input-box input');
+    console.log('Chat.js loaded');
     
-    if (sendButton) {
-        sendButton.addEventListener('click', function() {
-            window.sendMessage();
-        });
-    }
+    // Initialize Socket.IO connection
+    const socket = io();
     
-    if (inputField) {
-        inputField.addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                window.sendMessage();
+    // Store socket globally for easy access
+    window.chatSocket = socket;
+    
+    // Socket.IO event handlers
+    socket.on('connect', function() {
+        console.log('Connected to WebSocket server');
+        // Display notification
+        showNotification('Connected to chat server', 'success');
+    });
+    
+    socket.on('disconnect', function() {
+        console.log('Disconnected from WebSocket server');
+        // Display notification
+        showNotification('Disconnected from chat server', 'error');
+    });
+    
+    socket.on('new_message', function(data) {
+        console.log('New message received:', data);
+        // Handle incoming messages
+        receiveMessage(data);
+    });
+    
+    socket.on('message_sent', function(data) {
+        console.log('Message sent confirmation:', data);
+        // Update UI to mark message as delivered
+        updateMessageStatus(data.receiver_id, 'delivered');
+    });
+    
+    socket.on('status', function(data) {
+        console.log('Status update:', data);
+        // Show status notifications
+        showNotification(data.message, 'info');
+    });
+    
+    // Function to handle incoming messages
+    function receiveMessage(data) {
+        const senderId = data.sender_id;
+        const message = data.message;
+        const timestamp = data.timestamp || getCurrentTimestamp();
+        const groupId = data.group_id;
+        
+        // Determine chat ID based on sender or group
+        let chatId = groupId || senderId;
+        
+        // Check if this chat is currently visible
+        const isActiveChat = window.currentChatId === chatId.toString();
+        
+        // Create message element
+        const senderName = getSenderName(senderId) || 'User';
+        const messageEl = window.createMessageElement(message, false, senderName);
+        
+        // Add to appropriate chat container
+        const messagesContainer = document.getElementById(`${chatId}-messages`);
+        
+        if (messagesContainer) {
+            // If container exists, add message
+            messagesContainer.appendChild(messageEl);
+            
+            // Scroll to bottom if this is the active chat
+            if (isActiveChat) {
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
             }
-        });
+        } else if (isActiveChat) {
+            // If this is supposed to be the active chat but container doesn't exist
+            // Create the container
+            console.log('Creating container for active chat');
+            const chatType = groupId ? 'group' : 'contact';
+            switchChat(chatId, chatType);
+            
+            // Try again after switchChat has created the container
+            setTimeout(() => {
+                const newContainer = document.getElementById(`${chatId}-messages`);
+                if (newContainer) {
+                    newContainer.appendChild(messageEl);
+                    newContainer.scrollTop = newContainer.scrollHeight;
+                }
+            }, 100);
+        }
+        
+        // Update chat list with last message
+        updateChatLastMessage(chatId, message);
+        
+        // Show notification if chat not active
+        if (!isActiveChat) {
+            showNotification(`New message from ${senderName}: ${message}`, 'info');
+        }
     }
+    
+    // Function to get sender name (from contacts or users list)
+    function getSenderName(senderId) {
+        // Try to find in chat list
+        const chatItem = document.querySelector(`.chat-item[data-chat-id="${senderId}"]`);
+        if (chatItem) {
+            return chatItem.querySelector('.chat-name')?.textContent;
+        }
+        return null;
+    }
+    
+    // Function to get current timestamp
+    function getCurrentTimestamp() {
+        const now = new Date();
+        return now.toISOString();
+    }
+    
+    // Function to update message status in UI
+    function updateMessageStatus(chatId, status) {
+        // Find the last sent message in the chat
+        const messagesContainer = document.getElementById(`${chatId}-messages`);
+        if (!messagesContainer) return;
+        
+        const sentMessages = messagesContainer.querySelectorAll('.message.sent');
+        if (sentMessages.length === 0) return;
+        
+        const lastMessage = sentMessages[sentMessages.length - 1];
+        const statusIcon = lastMessage.querySelector('.message-status i');
+        
+        if (statusIcon) {
+            statusIcon.classList.remove('fa-check');
+            
+            if (status === 'delivered') {
+                statusIcon.classList.add('fa-check-double');
+            } else if (status === 'read') {
+                statusIcon.classList.add('fa-check-double');
+                statusIcon.style.color = 'blue';
+            } else if (status === 'error') {
+                statusIcon.classList.add('fa-exclamation-triangle');
+                statusIcon.style.color = 'red';
+            }
+        }
+    }
+    
+    // Existing UI elements
+    const chatItems = document.querySelectorAll('.chat-item');
+    const sendButton = document.querySelector('.send-button');
+    const inputBox = document.querySelector('.input-box input');
+    
+    // Add event listeners for sending messages
+    sendButton.addEventListener('click', function() {
+        window.sendMessage();
+    });
+    
+    inputBox.addEventListener('keypress', function(e) {
+        if (e.key === 'Enter') {
+            window.sendMessage();
+        }
+    });
     
     // Other existing code...
 });
+
+// Function to show notifications to the user
+function showNotification(message, type = 'info') {
+    // Create notification element
+    const notification = document.createElement('div');
+    notification.className = `notification ${type}`;
+    notification.innerHTML = `
+        <div class="notification-content">
+            <span>${message}</span>
+            <button class="close-notification">×</button>
+        </div>
+    `;
+    
+    // Style based on type
+    switch(type) {
+        case 'success':
+            notification.style.backgroundColor = '#4CAF50';
+            notification.style.color = 'white';
+            break;
+        case 'error':
+            notification.style.backgroundColor = '#f44336';
+            notification.style.color = 'white';
+            break;
+        case 'warning':
+            notification.style.backgroundColor = '#ff9800';
+            notification.style.color = 'black';
+            break;
+        default:
+            notification.style.backgroundColor = '#2196F3';
+            notification.style.color = 'white';
+    }
+    
+    // Style the notification
+    notification.style.position = 'fixed';
+    notification.style.top = '20px';
+    notification.style.right = '20px';
+    notification.style.zIndex = '9999';
+    notification.style.minWidth = '250px';
+    notification.style.borderRadius = '4px';
+    notification.style.padding = '16px';
+    notification.style.boxShadow = '0 2px 5px rgba(0,0,0,0.2)';
+    
+    // Style the close button
+    const closeButton = notification.querySelector('.close-notification');
+    closeButton.style.marginLeft = '10px';
+    closeButton.style.cursor = 'pointer';
+    closeButton.style.float = 'right';
+    closeButton.style.fontSize = '22px';
+    closeButton.style.fontWeight = 'bold';
+    closeButton.style.lineHeight = '20px';
+    
+    // Add to document
+    document.body.appendChild(notification);
+    
+    // Add event listener to close button
+    closeButton.addEventListener('click', () => {
+        document.body.removeChild(notification);
+    });
+    
+    // Auto remove after 5 seconds
+    setTimeout(() => {
+        if (document.body.contains(notification)) {
+            document.body.removeChild(notification);
+        }
+    }, 5000);
+    
+    return notification;
+}
+
+async function addNewContact(event) {
+    try {
+        const userId = event.currentTarget.dataset.userId;
+        const username = event.currentTarget.dataset.username;
+        
+        if (!userId || !username) {
+            showNotification('Contact information is missing', 'error');
+            return;
+        }
+        
+        const response = await fetch(getApiUrl('api/add-contact'), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                contact_id: userId,
+                contact_username: username
+            })
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        showNotification(data.message || 'Contact added successfully', 'success');
+        
+        // Refresh contacts list
+        loadUserContacts();
+    } catch (error) {
+        console.error('Error adding contact:', error);
+        showNotification('Failed to add contact: ' + error.message, 'error');
+    }
+}
+
+async function logout() {
+    try {
+        const response = await fetch(getApiUrl('logout'), {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json'
+            }
+        });
+        
+        if (response.ok) {
+            window.location.href = '/login';
+        } else {
+            throw new Error(`Failed to logout: ${response.status}`);
+        }
+    } catch (error) {
+        console.error('Error during logout:', error);
+        showNotification('Failed to logout: ' + error.message, 'error');
+    }
+}
+
+async function getPotentialContacts() {
+    try {
+        const response = await fetch(getApiUrl('api/potential-contacts'));
+        if (!response.ok) {
+            throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return await response.json();
+    } catch (error) {
+        console.error('Error fetching potential contacts:', error);
+        return [];
+    }
+}
+
+// Update loadUserContacts function to use mock data when API fails
+function loadUserContacts() {
+    console.log('Loading user contacts...');
+    
+    // First, check if we can locate the sidebar content area
+    sidebarContentArea = document.getElementById('sidebar-content-area');
+    if (!sidebarContentArea) {
+        console.error('Cannot find sidebar content area');
+        return;
+    }
+    
+    // Look for the chat list view
+    let chatView = sidebarContentArea.querySelector('#chats-view');
+    if (!chatView) {
+        // If not present, we might need to load it
+        console.log('Chat view not found, creating a temporary one');
+        chatView = document.createElement('div');
+        chatView.id = 'chats-view';
+        chatView.className = 'sidebar-view active';
+        
+        // Add a header for the view
+        const header = document.createElement('div');
+        header.className = 'view-header';
+        header.innerHTML = `
+            <h2>Маектер</h2>
+            <div class="search-box">
+                <input type="text" id="chat-search-input" placeholder="Издөө...">
+                <i class="fas fa-search"></i>
+            </div>
+        `;
+        chatView.appendChild(header);
+        
+        sidebarContentArea.appendChild(chatView);
+    }
+    
+    // Now try to find the chat list container
+    let chatListContainer = chatView.querySelector('.chat-list-container');
+    if (!chatListContainer) {
+        // Create chat list container if it doesn't exist
+        console.log('Creating chat list container');
+        chatListContainer = document.createElement('div');
+        chatListContainer.className = 'chat-list-container scrollable-list';
+        chatView.appendChild(chatListContainer);
+    }
+    
+    // Now find or create the chat list itself
+    let chatList = chatListContainer.querySelector('#chat-list');
+    if (!chatList) {
+        // Create chat list if it doesn't exist
+        console.log('Creating chat list element');
+        chatList = document.createElement('div');
+        chatList.id = 'chat-list';
+        chatList.className = 'chat-list';
+        chatListContainer.appendChild(chatList);
+    }
+    
+    console.log('Chat list found or created:', !!chatList);
+    
+    // Show loading state
+    chatList.innerHTML = '<div class="loading">Loading contacts...</div>';
+    
+    // Make API call to get user contacts
+    fetch(getApiUrl('api/contacts'))
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`Failed to load contacts: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Contacts loaded:', data);
+            // Process contacts data and update UI
+            updateContactsList(data, chatList);
+        })
+        .catch(error => {
+            console.error('Error loading contacts:', error);
+            // Show error message
+            chatList.innerHTML = `
+                <div class="empty-chat-message">
+                    <i class="fas fa-exclamation-circle fa-3x"></i>
+                    <p>Контакттерди жүктөөдө ката кетти</p>
+                    <button id="retry-contacts-btn" class="btn btn-primary">Кайталоо</button>
+                </div>
+            `;
+            
+            // Add retry button listener
+            const retryBtn = document.getElementById('retry-contacts-btn');
+            if (retryBtn) {
+                retryBtn.addEventListener('click', loadUserContacts);
+            }
+        });
+}

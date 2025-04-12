@@ -427,31 +427,95 @@
     </div>
     <!-- End Group Edit Modals -->
 
-    <script src="/static/js/chat.js"></script>
+    <!-- Code injected by live-server -->
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
+    <!-- Replace incorrect Fontawesome kit with CDN link -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
+    
+    <!-- Socket.IO client library -->
+    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    
+    <!-- Mock sidebar template for chats view in case server doesn't return it -->
+    <script id="mock-chats-template" type="text/template">
+        <div id="chats-view" class="sidebar-view active">
+            <div class="view-header">
+                <h2>Маектер</h2>
+                <div class="search-box">
+                    <input type="text" id="chat-search-input" placeholder="Издөө...">
+                    <i class="fas fa-search"></i>
+                </div>
+            </div>
+            <div class="chat-list-container scrollable-list">
+                <div id="chat-list" class="chat-list">
+                    <!-- Chat items will be added here -->
+                </div>
+            </div>
+        </div>
+    </script>
+    
+    <!-- Main chat script -->
+    <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
     <script>
-        // Hide all modals on page load
-        document.addEventListener('DOMContentLoaded', () => {
-            // Hide all modals
+        // Wait for the chat.js script to fully load before trying to use its functions
+        document.addEventListener('DOMContentLoaded', function() {
+            console.log("DOM content loaded, initializing chat app...");
+            
+            // Pass server-side username to client
+            window.currentUsername = "{{ session.get('username', '') }}";
+            if (window.currentUsername) {
+                console.log("Setting current username:", window.currentUsername);
+                sessionStorage.setItem('username', window.currentUsername);
+            } else {
+                console.warn("Username not found in session");
+            }
+            
+            // Hide all modals on page load
             const modals = document.querySelectorAll('.modal');
             modals.forEach(modal => {
                 modal.style.display = 'none';
             });
             
-            // Make sure sidebar content area exists
-            const sidebarContentArea = document.getElementById('sidebar-content-area');
-            if (sidebarContentArea) {
-                console.log("Sidebar content area found, loading chats view");
-                // Load the default sidebar view
-                if (typeof loadSidebarView === 'function') {
-                    loadSidebarView('chats');
+            // Give the chat.js script time to load and execute
+            setTimeout(function() {
+                // Check if sidebar content area exists
+                const sidebarContentArea = document.getElementById('sidebar-content-area');
+                if (sidebarContentArea) {
+                    console.log("Sidebar content area found, loading chats view");
+                    
+                    // Try to load the default sidebar view
+                    if (typeof window.loadSidebarView === 'function') {
+                        console.log("Using loadSidebarView function");
+                        window.loadSidebarView('chats').catch(error => {
+                            console.error("Error loading sidebar view:", error);
+                            console.log("Falling back to direct DOM manipulation");
+                            // Fallback: Insert mock template
+                            const mockTemplate = document.getElementById('mock-chats-template');
+                            if (mockTemplate) {
+                                sidebarContentArea.innerHTML = mockTemplate.innerHTML;
+                                // Try to load contacts directly
+                                if (typeof window.loadUserContacts === 'function') {
+                                    window.loadUserContacts();
+                                }
+                            }
+                        });
+                    } else {
+                        console.error("loadSidebarView function not found, using direct DOM manipulation");
+                        // Insert mock template
+                        const mockTemplate = document.getElementById('mock-chats-template');
+                        if (mockTemplate) {
+                            sidebarContentArea.innerHTML = mockTemplate.innerHTML;
+                            // Try to load contacts directly
+                            if (typeof window.loadUserContacts === 'function') {
+                                window.loadUserContacts();
+                            }
+                        }
+                    }
                 } else {
-                    console.error("loadSidebarView function not found");
+                    console.error("Sidebar content area not found");
                 }
-            } else {
-                console.error("Sidebar content area not found");
-            }
+            }, 500); // Give half a second delay to ensure scripts are loaded
         });
     </script>
-    <!-- Code injected by live-server -->
 </body>
 </html> 

@@ -335,18 +335,24 @@ def send_message():
     cursor = conn.cursor()
     
     # Get user IDs
+    print(f"Looking for sender: '{sender_username}'")
     cursor.execute("SELECT id FROM users WHERE username = ?", (sender_username,))
     sender = cursor.fetchone()
+    
+    print(f"Looking for receiver: '{receiver_username}'")
     cursor.execute("SELECT id FROM users WHERE username = ?", (receiver_username,))
     receiver = cursor.fetchone()
     
     if not sender:
-        return jsonify({"message": "Sender not found"}), 404
+        print(f"ERROR: Sender not found: '{sender_username}'")
+        return jsonify({"message": f"Sender not found: '{sender_username}'"}), 404
     if not receiver:
-        return jsonify({"message": "Receiver not found"}), 404
+        print(f"ERROR: Receiver not found: '{receiver_username}'")
+        return jsonify({"message": f"Receiver not found: '{receiver_username}'"}), 404
     
     sender_id = sender[0]
     receiver_id = receiver[0]
+    print(f"Found sender ID: {sender_id}, receiver ID: {receiver_id}")
     
     # Get current timestamp
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -1440,12 +1446,27 @@ def api_contacts():
     user_id = session.get('user_id')
     if not user_id:
         return jsonify({"error": "User not authenticated"}), 401
+        
+    username = session.get('username')
+    if not username:
+        # Try to get username from user ID
+        conn = connect_db()
+        cursor = conn.cursor()
+        cursor.execute("SELECT username FROM users WHERE id = ?", (user_id,))
+        user = cursor.fetchone()
+        conn.close()
+        
+        if user:
+            username = user[0]
+            session['username'] = username
+        else:
+            return jsonify({"error": "User not found"}), 404
 
     conn = connect_db()
     cursor = conn.cursor()
 
     try:
-        # Get user's contacts
+        # First, get the user's contacts
         cursor.execute('''
             SELECT c.contact_id, u.username, u.email, u.profile_picture, c.display_name
             FROM contacts c
@@ -1501,7 +1522,7 @@ def api_contacts():
                 'unread_count': unread_count
             })
         
-        # Also get user's groups
+        # Next, get user's groups
         cursor.execute('''
             SELECT g.id, g.group_name, g.group_picture
             FROM group_members gm
@@ -1661,6 +1682,43 @@ def api_update_contact_name():
         conn.rollback()
         return jsonify({"success": False, "message": f"Error updating contact name: {str(e)}"}), 500
     
+    finally:
+        conn.close()
+
+@bp.route('/api/check-user-exists', methods=['GET'])
+def check_user_exists():
+    """Check if a user exists in the database by username"""
+    username = request.args.get('username')
+    
+    if not username:
+        return jsonify({"exists": False, "message": "No username provided"}), 400
+    
+    conn = connect_db()
+    cursor = conn.cursor()
+    
+    try:
+        # Check if the user exists
+        cursor.execute("SELECT id, username FROM users WHERE username = ?", (username,))
+        user = cursor.fetchone()
+        
+        if user:
+            return jsonify({
+                "exists": True,
+                "user_id": user[0],
+                "username": user[1]
+            }), 200
+        else:
+            return jsonify({
+                "exists": False,
+                "message": f"User '{username}' not found"
+            }), 200
+            
+    except Exception as e:
+        return jsonify({
+            "exists": False,
+            "message": f"Error checking user: {str(e)}"
+        }), 500
+        
     finally:
         conn.close()
         
