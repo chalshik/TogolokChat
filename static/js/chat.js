@@ -7,6 +7,11 @@ window.getCurrentTimestamp = function() {
     return now.toISOString();
 };
 
+// Global message cache for deduplication
+window.messageCache = new Map();
+const MESSAGE_CACHE_SIZE = 20; // Remember last 20 messages
+const MESSAGE_CACHE_TIMEOUT = 10000; // 10 seconds
+
 // Global function for creating message elements
 window.createMessageElement = function(message, isSent = true, senderName = 'Тоголоктакт(1)') {
     const messageDiv = document.createElement('div');
@@ -267,7 +272,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Show the first message container by default
     document.getElementById('group1-messages').classList.add('active');
 
-    // Toggle profile sidebar based on chat type
+    // Function to toggle the profile sidebar
     function toggleProfileSidebar() {
         if (currentChatType === 'group') {
             contactProfileSidebar.classList.remove('active');
@@ -278,14 +283,80 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
+    // Function to show contact profile sidebar with details
+    function showContactProfile(contactId) {
+        // Fetch contact details if needed
+        const contact = userContacts.find(c => c.id == contactId);
+        if (!contact) {
+            console.error('Contact not found:', contactId);
+            return;
+        }
+
+        // Update profile sidebar content
+        const profileSidebar = document.getElementById('contact-profile-sidebar');
+        if (profileSidebar) {
+            // Set profile image
+            const profileImage = profileSidebar.querySelector('.profile-avatar');
+            if (profileImage) {
+                profileImage.src = contact.avatar || '/static/img/default_avatar.png';
+                profileImage.alt = contact.name || 'Contact';
+            }
+
+            // Set contact name
+            const contactName = profileSidebar.querySelector('.profile-name');
+            if (contactName) {
+                contactName.textContent = contact.name || 'Unknown Contact';
+            }
+
+            // Set contact nickname
+            const contactNickname = profileSidebar.querySelector('.profile-nickname');
+            if (contactNickname) {
+                contactNickname.textContent = contact.username ? `@${contact.username}` : '';
+            }
+
+            // Set last seen status
+            const lastSeen = profileSidebar.querySelector('.last-seen');
+            if (lastSeen) {
+                lastSeen.textContent = contact.last_seen || 'Unknown';
+            }
+
+            // Ensure the report button has the correct contact ID
+            const reportButton = profileSidebar.querySelector('.report-contact-btn');
+            if (reportButton) {
+                reportButton.setAttribute('data-contact-id', contactId);
+            }
+
+            // Show the sidebar
+            profileSidebar.classList.add('active');
+        }
+    }
+
     // Event listeners for profile sidebar
     if (chatHeader) {
+        // Add click handler for the entire header (excluding action buttons)
         chatHeader.addEventListener('click', (e) => {
             // Only open sidebar if clicking on the chat info part, not the action buttons
             if (!e.target.closest('.chat-actions')) {
                 toggleProfileSidebar();
             }
         });
+        
+        // Add specific handler for the avatar in the header
+        const headerAvatar = document.getElementById('current-chat-avatar');
+        if (headerAvatar) {
+            headerAvatar.addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevent triggering the chat header click
+                
+                const chatId = window.currentChatId;
+                const chatType = window.currentChatType;
+                
+                if (chatType === 'contact') {
+                    showContactProfile(chatId);
+                } else if (chatType === 'group') {
+                    toggleProfileSidebar();
+                }
+            });
+        }
     }
 
     // Close sidebar buttons
@@ -646,11 +717,12 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     }
     
+    // Report contact button
     if (reportContactBtn) {
         reportContactBtn.addEventListener('click', () => {
             if (confirm('Бул колдонуучуга даттануу керекпи?')) {
                 console.log('User reported the contact');
-                // Here you would add the actual functionality to report the contact
+                showNotification('Колдонуучуга даттануу катталды', 'info');
             }
         });
     }
@@ -873,15 +945,45 @@ document.addEventListener('DOMContentLoaded', () => {
         if (searchInput) {
             searchInput.addEventListener('input', handleChatSearch);
         }
+        
         const chatItems = sidebarContentArea.querySelectorAll('.chat-item');
         chatItems.forEach(item => {
-            item.addEventListener('click', () => {
+            // Handle click on entire chat item (for opening chat)
+            item.addEventListener('click', (e) => {
+                // If clicking on the avatar, don't switch chat, just show profile
+                if (e.target.closest('.chat-avatar')) {
+                    return;
+                }
+                
                 const chatId = item.dataset.chatId;
                 const chatType = item.dataset.chatType;
                 switchChat(chatId, chatType);
+                
+                // Mark as active in UI
+                sidebarContentArea.querySelectorAll('.chat-item').forEach(i => i.classList.remove('active'));
+                item.classList.add('active');
             });
+            
+            // Add click handler for avatar to show profile
+            const avatar = item.querySelector('.chat-avatar');
+            if (avatar) {
+                avatar.addEventListener('click', (e) => {
+                    e.stopPropagation(); // Prevent triggering the chat switch
+                    
+                    const chatId = item.dataset.chatId;
+                    const chatType = item.dataset.chatType;
+                    
+                    if (chatType === 'contact') {
+                        showContactProfile(chatId);
+                    } else if (chatType === 'group') {
+                        // Group profiles can be handled separately if needed
+                        toggleProfileSidebar();
+                    }
+                });
+            }
         });
-         // Ensure the current chat remains visually active if it's in the list
+        
+        // Ensure the current chat remains visually active if it's in the list
         const activeChatItem = sidebarContentArea.querySelector(`.chat-item[data-chat-id="${currentChatId}"]`);
         if (activeChatItem) {
             sidebarContentArea.querySelectorAll('.chat-item').forEach(i => i.classList.remove('active'));
@@ -1150,14 +1252,28 @@ document.addEventListener('DOMContentLoaded', () => {
 
 // Initialize Socket.IO connection for real-time messaging
 function initializeSocket() {
+    // Global variable to track if we've attached listeners
+    if (!window.socketListenersAttached) {
+        window.socketListenersAttached = false;
+    }
+
     if (window.chatSocket) {
         console.log('Socket connection already initialized');
-        setupSocketEventHandlers(window.chatSocket);
+        if (!window.socketListenersAttached) {
+            setupSocketEventHandlers(window.chatSocket);
+            window.socketListenersAttached = true;
+        } else {
+            console.log('Socket event handlers already attached, skipping');
+        }
         return;
     }
     
     try {
-        const socket = io('http://localhost:5000', {
+        // Use current window location instead of hardcoded localhost
+        const socketUrl = `${window.location.protocol}//${window.location.host}`;
+        console.log('Connecting to Socket.IO at:', socketUrl);
+        
+        const socket = io(socketUrl, {
             transports: ['websocket', 'polling'],
             reconnection: true,
             reconnectionAttempts: 5,
@@ -1167,7 +1283,10 @@ function initializeSocket() {
         window.chatSocket = socket;
         console.log('Socket.IO initialized');
         
-        setupSocketEventHandlers(socket);
+        if (!window.socketListenersAttached) {
+            setupSocketEventHandlers(socket);
+            window.socketListenersAttached = true;
+        }
     } catch (error) {
         console.error('Socket.IO initialization error:', error);
     }
@@ -1175,14 +1294,32 @@ function initializeSocket() {
 
 // Set up socket event handlers for real-time messaging
 function setupSocketEventHandlers(socket) {
+    // Remove any existing listeners to prevent duplicates
+    socket.off('connect');
+    socket.off('disconnect');
+    socket.off('reconnect');
+    socket.off('new_message');
+    socket.off('message_sent');
+    socket.off('message_status');
+    socket.off('user_status');
+    
     // Handle socket connection events
     socket.on('connect', () => {
         console.log('Socket connected!');
         
-        // If we have a username, emit a join event to let the server know we're online
+        // Get current user information
         const username = window.currentUsername || sessionStorage.getItem('username');
+        const userId = sessionStorage.getItem('user_id');
+        
+        // Join rooms for both username and user ID for reliable message delivery
         if (username) {
-            socket.emit('join', { username: username });
+            console.log('Joining room for username:', username);
+            socket.emit('join', { room: username });
+        }
+        
+        if (userId) {
+            console.log('Joining room for user ID:', userId);
+            socket.emit('join', { room: userId });
         }
     });
     
@@ -1195,15 +1332,30 @@ function setupSocketEventHandlers(socket) {
         
         // Rejoin on reconnect
         const username = window.currentUsername || sessionStorage.getItem('username');
+        const userId = sessionStorage.getItem('user_id');
+        
         if (username) {
-            socket.emit('join', { username: username });
+            socket.emit('join', { room: username });
+        }
+        
+        if (userId) {
+            socket.emit('join', { room: userId });
         }
     });
     
     // Handle incoming messages
-    socket.on('message', (data) => {
-        console.log('Received message via socket:', data);
+    socket.on('new_message', (data) => {
+        console.log('Received new message via socket:', data);
         receiveMessage(data);
+    });
+    
+    // Also handle message_sent events for confirmation
+    socket.on('message_sent', (data) => {
+        console.log('Message sent confirmation received:', data);
+        // Update the UI to show message was sent successfully
+        if (data.receiver_id) {
+            updateMessageStatus(data.receiver_id, 'delivered');
+        }
     });
     
     // Handle message status updates
@@ -1386,7 +1538,16 @@ function createChatItem(contact) {
     item.className = 'chat-item';
     item.dataset.chatId = contact.id;
     item.dataset.chatType = contact.is_group ? 'group' : 'contact';
-    item.dataset.username = contact.username || contact.name; // Store the contact's username
+    
+    // Store both username and ID for more reliable messaging
+    if (contact.username) {
+        item.dataset.username = contact.username;
+    }
+    
+    // Store the user ID for direct messaging
+    if (!contact.is_group) {
+        item.dataset.userId = contact.id;
+    }
     
     const avatarSrc = contact.avatar_url || '/static/images/contact_logo.png';
     const lastMessage = contact.last_message || 'No messages yet';
@@ -2411,9 +2572,13 @@ window.sendMessage = function() {
                     throw new Error('Receiver username not found');
                 }
                 
+                // For more reliable delivery, try to get the receiver's ID too
+                const receiverId = chatItem?.dataset?.userId || null;
+                
                 // Emit the message via socket.io
                 window.chatSocket.emit('send_message', {
                     receiver_username: receiverUsername,
+                    receiver_id: receiverId,
                     message: messageText,
                     timestamp: timestamp
                 });
@@ -2533,6 +2698,27 @@ window.sendMessage = function() {
 // Function to handle incoming messages from WebSocket
 function receiveMessage(data) {
     console.log('Received message:', data);
+    
+    // Generate a unique key for this message to prevent duplicates
+    const messageKey = `${data.sender_id}_${data.message}_${data.timestamp || new Date().toISOString()}`;
+    
+    // Check if we've already processed this message recently
+    const cacheEntry = window.messageCache.get(messageKey);
+    if (cacheEntry && Date.now() - cacheEntry < MESSAGE_CACHE_TIMEOUT) {
+        console.log('Duplicate message detected, ignoring:', messageKey);
+        return;
+    }
+    
+    // Add to our cache of received messages with current timestamp
+    window.messageCache.set(messageKey, Date.now());
+    
+    // Limit cache size by removing oldest entries
+    if (window.messageCache.size > MESSAGE_CACHE_SIZE) {
+        const oldest = [...window.messageCache.entries()].sort((a, b) => a[1] - b[1])[0];
+        if (oldest) {
+            window.messageCache.delete(oldest[0]);
+        }
+    }
     
     const senderId = data.sender_id;
     const senderUsername = data.sender_username;
@@ -2790,181 +2976,24 @@ function updateChatLastMessage(chatId, message) {
     const chatItem = document.querySelector(`.chat-item[data-chat-id="${chatId}"]`);
     if (!chatItem) return;
     
-    // Update the last message text
+    // Update last message text
     const lastMessageEl = chatItem.querySelector('.last-message p');
-    if (lastMessageEl) lastMessageEl.textContent = message;
+    if (lastMessageEl) {
+        lastMessageEl.textContent = message;
+    }
     
-    // Update the time
+    // Update timestamp to now
     const timeEl = chatItem.querySelector('.time');
     if (timeEl) {
-        const now = new Date();
-        const hours = now.getHours().toString().padStart(2, '0');
-        const minutes = now.getMinutes().toString().padStart(2, '0');
-        timeEl.textContent = `${hours}:${minutes}`;
+        timeEl.textContent = formatTimeForDisplay(new Date());
     }
     
-    // Move this chat to the top of the list
-    const chatList = chatItem.parentElement;
-    if (chatList) {
-        chatList.prepend(chatItem);
+    // Move chat to top of list
+    const chatList = document.getElementById('chat-list');
+    if (chatList && chatList.firstChild) {
+        chatList.insertBefore(chatItem, chatList.firstChild);
     }
 }
-
-document.addEventListener('DOMContentLoaded', function() {
-    console.log('Chat.js loaded');
-    
-    // Initialize Socket.IO connection
-    const socket = io();
-    
-    // Store socket globally for easy access
-    window.chatSocket = socket;
-    
-    // Socket.IO event handlers
-    socket.on('connect', function() {
-        console.log('Connected to WebSocket server');
-        // Display notification
-        showNotification('Connected to chat server', 'success');
-    });
-    
-    socket.on('disconnect', function() {
-        console.log('Disconnected from WebSocket server');
-        // Display notification
-        showNotification('Disconnected from chat server', 'error');
-    });
-    
-    socket.on('new_message', function(data) {
-        console.log('New message received:', data);
-        // Handle incoming messages
-        receiveMessage(data);
-    });
-    
-    socket.on('message_sent', function(data) {
-        console.log('Message sent confirmation:', data);
-        // Update UI to mark message as delivered
-        updateMessageStatus(data.receiver_id, 'delivered');
-    });
-    
-    socket.on('status', function(data) {
-        console.log('Status update:', data);
-        // Show status notifications
-        showNotification(data.message, 'info');
-    });
-    
-    // Function to handle incoming messages
-    function receiveMessage(data) {
-        const senderId = data.sender_id;
-        const message = data.message;
-        const timestamp = data.timestamp || getCurrentTimestamp();
-        const groupId = data.group_id;
-        
-        // Determine chat ID based on sender or group
-        let chatId = groupId || senderId;
-        
-        // Check if this chat is currently visible
-        const isActiveChat = window.currentChatId === chatId.toString();
-        
-        // Create message element
-        const senderName = getSenderName(senderId) || 'User';
-        const messageEl = window.createMessageElement(message, false, senderName);
-        
-        // Add to appropriate chat container
-        const messagesContainer = document.getElementById(`${chatId}-messages`);
-        
-        if (messagesContainer) {
-            // If container exists, add message
-            messagesContainer.appendChild(messageEl);
-            
-            // Scroll to bottom if this is the active chat
-            if (isActiveChat) {
-                messagesContainer.scrollTop = messagesContainer.scrollHeight;
-            }
-        } else if (isActiveChat) {
-            // If this is supposed to be the active chat but container doesn't exist
-            // Create the container
-            console.log('Creating container for active chat');
-            const chatType = groupId ? 'group' : 'contact';
-            switchChat(chatId, chatType);
-            
-            // Try again after switchChat has created the container
-            setTimeout(() => {
-                const newContainer = document.getElementById(`${chatId}-messages`);
-                if (newContainer) {
-                    newContainer.appendChild(messageEl);
-                    newContainer.scrollTop = newContainer.scrollHeight;
-                }
-            }, 100);
-        }
-        
-        // Update chat list with last message
-        updateChatLastMessage(chatId, message);
-        
-        // Show notification if chat not active
-        if (!isActiveChat) {
-            showNotification(`New message from ${senderName}: ${message}`, 'info');
-        }
-    }
-    
-    // Function to get sender name (from contacts or users list)
-    function getSenderName(senderId) {
-        // Try to find in chat list
-        const chatItem = document.querySelector(`.chat-item[data-chat-id="${senderId}"]`);
-        if (chatItem) {
-            return chatItem.querySelector('.chat-name')?.textContent;
-        }
-        return null;
-    }
-    
-    // Function to get current timestamp
-    function getCurrentTimestamp() {
-        const now = new Date();
-        return now.toISOString();
-    }
-    
-    // Function to update message status in UI
-    function updateMessageStatus(chatId, status) {
-        // Find the last sent message in the chat
-        const messagesContainer = document.getElementById(`${chatId}-messages`);
-        if (!messagesContainer) return;
-        
-        const sentMessages = messagesContainer.querySelectorAll('.message.sent');
-        if (sentMessages.length === 0) return;
-        
-        const lastMessage = sentMessages[sentMessages.length - 1];
-        const statusIcon = lastMessage.querySelector('.message-status i');
-        
-        if (statusIcon) {
-            statusIcon.classList.remove('fa-check');
-            
-            if (status === 'delivered') {
-                statusIcon.classList.add('fa-check-double');
-            } else if (status === 'read') {
-                statusIcon.classList.add('fa-check-double');
-                statusIcon.style.color = 'blue';
-            } else if (status === 'error') {
-                statusIcon.classList.add('fa-exclamation-triangle');
-                statusIcon.style.color = 'red';
-            }
-        }
-    }
-    
-    // Existing UI elements
-    const chatItems = document.querySelectorAll('.chat-item');
-    const sendButton = document.querySelector('.send-button');
-    const inputBox = document.querySelector('.input-box input');
-    
-    // Add event listeners for sending messages
-    sendButton.addEventListener('click', function() {
-        window.sendMessage();
-    });
-    
-    inputBox.addEventListener('keypress', function(e) {
-        if (e.key === 'Enter') {
-            window.sendMessage();
-        }
-    });
-    
-    // Other existing code...
-});
 
 // Function to show notifications to the user
 function showNotification(message, type = 'info') {
@@ -3195,3 +3224,33 @@ function loadUserContacts() {
             }
         });
 }
+
+// Execute when the DOM is fully loaded
+document.addEventListener('DOMContentLoaded', function() {
+    console.log('DOM fully loaded - initializing chat UI');
+    
+    // Initialize Socket.IO only once
+    initializeSocket();
+    
+    // Initialize chat UI components
+    const sendButton = document.querySelector('.send-button');
+    const inputBox = document.querySelector('.input-box input');
+    
+    // Add event listeners for sending messages
+    if (sendButton) {
+        sendButton.addEventListener('click', function() {
+            window.sendMessage();
+        });
+    }
+    
+    if (inputBox) {
+        inputBox.addEventListener('keypress', function(e) {
+            if (e.key === 'Enter') {
+                window.sendMessage();
+            }
+        });
+    }
+    
+    // Load user contacts when the page loads
+    loadUserContacts();
+});

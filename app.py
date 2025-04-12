@@ -85,10 +85,24 @@ def handle_disconnect():
 @socketio.on('join')
 def handle_join(data):
     room = data.get('room')
-    if room:
-        join_room(room)
-        print(f'Client joined room: {room}')
-        emit('status', {'message': f'A user has joined the room {room}'}, room=room)
+    if not room:
+        return
+    
+    # Get username if available
+    username = None
+    if 'username' in session:
+        username = session['username']
+    
+    # Join the room
+    join_room(str(room))
+    print(f'Client joined room: {room}')
+    
+    # If we have the username, emit a status update to notify others
+    if username:
+        emit('user_status', {
+            'username': username,
+            'status': 'online'
+        }, broadcast=True, include_self=False)
 
 @socketio.on('leave')
 def handle_leave(data):
@@ -99,10 +113,18 @@ def handle_leave(data):
 
 @socketio.on('send_message')
 def handle_message(data):
+    # Get sender info from session
     sender_id = session.get('user_id')
+    sender_username = session.get('username')
+    
+    # Get message details from data
+    receiver_username = data.get('receiver_username')
     receiver_id = data.get('receiver_id')
     message = data.get('message')
     group_id = data.get('group_id')
+    timestamp = data.get('timestamp', '')
+    
+    print(f"Message from {sender_username}({sender_id}) to {receiver_username}({receiver_id}): {message}")
     
     if not sender_id:
         return {'status': 'error', 'message': 'Not authenticated'}
@@ -115,37 +137,66 @@ def handle_message(data):
         if group_id:
             # Group message
             room = f'group_{group_id}'
-            # Store message in database
-            # This is handled by the existing endpoint
+            
+            # Emit message to the entire group room
             emit('new_message', {
                 'sender_id': sender_id,
+                'sender_username': sender_username,
                 'message': message,
                 'group_id': group_id,
-                'timestamp': data.get('timestamp', '')
+                'timestamp': timestamp
             }, room=room)
+            
             return {'status': 'success', 'message': 'Group message sent'}
         
-        elif receiver_id:
-            # Direct message
-            # Store message in database
-            # This is handled by the existing endpoint
-            emit('new_message', {
+        elif receiver_username or receiver_id:
+            # Direct message - find the best room to emit to
+            target_room = None
+            
+            # Prioritize receiver_id if available
+            if receiver_id:
+                target_room = str(receiver_id)
+            # Otherwise use username
+            elif receiver_username:
+                # Look up the user ID from username
+                conn = connect_db()
+                cursor = conn.cursor()
+                
+                cursor.execute("SELECT id FROM users WHERE username = ?", (receiver_username,))
+                result = cursor.fetchone()
+                
+                if result:
+                    receiver_id = result[0]
+                    target_room = str(receiver_id)
+                
+                conn.close()
+            
+            if not target_room:
+                return {'status': 'error', 'message': 'Could not determine recipient'}
+            
+            # Send to the recipient
+            message_data = {
                 'sender_id': sender_id,
+                'sender_username': sender_username,
                 'message': message,
-                'timestamp': data.get('timestamp', '')
-            }, room=str(receiver_id)) # Send to receiver's room
+                'timestamp': timestamp
+            }
+            
+            print(f"Emitting to room: {target_room}")
+            emit('new_message', message_data, room=target_room)
             
             # Also notify the sender for UI update confirmation
             emit('message_sent', {
                 'receiver_id': receiver_id,
+                'receiver_username': receiver_username,
                 'message': message,
-                'timestamp': data.get('timestamp', '')
+                'timestamp': timestamp
             }, room=str(sender_id))
             
             return {'status': 'success', 'message': 'Direct message sent'}
         
         else:
-            return {'status': 'error', 'message': 'No receiver or group specified'}
+            return {'status': 'error', 'message': 'No receiver specified'}
     
     except Exception as e:
         print(f'Error sending message: {str(e)}')
@@ -154,4 +205,11 @@ def handle_message(data):
 if __name__ == '__main__':
     app.debug = True  # Enable debug mode
     app.config['TEMPLATES_AUTO_RELOAD'] = True  # Enable template auto-reloading
-    socketio.run(app, debug=True) 
+    # Allow connections from any IP and disable verification
+    socketio.run(
+        app, 
+        host='0.0.0.0', 
+        port=5000, 
+        debug=True,
+        allow_unsafe_werkzeug=True  # Only use in development!
+    ) 
