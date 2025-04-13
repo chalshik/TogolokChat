@@ -1588,7 +1588,7 @@ def api_contacts():
 
 @bp.route('/api/search-users', methods=['GET'])
 def api_search_users():
-    """Search for users by username or email"""
+    """Search for users by username, name, or email"""
     from flask import session
     user_id = session.get('user_id')
     
@@ -1604,16 +1604,19 @@ def api_search_users():
     cursor = conn.cursor()
     
     try:
-        # Search users by username or email
+        # Search users by username, name, or email
+        # Also search without the ~ prefix for nickname searches
         search_param = f"%{query}%"
+        search_nickname = f"%{query.lstrip('~')}%"  # Remove the ~ prefix if it exists
+        
         cursor.execute('''
             SELECT id, username, email, name, profile_picture FROM users 
-            WHERE (username LIKE ? OR email LIKE ? OR name LIKE ?) 
+            WHERE (username LIKE ? OR email LIKE ? OR name LIKE ? OR username LIKE ?) 
             AND id != ? 
             AND id NOT IN (
                 SELECT contact_id FROM contacts WHERE user_id = ?
             )
-        ''', (search_param, search_param, search_param, user_id, user_id))
+        ''', (search_param, search_param, search_param, search_nickname, user_id, user_id))
         
         user_rows = cursor.fetchall()
         
@@ -1627,8 +1630,9 @@ def api_search_users():
             users.append({
                 "id": user_id,
                 "username": username,
+                "nickname": f"~{username}",  # Add the tilde prefix for display purposes
                 "email": email,
-                "name": name,
+                "name": name or username,  # Default to username if name is not set
                 "avatar": avatar
             })
         

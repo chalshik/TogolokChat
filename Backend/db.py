@@ -18,9 +18,22 @@ def create_tables():
             security_question TEXT NOT NULL,
             secret_word TEXT NOT NULL,
             name TEXT,
-            profile_picture TEXT
+            profile_picture TEXT,
+            info TEXT
         );
     ''')
+    
+    # Check if info column exists, add it if not
+    cursor.execute("PRAGMA table_info(users)")
+    columns = cursor.fetchall()
+    column_names = [column[1] for column in columns]
+    
+    if 'info' not in column_names:
+        try:
+            cursor.execute("ALTER TABLE users ADD COLUMN info TEXT")
+            print("Added 'info' column to users table")
+        except sqlite3.OperationalError:
+            print("'info' column already exists")
     
     # Messages table - add status, is_edited, and timestamp fields
     cursor.execute('''

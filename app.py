@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, url_for, session
+from flask import Flask, render_template, redirect, url_for, session, send_from_directory
 import os
 from datetime import timedelta
 from flask_socketio import SocketIO, emit, join_room, leave_room
@@ -26,7 +26,7 @@ socketio = SocketIO(app,
 # Register blueprints
 app.register_blueprint(auth_bp)
 app.register_blueprint(chat_bp)
-app.register_blueprint(settings_bp)
+app.register_blueprint(settings_bp, url_prefix='/api')
 
 # Create required directories if they don't exist
 os.makedirs('uploads/profile_photos', exist_ok=True)
@@ -64,7 +64,39 @@ def serve_sidebar_template(filename):
 # Serve static files from the uploads directory
 @app.route('/uploads/<path:filename>')
 def serve_upload(filename):
-    return app.send_static_file(f'uploads/{filename}')
+    # Extract the directory part from the filename
+    directory = os.path.dirname(filename)
+    base_filename = os.path.basename(filename)
+    
+    # Check if the directory exists
+    if directory and os.path.exists(directory):
+        return send_from_directory(directory, base_filename)
+    
+    # Try as static file if directory doesn't exist
+    try:
+        return app.send_static_file(f'uploads/{filename}')
+    except:
+        # If not found as static file, look in our specific upload directories
+        if 'profile_photos' in filename:
+            return send_from_directory('uploads/profile_photos', base_filename)
+        elif 'direct_images' in filename:
+            return send_from_directory('uploads/direct_images', base_filename)
+        elif 'group_images' in filename:
+            return send_from_directory('uploads/group_images', base_filename)
+        else:
+            return f"File not found: {filename}", 404
+
+@app.route('/uploads/profile_photos/<filename>')
+def serve_profile_photo(filename):
+    return send_from_directory('uploads/profile_photos', filename)
+
+@app.route('/uploads/direct_images/<filename>')
+def serve_direct_image(filename):
+    return send_from_directory('uploads/direct_images', filename)
+
+@app.route('/uploads/group_images/<filename>')
+def serve_group_image(filename):
+    return send_from_directory('uploads/group_images', filename)
 
 # Socket.IO event handlers
 @socketio.on('connect')

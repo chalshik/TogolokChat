@@ -277,7 +277,17 @@ document.addEventListener('DOMContentLoaded', () => {
         if (currentChatType === 'group') {
             contactProfileSidebar.classList.remove('active');
             groupProfileSidebar.classList.toggle('active');
+        } else if (currentChatType === 'contact') {
+            groupProfileSidebar.classList.remove('active');
+            // Instead of just toggling, we need to show the contact profile with correct data
+            const contactId = window.currentChatId;
+            if (contactId) {
+                showContactProfile(contactId);
+            } else {
+                contactProfileSidebar.classList.toggle('active');
+            }
         } else {
+            // Default fallback behavior
             groupProfileSidebar.classList.remove('active');
             contactProfileSidebar.classList.toggle('active');
         }
@@ -296,38 +306,44 @@ document.addEventListener('DOMContentLoaded', () => {
         const profileSidebar = document.getElementById('contact-profile-sidebar');
         if (profileSidebar) {
             // Set profile image
-            const profileImage = profileSidebar.querySelector('.profile-avatar');
+            const profileImage = profileSidebar.querySelector('#contact-avatar-img');
             if (profileImage) {
-                profileImage.src = contact.avatar || '/static/img/default_avatar.png';
+                profileImage.src = contact.avatar || '/static/images/contact_logo.png';
                 profileImage.alt = contact.name || 'Contact';
             }
 
             // Set contact name
-            const contactName = profileSidebar.querySelector('.profile-name');
+            const contactName = profileSidebar.querySelector('#contact-name-display');
             if (contactName) {
                 contactName.textContent = contact.name || 'Unknown Contact';
             }
 
             // Set contact nickname
-            const contactNickname = profileSidebar.querySelector('.profile-nickname');
+            const contactNickname = profileSidebar.querySelector('.contact-nickname');
             if (contactNickname) {
                 contactNickname.textContent = contact.username ? `@${contact.username}` : '';
             }
 
-            // Set last seen status
-            const lastSeen = profileSidebar.querySelector('.last-seen');
-            if (lastSeen) {
-                lastSeen.textContent = contact.last_seen || 'Unknown';
+            // Set contact info text if available
+            const contactInfo = profileSidebar.querySelector('#contact-info-text');
+            if (contactInfo && contact.info) {
+                contactInfo.textContent = contact.info;
             }
 
             // Ensure the report button has the correct contact ID
-            const reportButton = profileSidebar.querySelector('.report-contact-btn');
+            const reportButton = profileSidebar.querySelector('.report-contact');
             if (reportButton) {
                 reportButton.setAttribute('data-contact-id', contactId);
             }
 
             // Show the sidebar
             profileSidebar.classList.add('active');
+            
+            // Hide the group profile sidebar
+            const groupProfileSidebar = document.getElementById('group-profile-sidebar');
+            if (groupProfileSidebar) {
+                groupProfileSidebar.classList.remove('active');
+            }
         }
     }
 
@@ -628,6 +644,11 @@ document.addEventListener('DOMContentLoaded', () => {
         if (groupProfileSidebar) groupProfileSidebar.classList.remove('active');
         if (contactProfileSidebar) contactProfileSidebar.classList.remove('active');
         
+        // Remove the automatic display of contact profile
+        // if (chatType === 'contact') {
+        //     showContactProfile(chatId);
+        // }
+        
         // Load messages for this chat
         window.loadChatMessages(chatId, chatType);
     }
@@ -756,6 +777,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Function to load and display a sidebar view - make it globally accessible
     window.loadSidebarView = async function(viewName) {
         console.log(`Attempting to load sidebar view: ${viewName}`);
+        
+        // Find the sidebar content area
+        const sidebarContentArea = document.getElementById('sidebar-content-area');
         if (!sidebarContentArea) {
             console.error('Sidebar content area not found!');
             throw new Error('Sidebar content area not found');
@@ -773,6 +797,17 @@ document.addEventListener('DOMContentLoaded', () => {
             // Re-attach necessary event listeners for the new view's content
             try {
                 attachSidebarViewListeners(viewName);
+                
+                // Make sure the logout button works if it exists
+                const logoutBtn = document.getElementById('logout-btn');
+                if (logoutBtn) {
+                    console.log('Attaching logout event listener to button after view load (mock):', logoutBtn);
+                    logoutBtn.addEventListener('click', (e) => {
+                        console.log('Logout button clicked');
+                        e.preventDefault();
+                        logout();
+                    });
+                }
             } catch (listenerError) {
                 console.error(`Error attaching listeners for view ${viewName}:`, listenerError);
             }
@@ -788,7 +823,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Construct the URL for the template snippet
         const templateUrl = `/templates/_sidebar_${viewName.replace('-', '_')}.html`;
         console.log("Requesting template from URL:", templateUrl);
-
+        
         try {
             const response = await fetch(templateUrl);
             console.log("Response status:", response.status);
@@ -825,9 +860,39 @@ document.addEventListener('DOMContentLoaded', () => {
             // Re-attach necessary event listeners for the new view's content
             try {
                 attachSidebarViewListeners(viewName);
+                
+                // Make sure the logout button works if it exists
+                const logoutBtn = document.getElementById('logout-btn');
+                if (logoutBtn) {
+                    console.log('Attaching logout event listener to button after view load:', logoutBtn);
+                    logoutBtn.addEventListener('click', (e) => {
+                        console.log('Logout button clicked');
+                        e.preventDefault();
+                        logout();
+                    });
+                }
             } catch (listenerError) {
                 console.error(`Error attaching listeners for view ${viewName}:`, listenerError);
                 // Continue with rendering the view, even if some listeners failed
+            }
+            
+            // If this is the profile view, ensure logout button works
+            if (viewName === 'profile') {
+                // Specifically handle the logout button in the profile view
+                const profileLogoutBtn = document.getElementById('logout-btn');
+                if (profileLogoutBtn) {
+                    console.log('Profile view loaded - ensuring logout button works:', profileLogoutBtn);
+                    // Remove any existing event listeners
+                    profileLogoutBtn.replaceWith(profileLogoutBtn.cloneNode(true));
+                    const newLogoutBtn = document.getElementById('logout-btn');
+                    
+                    // Add the event listener
+                    newLogoutBtn.addEventListener('click', (e) => {
+                        console.log('Profile logout button clicked');
+                        e.preventDefault();
+                        logout();
+                    });
+                }
             }
         } catch (error) {
             console.error(`Could not load sidebar view '${viewName}':`, error);
@@ -849,6 +914,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 // Re-attach necessary event listeners for the new view's content
                 try {
                     attachSidebarViewListeners(viewName);
+                    
+                    // Make sure the logout button works if it exists
+                    const logoutBtn = document.getElementById('logout-btn');
+                    if (logoutBtn) {
+                        console.log('Attaching logout event listener to button (fallback):', logoutBtn);
+                        logoutBtn.addEventListener('click', (e) => {
+                            console.log('Logout button clicked');
+                            e.preventDefault();
+                            logout();
+                        });
+                    }
                 } catch (listenerError) {
                     console.error(`Error attaching listeners for view ${viewName}:`, listenerError);
                 }
@@ -1248,6 +1324,16 @@ document.addEventListener('DOMContentLoaded', () => {
     // Move modals to body to ensure they display properly
     moveModalToBody();
 
+    // Logout
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+        console.log('Attaching logout event listener to profile sidebar button:', logoutBtn);
+        logoutBtn.addEventListener('click', (e) => {
+            console.log('Logout button clicked');
+            e.preventDefault();
+            logout();
+        });
+    }
 }); // End DOMContentLoaded 
 
 // Initialize Socket.IO connection for real-time messaging
@@ -1512,6 +1598,9 @@ function updateContactsList(contacts, providedChatList = null) {
         return;
     }
 
+    // Store contacts in global userContacts array for profile display
+    window.userContacts = contacts;
+    
     // Clear any existing empty state messages
     const emptyState = chatList.querySelector('.empty-chat-message');
     if (emptyState) {
@@ -1675,68 +1764,122 @@ function attachModalListeners() {
 
 function attachProfileListeners() {
     console.log('Attaching profile listeners...');
-    // Edit Name
-    const editNameBtn = sidebarContentArea.querySelector('#edit-profile-name-btn');
+    
+    // Get DOM elements
+    const editNameBtn = document.getElementById('edit-profile-name-btn');
     const editNameModal = document.getElementById('edit-profile-name-modal');
     const nameInput = document.getElementById('profile-name-input');
     const saveNameBtn = document.getElementById('save-profile-name-btn');
-    const profileNameDisplay = sidebarContentArea.querySelector('#user-profile-name');
-
+    const cancelNameBtn = document.getElementById('cancel-profile-name-btn');
+    const closeNameModalBtn = editNameModal?.querySelector('.close-modal-btn');
+    const profileNameDisplay = document.getElementById('user-profile-name');
+    
+    const editInfoBtn = document.getElementById('edit-profile-info-btn');
+    const editInfoModal = document.getElementById('edit-profile-info-modal');
+    const infoInput = document.getElementById('profile-info-input');
+    const saveInfoBtn = document.getElementById('save-profile-info-btn');
+    const cancelInfoBtn = document.getElementById('cancel-profile-info-btn');
+    const closeInfoModalBtn = editInfoModal?.querySelector('.close-modal-btn');
+    const profileInfoDisplay = document.getElementById('user-profile-info');
+    
+    const avatarUploadInput = document.getElementById('profile-avatar-upload');
+    const avatarDisplay = document.getElementById('user-profile-avatar');
+    
+    // Load user profile data
+    loadUserProfile();
+    
+    // Edit Name Modal
     if (editNameBtn && editNameModal) {
         editNameBtn.addEventListener('click', () => {
             nameInput.value = profileNameDisplay.textContent;
             editNameModal.style.display = 'flex';
         });
     }
-    if (saveNameBtn && profileNameDisplay) {
-        saveNameBtn.addEventListener('click', () => {
-            const newName = nameInput.value.trim();
-            if (newName) {
-                profileNameDisplay.textContent = newName;
-                // Add logic to save the name to the backend
-                fetch('/Backend/chat/api/update-profile', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({ name: newName })
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        showToast('Аты ийгиликтүү өзгөртүлдү');
-                    } else {
-                        showToast('Ат өзгөртүүдө ката кетти');
-                    }
-                })
-                .catch(error => {
-                    console.error('Error updating profile name:', error);
-                    showToast('Ат өзгөртүүдө ката кетти');
-                });
-            }
+    
+    if (closeNameModalBtn) {
+        closeNameModalBtn.addEventListener('click', () => {
             editNameModal.style.display = 'none';
         });
     }
-
-    // Edit Info
-    const editInfoBtn = sidebarContentArea.querySelector('#edit-profile-info-btn');
-    const editInfoModal = document.getElementById('edit-profile-info-modal');
-    const infoInput = document.getElementById('profile-info-input');
-    const saveInfoBtn = document.getElementById('save-profile-info-btn');
-    const profileInfoDisplay = sidebarContentArea.querySelector('#user-profile-info');
-
+    
+    if (cancelNameBtn) {
+        cancelNameBtn.addEventListener('click', () => {
+            editNameModal.style.display = 'none';
+        });
+    }
+    
+    if (saveNameBtn && profileNameDisplay) {
+        saveNameBtn.addEventListener('click', () => {
+            const newName = nameInput.value.trim();
+            if (!newName) {
+                window.showToast('Аты бош болбошу керек');
+                return;
+            }
+            
+            // First update UI
+            profileNameDisplay.textContent = newName;
+            
+            console.log('Saving profile name:', newName);
+            
+            // Save to backend
+            fetch('/api/update-profile', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ name: newName })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Profile name update response:', data);
+                if (data.success) {
+                    window.showToast('Аты ийгиликтүү өзгөртүлдү');
+                } else {
+                    window.showToast('Аты өзгөртүүдө ката кетти: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error updating profile name:', error);
+                window.showToast('Аты өзгөртүүдө ката кетти');
+            });
+            
+            editNameModal.style.display = 'none';
+        });
+    }
+    
+    // Edit Info Modal
     if (editInfoBtn && editInfoModal) {
         editInfoBtn.addEventListener('click', () => {
-            infoInput.value = profileInfoDisplay.textContent;
+            infoInput.value = profileInfoDisplay.textContent === 'Маалымат жок' ? '' : profileInfoDisplay.textContent;
             editInfoModal.style.display = 'flex';
         });
     }
+    
+    if (closeInfoModalBtn) {
+        closeInfoModalBtn.addEventListener('click', () => {
+            editInfoModal.style.display = 'none';
+        });
+    }
+    
+    if (cancelInfoBtn) {
+        cancelInfoBtn.addEventListener('click', () => {
+            editInfoModal.style.display = 'none';
+        });
+    }
+    
     if (saveInfoBtn && profileInfoDisplay) {
         saveInfoBtn.addEventListener('click', () => {
             const newInfo = infoInput.value.trim();
-            profileInfoDisplay.textContent = newInfo || 'Маалымат жок'; // Display placeholder if empty
+            profileInfoDisplay.textContent = newInfo || 'Маалымат жок';
             
-            // Add logic to save the info to the backend
+            console.log('Saving profile info:', newInfo);
+            
+            // Save to backend
             fetch('/api/update-profile', {
                 method: 'POST',
                 headers: {
@@ -1744,85 +1887,149 @@ function attachProfileListeners() {
                 },
                 body: JSON.stringify({ info: newInfo })
             })
-            .then(response => response.json())
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
             .then(data => {
+                console.log('Profile info update response:', data);
                 if (data.success) {
-                    showToast('Маалымат ийгиликтүү өзгөртүлдү');
+                    window.showToast('Маалымат ийгиликтүү өзгөртүлдү');
                 } else {
-                    showToast('Маалымат өзгөртүүдө ката кетти');
+                    window.showToast('Маалымат өзгөртүүдө ката кетти: ' + data.message);
                 }
             })
             .catch(error => {
                 console.error('Error updating profile info:', error);
-                showToast('Маалымат өзгөртүүдө ката кетти');
+                window.showToast('Маалымат өзгөртүүдө ката кетти');
             });
             
             editInfoModal.style.display = 'none';
         });
     }
-
-    // Edit Avatar
-    const avatarUploadInput = document.getElementById('profile-avatar-upload');
-    const avatarDisplay = sidebarContentArea.querySelector('#user-profile-avatar');
+    
+    // Profile Avatar Upload
     if (avatarUploadInput && avatarDisplay) {
         avatarUploadInput.addEventListener('change', (event) => {
             const file = event.target.files[0];
-            if (file) {
-                const reader = new FileReader();
-                reader.onload = function(e) {
-                    avatarDisplay.src = e.target.result;
-                    
-                    // Add logic to upload the avatar to the backend
-                    const formData = new FormData();
-                    formData.append('avatar', file);
-                    
-                    fetch('/api/update-profile-avatar', {
-                        method: 'POST',
-                        body: formData
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            showToast('Сүрөт ийгиликтүү өзгөртүлдү');
-                        } else {
-                            showToast('Сүрөт өзгөртүүдө ката кетти');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error updating profile avatar:', error);
-                        showToast('Сүрөт өзгөртүүдө ката кетти');
-                    });
-                }
-                reader.readAsDataURL(file);
+            if (!file) return;
+            
+            // Check file type and size
+            if (!file.type.startsWith('image/')) {
+                window.showToast('Туура эмес файл түрү! Сүрөт гана жүктөңүз.');
+                return;
             }
+            
+            const maxSize = 5 * 1024 * 1024; // 5MB
+            if (file.size > maxSize) {
+                window.showToast('Файл өтө чоң! 5MB ден аз болсун.');
+                return;
+            }
+            
+            console.log('Uploading profile avatar...');
+            
+            // Show preview
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                avatarDisplay.src = e.target.result;
+            };
+            reader.readAsDataURL(file);
+            
+            // Upload to server
+            const formData = new FormData();
+            formData.append('avatar', file);
+            
+            fetch('/api/update-profile-avatar', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error(`HTTP error! Status: ${response.status}`);
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Profile avatar update response:', data);
+                if (data.success) {
+                    window.showToast('Профиль сүрөтү ийгиликтүү өзгөртүлдү');
+                    // Update avatar in UI if URL returned
+                    if (data.photo_url) {
+                        avatarDisplay.src = data.photo_url;
+                    }
+                } else {
+                    window.showToast('Сүрөт өзгөртүүдө ката кетти: ' + data.message);
+                }
+            })
+            .catch(error => {
+                console.error('Error updating profile avatar:', error);
+                window.showToast('Сүрөт өзгөртүүдө ката кетти');
+            });
         });
     }
     
     // Logout
-    const logoutBtn = sidebarContentArea.querySelector('#logout-btn');
+    const logoutBtn = document.getElementById('logout-btn');
     if (logoutBtn) {
-        logoutBtn.addEventListener('click', async () => {
-            try {
-                const response = await fetch('/logout', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    }
-                });
+        logoutBtn.addEventListener('click', logout);
+    }
+}
+
+// Function to load user profile data from the server
+function loadUserProfile() {
+    const profileNameDisplay = document.getElementById('user-profile-name');
+    const profileNicknameDisplay = document.getElementById('user-profile-nickname');
+    const profileInfoDisplay = document.getElementById('user-profile-info');
+    const avatarDisplay = document.getElementById('user-profile-avatar');
+    
+    console.log('Loading user profile...');
+    
+    // Fetch current user data
+    fetch('/api/get-current-user')
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error! Status: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Profile data received:', data);
+            if (data.success) {
+                const user = data.user;
                 
-                if (response.ok) {
-                    // Redirect to login page
-                    window.location.href = '/';
-                } else {
-                    console.error('Logout failed');
-                    showToast('Чыгууда ката кетти');
+                // Update name (display username if name is not set)
+                if (profileNameDisplay) {
+                    profileNameDisplay.textContent = user.name || user.username;
                 }
-            } catch (error) {
-                console.error('Error during logout:', error);
-                showToast('Чыгууда ката кетти');
+                
+                // Update nickname (always prefixed with ~)
+                if (profileNicknameDisplay) {
+                    profileNicknameDisplay.textContent = `~${user.username}`;
+                }
+                
+                // Update info
+                if (profileInfoDisplay) {
+                    profileInfoDisplay.textContent = user.info || 'Маалымат жок';
+                }
+                
+                // Update avatar
+                if (avatarDisplay && user.avatar) {
+                    avatarDisplay.src = user.avatar;
+                }
+            }
+        })
+        .catch(error => {
+            console.error('Error loading user profile:', error);
+            // Set default values if API fails
+            if (profileNameDisplay) {
+                profileNameDisplay.textContent = window.currentUsername || sessionStorage.getItem('username') || 'Колдонуучу';
+            }
+            if (profileNicknameDisplay) {
+                profileNicknameDisplay.textContent = `~${window.currentUsername || sessionStorage.getItem('username') || ''}`;
             }
         });
-    }
 }
 
 // Function to handle the contact details listeners
@@ -3101,7 +3308,7 @@ async function addNewContact(event) {
 
 async function logout() {
     try {
-        const response = await fetch(getApiUrl('logout'), {
+        const response = await fetch('/logout', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
@@ -3109,13 +3316,19 @@ async function logout() {
         });
         
         if (response.ok) {
-            window.location.href = '/login';
+            // Clear any session data
+            sessionStorage.removeItem('username');
+            sessionStorage.removeItem('user_id');
+            
+            // Redirect to login page
+            window.location.href = '/';
         } else {
-            throw new Error(`Failed to logout: ${response.status}`);
+            console.error('Logout failed');
+            showToast('Чыгууда ката кетти');
         }
     } catch (error) {
         console.error('Error during logout:', error);
-        showNotification('Failed to logout: ' + error.message, 'error');
+        showToast('Чыгууда ката кетти');
     }
 }
 
@@ -3254,3 +3467,24 @@ document.addEventListener('DOMContentLoaded', function() {
     // Load user contacts when the page loads
     loadUserContacts();
 });
+
+// Helper function to show toast messages - Make it global
+window.showToast = function(message) {
+    // Create toast element if it doesn't exist
+    let toast = document.getElementById('toast');
+    if (!toast) {
+        toast = document.createElement('div');
+        toast.id = 'toast';
+        toast.className = 'toast';
+        document.body.appendChild(toast);
+    }
+    
+    // Set message and show toast
+    toast.textContent = message;
+    toast.classList.add('show');
+    
+    // Hide toast after 3 seconds
+    setTimeout(() => {
+        toast.classList.remove('show');
+    }, 3000);
+}
