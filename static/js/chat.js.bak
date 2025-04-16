@@ -1,0 +1,1802 @@
+// Declare sidebarContentArea globally so it's accessible to all functions
+let sidebarContentArea;
+
+// Global timestamp utility
+window.getCurrentTimestamp = function() {
+    const now = new Date();
+    return now.toISOString();
+};
+
+// Global message cache for deduplication
+window.messageCache = new Map();
+const MESSAGE_CACHE_SIZE = 20; // Remember last 20 messages
+const MESSAGE_CACHE_TIMEOUT = 10000; // 10 seconds
+
+// Global function for creating message elements
+window.createMessageElement = function(message, isSent = true, senderName = 'Тоголоктакт(1)', messageId = null, status = 'sent', timestamp = null) {
+    const messageDiv = document.createElement('div');
+    messageDiv.className = `message ${isSent ? 'sent' : 'received'}`;
+    
+    // Add message ID as data attribute if provided
+    if (messageId) {
+        messageDiv.setAttribute('data-message-id', messageId);
+    }
+    
+    // Add status as data attribute
+    messageDiv.setAttribute('data-status', status);
+
+    if (!isSent) {
+        const avatarDiv = document.createElement('div');
+        avatarDiv.className = 'message-avatar';
+        const avatarImg = document.createElement('img');
+        avatarImg.src = '/static/images/contact_logo.png';
+        avatarImg.alt = 'User';
+        avatarDiv.appendChild(avatarImg);
+        messageDiv.appendChild(avatarDiv);
+    }
+
+    const contentDiv = document.createElement('div');
+    contentDiv.className = 'message-content';
+
+    const infoDiv = document.createElement('div');
+    infoDiv.className = 'message-info';
+
+    if (!isSent) {
+        const senderNameSpan = document.createElement('span');
+        senderNameSpan.className = 'sender-name';
+        senderNameSpan.textContent = senderName;
+        infoDiv.appendChild(senderNameSpan);
+    }
+
+    const timeSpan = document.createElement('span');
+    timeSpan.className = 'message-time';
+    
+    // Use provided timestamp or current time
+    if (timestamp) {
+        // Format timestamp (assuming it's a string in format YYYY-MM-DD HH:MM:SS)
+        try {
+            const date = new Date(timestamp);
+            if (!isNaN(date)) {
+                timeSpan.textContent = date.getHours().toString().padStart(2, '0') + ':' + 
+                                      date.getMinutes().toString().padStart(2, '0');
+            } else {
+                // If date parsing fails, try to extract time portion
+                const timePart = timestamp.split(' ')[1];
+                if (timePart) {
+                    const timeParts = timePart.split(':');
+                    timeSpan.textContent = timeParts[0] + ':' + timeParts[1];
+                } else {
+                    // Fallback to current time
+                    const now = new Date();
+                    timeSpan.textContent = now.getHours().toString().padStart(2, '0') + ':' + 
+                                          now.getMinutes().toString().padStart(2, '0');
+                }
+            }
+        } catch (e) {
+            // Fallback to current time on error
+            const now = new Date();
+            timeSpan.textContent = now.getHours().toString().padStart(2, '0') + ':' + 
+                                  now.getMinutes().toString().padStart(2, '0');
+        }
+    } else {
+        // Use current time
+        const now = new Date();
+        timeSpan.textContent = now.getHours().toString().padStart(2, '0') + ':' + 
+                              now.getMinutes().toString().padStart(2, '0');
+    }
+
+    if (isSent) {
+        const statusSpan = document.createElement('span');
+        statusSpan.className = 'message-status';
+        const icon = document.createElement('i');
+        
+        // Set icon based on status
+        switch(status) {
+            case 'sent':
+                icon.className = 'fas fa-check';
+                break;
+            case 'delivered':
+                icon.className = 'fas fa-check-double';
+                break;
+            case 'read':
+                icon.className = 'fas fa-check-double';
+                icon.style.color = '#4fc3f7'; // Blue color for read
+                break;
+            case 'error':
+                icon.className = 'fas fa-exclamation-triangle';
+                icon.style.color = 'red';
+                break;
+            case 'sending':
+                icon.className = 'fas fa-clock';
+                break;
+            default:
+                icon.className = 'fas fa-clock';
+        }
+        
+        statusSpan.appendChild(icon);
+        infoDiv.appendChild(timeSpan);
+        infoDiv.appendChild(statusSpan);
+    } else {
+        infoDiv.appendChild(timeSpan);
+    }
+
+    const messageText = document.createElement('p');
+    
+    // Check if message is a URL
+    if (message.startsWith('http')) {
+        const linkElem = document.createElement('a');
+        linkElem.href = message;
+        linkElem.className = 'message-link';
+        linkElem.textContent = message;
+        linkElem.target = '_blank';
+        messageText.appendChild(linkElem);
+    } else {
+        messageText.textContent = message;
+    }
+
+    contentDiv.appendChild(infoDiv);
+    contentDiv.appendChild(messageText);
+    messageDiv.appendChild(contentDiv);
+
+    return messageDiv;
+};
+
+// Global function to load chat messages
+window.loadChatMessages = function(chatId, chatType) {
+    console.log('Loading messages for chat:', chatId, 'Type:', chatType);
+    
+    // Get the messages container
+    const messagesContainer = document.getElementById(`${chatId}-messages`);
+    if (!messagesContainer) {
+        console.error('Messages container not found');
+        return;
+    }
+    
+    // Get current username
+    const currentUsername = window.currentUsername || sessionStorage.getItem('username');
+    if (!currentUsername) {
+        console.error('Current username not found');
+        return;
+    }
+    
+    // Clear any loading or empty state messages
+    const emptyMessage = messagesContainer.querySelector('.empty-chat-message');
+    if (emptyMessage) {
+        emptyMessage.style.display = 'none';
+    }
+    
+    // Add loading indicator
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'loading-messages';
+    loadingDiv.innerHTML = '<p>Loading messages...</p>';
+    messagesContainer.appendChild(loadingDiv);
+    
+    let fetchUrl;
+    
+    if (chatType === 'group') {
+        // For group chats
+        fetchUrl = getApiUrl(`get_group_messages?group_id=${chatId}&username=${currentUsername}`);
+    } else {
+        // For direct messages
+        // Get the other user's username
+        const chatItem = document.querySelector(`.chat-item[data-chat-id="${chatId}"]`);
+        const otherUsername = chatItem?.dataset?.username;
+        
+        if (!otherUsername) {
+            console.error('Other username not found');
+            loadingDiv.innerHTML = '<p>Error: Could not determine chat participant</p>';
+            return;
+        }
+        
+        fetchUrl = getApiUrl(`get_messages?user1=${currentUsername}&user2=${otherUsername}`);
+    }
+    
+    // Track unread messages to mark them as read
+    const unreadMessages = [];
+    
+    // Fetch messages from the server
+    fetch(fetchUrl)
+        .then(response => {
+            if (!response.ok) {
+                throw new Error(`HTTP error: ${response.status}`);
+            }
+            return response.json();
+        })
+        .then(data => {
+            console.log('Messages loaded:', data);
+            
+            // Remove loading indicator
+            messagesContainer.removeChild(loadingDiv);
+            
+            // Clear the container (except for the empty message)
+            const existingMessages = messagesContainer.querySelectorAll('.message');
+            existingMessages.forEach(msg => messagesContainer.removeChild(msg));
+            
+            if (chatType === 'group') {
+                // Handle group messages
+                if (!data.messages || data.messages.length === 0) {
+                    // Show empty state if no messages
+                    if (emptyMessage) emptyMessage.style.display = 'flex';
+                    return;
+                }
+                
+                // Hide empty state
+                if (emptyMessage) emptyMessage.style.display = 'none';
+                
+                // Add each message to the container
+                data.messages.forEach(msg => {
+                    const isSent = msg.sender === currentUsername;
+                    
+                    // Create message element with all details
+                    const messageEl = window.createMessageElement(
+                        msg.message, 
+                        isSent, 
+                        msg.sender,
+                        msg.id,
+                        isSent ? (msg.status || 'sent') : undefined,
+                        msg.time
+                    );
+                    
+                    messagesContainer.appendChild(messageEl);
+                    
+                    // If not sent by current user and not marked as read, add to unread messages
+                    if (!isSent && (!msg.status || msg.status !== 'read')) {
+                        unreadMessages.push(msg.id);
+                    }
+                });
+            } else {
+                // Handle direct messages
+                if (!data.messages || data.messages.length === 0) {
+                    // Show empty state if no messages
+                    if (emptyMessage) emptyMessage.style.display = 'flex';
+                    return;
+                }
+                
+                // Hide empty state
+                if (emptyMessage) emptyMessage.style.display = 'none';
+                
+                // Add each message to the container
+                data.messages.forEach(msg => {
+                    const isSent = msg.sender === currentUsername;
+                    
+                    // Create message element with all details
+                    const messageEl = window.createMessageElement(
+                        msg.message, 
+                        isSent,
+                        msg.sender,
+                        msg.id,
+                        isSent ? (msg.status || 'sent') : undefined,
+                        msg.time
+                    );
+                    
+                    messagesContainer.appendChild(messageEl);
+                    
+                    // If not sent by current user and not marked as read, add to unread messages
+                    if (!isSent && (!msg.status || msg.status !== 'read')) {
+                        unreadMessages.push(msg.id);
+                    }
+                });
+            }
+            
+            // Scroll to the bottom
+            messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            
+            // Mark unread messages as read if this is the active chat
+            if (unreadMessages.length > 0 && window.currentChatId === chatId) {
+                console.log(`Marking ${unreadMessages.length} messages as read`);
+                
+                // Mark each message as read
+                unreadMessages.forEach(messageId => {
+                    updateMessageReadStatus(chatId, chatType, messageId);
+                });
+                
+                // Update unread count for the chat
+                updateChatUnreadCount(chatId, 0);
+            }
+        })
+        .catch(error => {
+            console.error('Error loading messages:', error);
+            loadingDiv.innerHTML = `<p>Error: ${error.message}</p>`;
+        });
+};
+
+// Utility function to get correct API URLs
+function getApiUrl(endpoint) {
+    // Handle both cases with and without leading slash
+    if (endpoint.startsWith('/')) {
+        endpoint = endpoint.substring(1);
+    }
+    
+    // For message endpoints and API endpoints, just use direct paths
+    return `/${endpoint}`;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+    // Hide all modals at startup
+    document.querySelectorAll('.modal').forEach(modal => {
+        modal.style.display = 'none';
+    });
+
+    // Initialize sidebarContentArea
+    sidebarContentArea = document.getElementById('sidebar-content-area');
+
+    // Get the username from the server or local storage
+    window.currentUsername = sessionStorage.getItem('username') || '';
+    if (!window.currentUsername) {
+        // Try to get username from the UI if available
+        const usernameElement = document.getElementById('current-username');
+        if (usernameElement) {
+            window.currentUsername = usernameElement.dataset.username || '';
+            // Store it for future use
+            if (window.currentUsername) {
+                sessionStorage.setItem('username', window.currentUsername);
+            }
+        }
+    }
+    
+    // Initialize socket connection for real-time messaging
+    initializeSocket();
+    
+    // Selectors for chat elements
+    const messagesContainers = document.querySelectorAll('.messages-container');
+    const inputBox = document.querySelector('.input-box input');
+    const sendButton = document.querySelector('.send-button');
+    const emojiButton = document.querySelector('.input-actions .fa-smile');
+    const attachButton = document.querySelector('.input-actions .fa-paperclip');
+    const searchInput = document.querySelector('.search-box input');
+    const chatItems = document.querySelectorAll('.chat-item');
+    const chatHeader = document.getElementById('chat-header');
+    
+    // Group profile elements
+    const groupProfileSidebar = document.getElementById('group-profile-sidebar');
+    const closeGroupProfileBtn = document.getElementById('close-group-profile');
+    const editNameBtn = document.getElementById('edit-group-name');
+    const editAvatarBtn = document.getElementById('edit-group-avatar');
+    const editNameModal = document.getElementById('edit-name-modal');
+    const editAvatarModal = document.getElementById('edit-avatar-modal');
+    const groupNameInput = document.getElementById('group-name-input');
+    const saveNameBtn = document.getElementById('save-name-btn');
+    const saveAvatarBtn = document.getElementById('save-avatar-btn');
+    const avatarUpload = document.getElementById('avatar-upload');
+    const avatarPreviewImg = document.getElementById('avatar-preview-img');
+    const removeAvatarBtn = document.getElementById('remove-avatar-btn');
+    
+    // Contact profile elements
+    const contactProfileSidebar = document.getElementById('contact-profile-sidebar');
+    const closeContactProfileBtn = document.getElementById('close-contact-profile');
+    const editContactNameBtn = document.getElementById('edit-contact-name');
+    const editContactNameModal = document.getElementById('edit-contact-name-modal');
+    const contactNameInput = document.getElementById('contact-name-input');
+    const saveContactNameBtn = document.getElementById('save-contact-name-btn');
+    
+    // Shared elements
+    const modalCloseBtns = document.querySelectorAll('.modal-close, .cancel-btn');
+    
+    // Current active chat tracking
+    let currentChatId = 'group1';
+    let currentChatType = 'group';
+
+    // Show the first message container by default
+    document.getElementById('group1-messages').classList.add('active');
+
+    // Function to toggle the profile sidebar
+    function toggleProfileSidebar() {
+        if (currentChatType === 'group') {
+            contactProfileSidebar.classList.remove('active');
+            groupProfileSidebar.classList.toggle('active');
+        } else if (currentChatType === 'contact') {
+            groupProfileSidebar.classList.remove('active');
+            // Instead of just toggling, we need to show the contact profile with correct data
+            const contactId = window.currentChatId;
+            if (contactId) {
+                showContactProfile(contactId);
+            } else {
+                contactProfileSidebar.classList.toggle('active');
+            }
+        } else {
+            // Default fallback behavior
+            groupProfileSidebar.classList.remove('active');
+            contactProfileSidebar.classList.toggle('active');
+        }
+    }
+
+    // Function to show contact profile sidebar with details
+    function showContactProfile(contactId) {
+        // Fetch contact details if needed
+        const contact = userContacts.find(c => c.id == contactId);
+        if (!contact) {
+            console.error('Contact not found:', contactId);
+            return;
+        }
+
+        // Update profile sidebar content
+        const profileSidebar = document.getElementById('contact-profile-sidebar');
+        if (profileSidebar) {
+            // Set profile image
+            const profileImage = profileSidebar.querySelector('#contact-avatar-img');
+            if (profileImage) {
+                profileImage.src = contact.avatar || '/static/images/contact_logo.png';
+                profileImage.alt = contact.name || 'Contact';
+            }
+
+            // Set contact name
+            const contactName = profileSidebar.querySelector('#contact-name-display');
+            if (contactName) {
+                contactName.textContent = contact.name || 'Unknown Contact';
+            }
+
+            // Set contact nickname
+            const contactNickname = profileSidebar.querySelector('.contact-nickname');
+            if (contactNickname) {
+                contactNickname.textContent = contact.username ? `@${contact.username}` : '';
+            }
+
+            // Set contact info text if available
+            const contactInfo = profileSidebar.querySelector('#contact-info-text');
+            if (contactInfo && contact.info) {
+                contactInfo.textContent = contact.info;
+            }
+
+            // Ensure the report button has the correct contact ID
+            const reportButton = profileSidebar.querySelector('.report-contact');
+            if (reportButton) {
+                reportButton.setAttribute('data-contact-id', contactId);
+            }
+
+            // Show the sidebar
+            profileSidebar.classList.add('active');
+            
+            // Hide the group profile sidebar
+            const groupProfileSidebar = document.getElementById('group-profile-sidebar');
+            if (groupProfileSidebar) {
+                groupProfileSidebar.classList.remove('active');
+            }
+        }
+    }
+
+    // Event listeners for profile sidebar
+    if (chatHeader) {
+        // Add click handler for the entire header (excluding action buttons)
+        chatHeader.addEventListener('click', (e) => {
+            // Only open sidebar if clicking on the chat info part, not the action buttons
+            if (!e.target.closest('.chat-actions')) {
+                toggleProfileSidebar();
+            }
+        });
+        
+        // Add specific handler for the avatar in the header
+        const headerAvatar = document.getElementById('current-chat-avatar');
+        if (headerAvatar) {
+            headerAvatar.addEventListener('click', (e) => {
+                e.stopPropagation(); // Prevent triggering the chat header click
+                
+                const chatId = window.currentChatId;
+                const chatType = window.currentChatType;
+                
+                if (chatType === 'contact') {
+                    showContactProfile(chatId);
+                } else if (chatType === 'group') {
+                    toggleProfileSidebar();
+                }
+            });
+        }
+    }
+
+    // Close sidebar buttons
+    if (closeGroupProfileBtn) {
+        closeGroupProfileBtn.addEventListener('click', () => {
+            groupProfileSidebar.classList.remove('active');
+        });
+    }
+
+    if (closeContactProfileBtn) {
+        closeContactProfileBtn.addEventListener('click', () => {
+            contactProfileSidebar.classList.remove('active');
+        });
+    }
+    
+    // Open edit name modal for group
+    if (editNameBtn) {
+        editNameBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const currentName = document.getElementById('group-name-display').textContent;
+            groupNameInput.value = currentName;
+            editNameModal.classList.add('active');
+        });
+    }
+    
+    // Open edit name modal for contact
+    if (editContactNameBtn) {
+        editContactNameBtn.addEventListener('click', (e) => {
+            e.preventDefault();
+            const currentName = document.getElementById('contact-name-display').textContent;
+            contactNameInput.value = currentName;
+            editContactNameModal.classList.add('active');
+        });
+    }
+    
+    // Open edit avatar modal
+    if (editAvatarBtn) {
+        editAvatarBtn.addEventListener('click', () => {
+            // Get current avatar src
+            const currentAvatarSrc = document.getElementById('group-avatar-img').src;
+            avatarPreviewImg.src = currentAvatarSrc;
+            editAvatarModal.classList.add('active');
+        });
+    }
+    
+    // Close modals
+    modalCloseBtns.forEach(btn => {
+        btn.addEventListener('click', () => {
+            editNameModal.classList.remove('active');
+            editAvatarModal.classList.remove('active');
+            editContactNameModal.classList.remove('active');
+        });
+    });
+    
+    // Handle save group name
+    if (saveNameBtn) {
+        saveNameBtn.addEventListener('click', () => {
+            const newName = groupNameInput.value.trim();
+            if (newName) {
+                // Update group name in all places
+                document.getElementById('group-name-display').textContent = newName;
+                document.getElementById('current-chat-title').textContent = newName;
+                
+                // Find and update the chat item
+                const chatItem = document.querySelector(`.chat-item[data-chat-id="${currentChatId}"]`);
+                if (chatItem) {
+                    const chatNameElement = chatItem.querySelector('h3');
+                    if (chatNameElement) {
+                        chatNameElement.textContent = newName;
+                    }
+                }
+                
+                // Close the modal
+                editNameModal.classList.remove('active');
+            }
+        });
+    }
+    
+    // Handle save contact name
+    if (saveContactNameBtn) {
+        saveContactNameBtn.addEventListener('click', () => {
+            const newName = contactNameInput.value.trim();
+            if (newName) {
+                // Update contact name in all places
+                document.getElementById('contact-name-display').textContent = newName;
+                document.getElementById('current-chat-title').textContent = newName;
+                
+                // Find and update the chat item
+                const chatItem = document.querySelector(`.chat-item[data-chat-id="${currentChatId}"]`);
+                if (chatItem) {
+                    const chatNameElement = chatItem.querySelector('h3');
+                    if (chatNameElement) {
+                        chatNameElement.textContent = newName;
+                    }
+                }
+                
+                // Close the modal
+                editContactNameModal.classList.remove('active');
+            }
+        });
+    }
+    
+    // Handle avatar upload preview
+    if (avatarUpload) {
+        avatarUpload.addEventListener('change', function() {
+            if (this.files && this.files[0]) {
+                const reader = new FileReader();
+                
+                reader.onload = function(e) {
+                    avatarPreviewImg.src = e.target.result;
+                }
+                
+                reader.readAsDataURL(this.files[0]);
+            }
+        });
+    }
+    
+    // Handle remove avatar
+    if (removeAvatarBtn) {
+        removeAvatarBtn.addEventListener('click', () => {
+            // Reset to default group avatar
+            avatarPreviewImg.src = '/static/images/group_icon.png';
+        });
+    }
+    
+    // Handle save avatar
+    if (saveAvatarBtn) {
+        saveAvatarBtn.addEventListener('click', () => {
+            const newAvatarSrc = avatarPreviewImg.src;
+            
+            // Update avatar in all places
+            document.getElementById('group-avatar-img').src = newAvatarSrc;
+            document.getElementById('current-chat-avatar').src = newAvatarSrc;
+            
+            // Find and update the chat item
+            const chatItem = document.querySelector(`.chat-item[data-chat-id="${currentChatId}"]`);
+            if (chatItem) {
+                const avatarImg = chatItem.querySelector('.chat-avatar img');
+                if (avatarImg) {
+                    avatarImg.src = newAvatarSrc;
+                }
+            }
+            
+            // Close the modal
+            editAvatarModal.classList.remove('active');
+        });
+    }
+
+    // Function to format time
+    function formatTime(date) {
+        const hours = date.getHours();
+        const minutes = date.getMinutes();
+        const ampm = hours >= 12 ? 'PM' : 'AM';
+        const formattedHours = hours % 12 || 12;
+        const formattedMinutes = minutes < 10 ? '0' + minutes : minutes;
+        return `${formattedHours}:${formattedMinutes} ${ampm}`;
+    }
+
+    // Function to get the active messages container
+    function getActiveMessagesContainer() {
+        const containerId = `${currentChatId}-messages`;
+        console.log('Attempting to find messages container with ID:', containerId);
+        const container = document.getElementById(containerId);
+        console.log('Found container:', container);
+        return container;
+    }
+
+    // Event listeners for sending messages
+    sendButton.addEventListener('click', () => {
+        window.sendMessage();
+    });
+
+    inputBox.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+            e.preventDefault();
+            window.sendMessage();
+        }
+    });
+
+    // Search functionality
+    // searchInput.addEventListener('input', (e) => {
+    //     const searchTerm = e.target.value.toLowerCase();
+    //     chatItems.forEach(item => {
+    //         const name = item.querySelector('h3').textContent.toLowerCase();
+    //         const lastMessage = item.querySelector('.last-message p').textContent.toLowerCase();
+            
+    //         if (name.includes(searchTerm) || lastMessage.includes(searchTerm)) {
+    //             item.style.display = 'flex';
+    //         } else {
+    //             item.style.display = 'none';
+    //         }
+    //     });
+    // });
+
+    // Global switchChat function to ensure it's available for dynamically created elements
+    window.switchChat = function(chatId, chatType) {
+        console.log('Switching chat to ID:', chatId, 'Type:', chatType);
+        
+        // Update current chat tracking
+        window.currentChatId = chatId;
+        window.currentChatType = chatType;
+        
+        // Find all message containers
+        const messagesContainers = document.querySelectorAll('.messages-container');
+        
+        // Hide all message containers
+        messagesContainers.forEach(container => {
+            container.classList.remove('active');
+            container.style.display = 'none';
+        });
+        
+        // Try to find the target container
+        let targetContainer = document.getElementById(`${chatId}-messages`);
+        
+        // If the container doesn't exist, create it
+        if (!targetContainer) {
+            console.log('Creating new messages container for chat:', chatId);
+            
+            // Create a new message container
+            targetContainer = document.createElement('div');
+            targetContainer.className = 'messages-container';
+            targetContainer.id = `${chatId}-messages`;
+            targetContainer.style.display = 'flex';
+            targetContainer.style.flexDirection = 'column';
+            
+            // Add empty state message
+            targetContainer.innerHTML = `
+                <div class="empty-chat-message">
+                    <i class="fas fa-comments fa-3x"></i>
+                    <p>Маек баштоо үчүн билдирүү жазыңыз</p>
+                </div>
+            `;
+            
+            // Get the main chat area and add the new container
+            const mainChatArea = document.querySelector('.main-chat');
+            if (mainChatArea) {
+                // Find where to insert (after the last messages container)
+                const lastContainer = mainChatArea.querySelector('.messages-container:last-child');
+                if (lastContainer) {
+                    lastContainer.insertAdjacentElement('afterend', targetContainer);
+                } else {
+                    // If no containers exist, insert after the header
+                    const chatHeader = mainChatArea.querySelector('.chat-header');
+                    if (chatHeader) {
+                        chatHeader.insertAdjacentElement('afterend', targetContainer);
+                    } else {
+                        // Last resort - just append to main chat area
+                        mainChatArea.appendChild(targetContainer);
+                    }
+                }
+            } else {
+                console.error('Main chat area not found');
+                return;
+            }
+        }
+        
+        // Show and activate the target container
+        targetContainer.classList.add('active');
+        targetContainer.style.display = 'flex';
+        targetContainer.scrollTop = targetContainer.scrollHeight; // Scroll to bottom
+        
+        // Update chat header
+        updateChatHeader(chatId, chatType);
+        
+        // Close any open sidebars
+        const groupProfileSidebar = document.getElementById('group-profile-sidebar');
+        const contactProfileSidebar = document.getElementById('contact-profile-sidebar');
+        
+        if (groupProfileSidebar) groupProfileSidebar.classList.remove('active');
+        if (contactProfileSidebar) contactProfileSidebar.classList.remove('active');
+        
+        // Remove the automatic display of contact profile
+        // if (chatType === 'contact') {
+        //     showContactProfile(chatId);
+        // }
+        
+        // Load messages for this chat
+        window.loadChatMessages(chatId, chatType);
+    }
+
+    // Helper function to update the chat header
+    function updateChatHeader(chatId, chatType) {
+        // Find the chat item
+        const chatItem = document.querySelector(`.chat-item[data-chat-id="${chatId}"]`);
+        if (!chatItem) {
+            console.warn('Chat item not found for ID:', chatId);
+            return;
+        }
+        
+        // Get chat name from the item
+        const chatName = chatItem.querySelector('.chat-name')?.textContent || 'Unknown Chat';
+        
+        // Update the header title
+        const headerTitle = document.getElementById('current-chat-title');
+        if (headerTitle) headerTitle.textContent = chatName;
+        
+        // Update subtitle based on chat type
+        const subtitle = document.getElementById('current-chat-subtitle');
+        if (subtitle) {
+            if (chatType === 'group') {
+                subtitle.textContent = 'Группа менен маек';
+            } else {
+                subtitle.textContent = 'Жеке маек';
+            }
+        }
+        
+        // Update avatar in header
+        const chatAvatar = chatItem.querySelector('.chat-avatar img')?.src || '/static/images/contact_logo.png';
+        const headerAvatar = document.getElementById('current-chat-avatar');
+        if (headerAvatar) headerAvatar.src = chatAvatar;
+        
+        // Update sidebar profile elements based on chat type
+        if (chatType === 'group') {
+            const groupNameDisplay = document.getElementById('group-name-display');
+            const groupAvatarImg = document.getElementById('group-avatar-img');
+            
+            if (groupNameDisplay) groupNameDisplay.textContent = chatName;
+            if (groupAvatarImg) groupAvatarImg.src = chatAvatar;
+        } else {
+            const contactNameDisplay = document.getElementById('contact-name-display');
+            const contactAvatarImg = document.getElementById('contact-avatar-img');
+            
+            if (contactNameDisplay) contactNameDisplay.textContent = chatName;
+            if (contactAvatarImg) contactAvatarImg.src = chatAvatar;
+        }
+    }
+
+    // Chat item click handler
+    chatItems.forEach(item => {
+        item.addEventListener('click', () => {
+            // Remove active class from all items
+            chatItems.forEach(chat => chat.classList.remove('active'));
+            // Add active class to clicked item
+            item.classList.add('active');
+            
+            // Get the chat ID and type
+            const chatId = item.getAttribute('data-chat-id');
+            const chatType = item.getAttribute('data-chat-type');
+            
+            // Switch to the selected chat
+            switchChat(chatId, chatType);
+        });
+    });
+
+    // Handle group action buttons
+    const leaveGroupBtn = document.querySelector('.leave-group');
+    const addMemberBtn = document.querySelector('.add-member');
+    const reportContactBtn = document.querySelector('.report-contact');
+
+    if (leaveGroupBtn) {
+        leaveGroupBtn.addEventListener('click', () => {
+            if (confirm('Бул группадан чыккыңыз келеби?')) {
+                console.log('User left the group');
+                // Here you would add the actual functionality to leave the group
+            }
+        });
+    }
+
+    if (addMemberBtn) {
+        addMemberBtn.addEventListener('click', () => {
+            console.log('Add member button clicked');
+            // Here you would add the functionality to add a new member
+        });
+    }
+    
+    // Report contact button
+    if (reportContactBtn) {
+        reportContactBtn.addEventListener('click', () => {
+            if (confirm('Бул колдонуучуга даттануу керекпи?')) {
+                console.log('User reported the contact');
+                showNotification('Колдонуучуга даттануу катталды', 'info');
+            }
+        });
+    }
+
+    // Initialize emoji picker (you'll need to add emoji-picker library)
+    if (emojiButton) {
+        emojiButton.addEventListener('click', () => {
+            // Add emoji picker functionality
+            console.log('Emoji picker clicked');
+        });
+    }
+
+    // Initialize file attachment
+    if (attachButton) {
+        attachButton.addEventListener('click', () => {
+            // Add file attachment functionality
+            console.log('Attachment button clicked');
+        });
+    }
+
+    // Auto-scroll to bottom of messages
+    const activeMessagesContainer = getActiveMessagesContainer();
+    if (activeMessagesContainer) {
+        activeMessagesContainer.scrollTop = activeMessagesContainer.scrollHeight;
+    }
+
+    // --- Sidebar View Management --- //
+    const navButtons = document.querySelectorAll('.sidebar-nav .nav-item');
+    let currentSidebarView = 'chats'; // Default view
+
+    // Function to load and display a sidebar view - make it globally accessible
+    window.loadSidebarView = async function(viewName) {
+        console.log(`Attempting to load sidebar view: ${viewName}`);
+        
+        // Find the sidebar content area
+        const sidebarContentArea = document.getElementById('sidebar-content-area');
+        if (!sidebarContentArea) {
+            console.error('Sidebar content area not found!');
+            throw new Error('Sidebar content area not found');
+        }
+
+        // Construct the URL for the template snippet
+        const templateUrl = `/templates/_sidebar_${viewName.replace('-', '_')}.html`;
+        console.log("Requesting template from URL:", templateUrl);
+        
+        try {
+            const response = await fetch(templateUrl);
+            console.log("Response status:", response.status);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP error! status: ${response.status}`);
+            }
+            
+            const html = await response.text();
+            console.log("Received HTML content:", html.substring(0, 50) + "...");  // Log a preview
+            
+            // Replace content
+            sidebarContentArea.innerHTML = html;
+            console.log(`Successfully loaded view: ${viewName}`);
+
+            // Make the newly loaded view active
+            const loadedView = sidebarContentArea.querySelector('.sidebar-view');
+            if (loadedView) {
+                console.log("Found sidebar view element:", loadedView.id);
+                // Remove active from any previous sibling views if they existed
+                const existingViews = sidebarContentArea.querySelectorAll('.sidebar-view');
+                existingViews.forEach(v => v.classList.remove('active'));
+                
+                // Add active to the newly loaded view
+                loadedView.classList.add('active');
+                console.log(`Activated view: ${loadedView.id}`);
+            } else {
+                console.warn('Could not find .sidebar-view element within loaded HTML.');
+                console.log("Full HTML content:", html);  // Log the full HTML for debugging
+            }
+
+            currentSidebarView = viewName;
+            
+            // Re-attach necessary event listeners for the new view's content
+            try {
+                attachSidebarViewListeners(viewName);
+                
+                // Make sure the logout button works if it exists
+                const logoutBtn = document.getElementById('logout-btn');
+                if (logoutBtn) {
+                    console.log('Attaching logout event listener to button after view load:', logoutBtn);
+                    logoutBtn.addEventListener('click', (e) => {
+                        console.log('Logout button clicked');
+                        e.preventDefault();
+                        logout();
+                    });
+                }
+            } catch (listenerError) {
+                console.error(`Error attaching listeners for view ${viewName}:`, listenerError);
+                // Continue with rendering the view, even if some listeners failed
+            }
+            
+            // If this is the profile view, ensure logout button works
+            if (viewName === 'profile') {
+                // Specifically handle the logout button in the profile view
+                const profileLogoutBtn = document.getElementById('logout-btn');
+                if (profileLogoutBtn) {
+                    console.log('Profile view loaded - ensuring logout button works:', profileLogoutBtn);
+                    // Remove any existing event listeners
+                    profileLogoutBtn.replaceWith(profileLogoutBtn.cloneNode(true));
+                    const newLogoutBtn = document.getElementById('logout-btn');
+                    
+                    // Add the event listener
+                    newLogoutBtn.addEventListener('click', (e) => {
+                        console.log('Profile logout button clicked');
+                        e.preventDefault();
+                        logout();
+                    });
+                }
+            }
+        } catch (error) {
+            console.error(`Could not load sidebar view '${viewName}':`, error);
+            sidebarContentArea.innerHTML = `<p class="error-message">Error loading view: ${error.message}</p>`;
+            throw error; // Re-throw to allow catch handlers to work
+        }
+    }
+
+    // Function to attach event listeners specific to the loaded view
+    function attachSidebarViewListeners(viewName) {
+        console.log(`Attaching listeners for view: ${viewName}`);
+
+        // Common listeners (close button)
+        const closeButtons = sidebarContentArea.querySelectorAll('.close-sidebar-view-btn');
+        closeButtons.forEach(button => {
+            // Remove previous listener to prevent duplicates if any
+            button.replaceWith(button.cloneNode(true));
+            const newButton = sidebarContentArea.querySelector(`[data-target-view="${button.dataset.targetView}"]`); // Re-select the cloned button
+            if (newButton) {
+                 newButton.addEventListener('click', () => {
+                    const targetView = newButton.dataset.targetView || 'chats'; // Default to chats
+                    loadSidebarView(targetView);
+                     // Update nav button active state
+                     updateNavButtons(targetView);
+                });
+            }
+        });
+
+        // View-specific listeners
+        switch (viewName) {
+            case 'chats':
+                // Re-attach chat list search and item click listeners
+                attachChatListListeners();
+                break;
+            case 'create-group':
+                attachCreateGroupListeners();
+                break;
+            case 'settings':
+                attachSettingsListeners();
+                break;
+            case 'add-contact':
+                attachAddContactListeners();
+                break;
+            case 'profile':
+                attachProfileListeners();
+                break;
+        }
+         // Attach common modal listeners for any modals within the view
+        attachModalListeners();
+
+        // Set up listeners for contact details
+        // Only call this function if the contact details modal exists
+        if (document.getElementById('contact-details-modal')) {
+            setUpContactDetailsListeners();
+        } else {
+            console.log('Contact details modal not found, skipping listener setup');
+        }
+    }
+
+    // Function to update the active state of nav buttons
+    function updateNavButtons(activeView) {
+        navButtons.forEach(btn => {
+            if (btn.dataset.view === activeView) {
+                btn.classList.add('active');
+            } else {
+                btn.classList.remove('active');
+            }
+        });
+    }
+
+    // Initial setup - Add listeners to nav buttons
+    navButtons.forEach(button => {
+        button.addEventListener('click', () => {
+            const viewToLoad = button.dataset.view;
+            if (viewToLoad && viewToLoad !== currentSidebarView) {
+                 console.log(`Nav button clicked for view: ${viewToLoad}`);
+                loadSidebarView(viewToLoad);
+                updateNavButtons(viewToLoad);
+            }
+        });
+    });
+
+    // --- Specific View Listener Attachments --- //
+
+    function attachChatListListeners() {
+        console.log('Attaching chat list listeners...');
+        
+        // Load contacts from server
+        loadUserContacts();
+        
+        const searchInput = sidebarContentArea.querySelector('#chat-search-input');
+        if (searchInput) {
+            searchInput.addEventListener('input', handleChatSearch);
+        }
+        
+        const chatItems = sidebarContentArea.querySelectorAll('.chat-item');
+        chatItems.forEach(item => {
+            // Handle click on entire chat item (for opening chat)
+            item.addEventListener('click', (e) => {
+                // If clicking on the avatar, don't switch chat, just show profile
+                if (e.target.closest('.chat-avatar')) {
+                    return;
+                }
+                
+                const chatId = item.dataset.chatId;
+                const chatType = item.dataset.chatType;
+                switchChat(chatId, chatType);
+                
+                // Mark as active in UI
+                sidebarContentArea.querySelectorAll('.chat-item').forEach(i => i.classList.remove('active'));
+                item.classList.add('active');
+            });
+            
+            // Add click handler for avatar to show profile
+            const avatar = item.querySelector('.chat-avatar');
+            if (avatar) {
+                avatar.addEventListener('click', (e) => {
+                    e.stopPropagation(); // Prevent triggering the chat switch
+                    
+                    const chatId = item.dataset.chatId;
+                    const chatType = item.dataset.chatType;
+                    
+                    if (chatType === 'contact') {
+                        showContactProfile(chatId);
+                    } else if (chatType === 'group') {
+                        // Group profiles can be handled separately if needed
+                        toggleProfileSidebar();
+                    }
+                });
+            }
+        });
+        
+        // Ensure the current chat remains visually active if it's in the list
+        const activeChatItem = sidebarContentArea.querySelector(`.chat-item[data-chat-id="${currentChatId}"]`);
+        if (activeChatItem) {
+            sidebarContentArea.querySelectorAll('.chat-item').forEach(i => i.classList.remove('active'));
+            activeChatItem.classList.add('active');
+        }
+    }
+
+    function attachCreateGroupListeners() {
+        console.log('Attaching create group listeners...');
+        const memberItems = sidebarContentArea.querySelectorAll('.member-item');
+        memberItems.forEach(item => {
+            item.addEventListener('click', () => {
+                item.classList.toggle('selected');
+                 // Update selection indicator (visual toggle handled by CSS)
+            });
+        });
+
+        const createBtn = sidebarContentArea.querySelector('#create-group-btn');
+        if (createBtn) {
+            createBtn.addEventListener('click', () => {
+                const selectedMembers = sidebarContentArea.querySelectorAll('.member-item.selected');
+                const memberIds = Array.from(selectedMembers).map(item => item.dataset.userId);
+                console.log('Create group with members:', memberIds);
+                // Add actual group creation logic here (e.g., API call)
+                alert(`Group creation requested with members: ${memberIds.join(', ')}`);
+                loadSidebarView('chats'); // Go back to chats after requesting creation
+                updateNavButtons('chats');
+            });
+        }
+        // Add search functionality if needed
+        const searchInput = sidebarContentArea.querySelector('#create-group-search-input');
+         if (searchInput) {
+             // Add input event listener for search
+         }
+    }
+
+    function attachSettingsListeners() {
+        console.log('Attaching settings listeners...');
+        const adminBtn = sidebarContentArea.querySelector('#admin-page-btn');
+        const pwdBtn = sidebarContentArea.querySelector('#change-password-btn');
+        const langSelect = sidebarContentArea.querySelector('#language-select');
+
+        if (adminBtn) adminBtn.addEventListener('click', () => { alert('Админдик бетке өтүү clicked'); });
+        if (pwdBtn) pwdBtn.addEventListener('click', () => { alert('Сыр сөздү өзгөртүү clicked'); });
+        if (langSelect) langSelect.addEventListener('change', (e) => { alert(`Тил өзгөртүү: ${e.target.value}`); });
+    }
+
+    function attachAddContactListeners() {
+        console.log('Attaching add contact listeners...');
+        
+        // Make sure modals are properly in the body
+        moveModalToBody();
+        
+        // Elements for potential contacts view
+        const searchInput = sidebarContentArea?.querySelector('#add-contact-search-input');
+        const contactList = sidebarContentArea?.querySelector('#add-contact-list');
+        const loadingMessage = sidebarContentArea?.querySelector('#loading-contacts');
+        const emptyMessage = sidebarContentArea?.querySelector('#empty-users-message');
+        const addContactBtn = sidebarContentArea?.querySelector('#add-selected-contact-btn');
+        
+        console.log('Add contact button found in sidebar:', !!addContactBtn);
+        
+        // Reset the disabled state of the button
+        if (addContactBtn) {
+            addContactBtn.disabled = true;
+            console.log('Add contact button reset to disabled state');
+            
+            // Create a new clone of the button to remove existing listeners
+            const newBtn = addContactBtn.cloneNode(true);
+            addContactBtn.parentNode.replaceChild(newBtn, addContactBtn);
+            
+            // Add event listener to the add contact button
+            newBtn.addEventListener('click', () => {
+                console.log('Add contact button clicked');
+                
+                if (!contactList) {
+                    console.error('Contact list element not found');
+                    return;
+                }
+                
+                const selectedContact = contactList.querySelector('.contact-item.selected');
+                if (!selectedContact) {
+                    showToast('Контакт тандалган жок');
+                    return;
+                }
+                
+                // Get the contact details
+                const contactId = selectedContact.dataset.userId;
+                const contactUsername = selectedContact.querySelector('.contact-name')?.textContent || 'Unknown';
+                const avatarImg = selectedContact.querySelector('img');
+                const avatarSrc = avatarImg ? avatarImg.src : '/static/images/contact_logo.png';
+                
+                console.log('Selected contact for adding:', contactId, contactUsername);
+                
+                // Create a direct HTML modal instead of using fancy functions
+                const modalHtml = `
+                <div id="direct-contact-modal" class="modal" style="display: flex !important; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 9999999; justify-content: center; align-items: center;">
+                    <div class="modal-content" style="background: white; padding: 20px; border-radius: 8px; width: 80%; max-width: 400px;">
+                        <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px;">
+                            <h4 style="margin: 0; font-size: 18px;">Контакт аты</h4>
+                            <span class="close-btn" style="cursor: pointer; font-size: 24px;" onclick="document.getElementById('direct-contact-modal').remove();">&times;</span>
+                        </div>
+                        <div class="modal-body" style="margin-bottom: 15px;">
+                            <p>Бул контакт үчүн атты киргизиңиз:</p>
+                            <div style="display: flex; align-items: center; margin-bottom: 15px; gap: 10px;">
+                                <img src="${avatarSrc}" alt="${contactUsername}" style="width: 50px; height: 50px; border-radius: 50%;">
+                                <span>${contactUsername}</span>
+                            </div>
+                            <div style="margin-top: 15px;">
+                                <input type="text" id="direct-contact-name" value="${contactUsername}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px;">
+                                <small style="color: #666; font-size: 12px;">Бул колдонуучу үчүн жергиликтүү гана ат.</small>
+                                <input type="hidden" id="direct-contact-id" value="${contactId}">
+                            </div>
+                        </div>
+                        <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #eee; padding-top: 10px;">
+                            <button style="padding: 8px 16px; background: #f1f1f1; border: 1px solid #ddd; border-radius: 4px; cursor: pointer;" onclick="document.getElementById('direct-contact-modal').remove();">Жокко чыгаруу</button>
+                            <button id="direct-confirm-btn" style="padding: 8px 16px; background: #128c7e; color: white; border: none; border-radius: 4px; cursor: pointer;">Кошуу</button>
+                        </div>
+                    </div>
+                </div>
+                `;
+                
+                // Remove any existing modals
+                const existingModal = document.getElementById('direct-contact-modal');
+                if (existingModal) {
+                    existingModal.remove();
+                }
+                
+                // Add the modal to the DOM
+                document.body.insertAdjacentHTML('beforeend', modalHtml);
+                
+                // Set up confirm button
+                document.getElementById('direct-confirm-btn').addEventListener('click', async function() {
+                    const modal = document.getElementById('direct-contact-modal');
+                    const nameInput = document.getElementById('direct-contact-name');
+                    const idInput = document.getElementById('direct-contact-id');
+                    
+                    const displayName = nameInput.value.trim();
+                    const contactId = idInput.value;
+                    
+                    if (!displayName) {
+                        showToast('Контакт аты бош боло албайт');
+                        return;
+                    }
+                    
+                    try {
+                        const response = await fetch(getApiUrl('api/add-contact'), {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                contact_id: contactId,
+                                display_name: displayName
+                            })
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (response.ok) {
+                            showToast('Контакт ийгиликтүү кошулду');
+                            modal.remove();
+                            
+                            // Remove the added contact from the list
+                            selectedContact.remove();
+                            
+                            // Reset button
+                            newBtn.disabled = true;
+                            
+                            // Refresh contacts
+                            loadUserContacts();
+                        } else {
+                            showToast(`Ката: ${result.message}`);
+                        }
+                    } catch (error) {
+                        console.error('Error adding contact:', error);
+                        showToast('Контакт кошууда ката кетти');
+                    }
+                });
+            });
+        }
+        
+        // Initialize UI - Only if required elements exist
+        if (contactList && loadingMessage) {
+            initializePotentialContacts();
+        } else {
+            console.warn('Missing required DOM elements for the contact list');
+        }
+        
+        // Set up event listeners for search - modified to use Enter key or debounce
+        if (searchInput) {
+            // Remove any existing listeners by cloning
+            const newSearchInput = searchInput.cloneNode(true);
+            searchInput.parentNode.replaceChild(newSearchInput, searchInput);
+            
+            // Add keydown event listener for Enter key
+            newSearchInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const value = e.target.value.trim();
+                    if (value) {
+                        handleContactSearch(value);
+                    } else {
+                        initializePotentialContacts();
+                    }
+                }
+            });
+            
+            // Add placeholder to inform users about the search behavior
+            newSearchInput.placeholder = "Издөө үчүн толук атты жазып Enter басыңыз";
+        }
+    }
+
+    // Helper function to show toast messages
+    function showToast(message) {
+        // Create toast element if it doesn't exist
+        let toast = document.getElementById('toast');
+        if (!toast) {
+            toast = document.createElement('div');
+            toast.id = 'toast';
+            toast.className = 'toast';
+            document.body.appendChild(toast);
+        }
+        
+        // Set message and show toast
+        toast.textContent = message;
+        toast.classList.add('show');
+        
+        // Hide toast after 3 seconds
+        setTimeout(() => {
+            toast.classList.remove('show');
+        }, 3000);
+    }
+
+    // --- Search Handlers --- //
+    function handleChatSearch(event) {
+        const searchTerm = event.target.value.toLowerCase();
+        const chatItems = sidebarContentArea.querySelectorAll('#chat-list .chat-item');
+        chatItems.forEach(item => {
+            const name = item.querySelector('.chat-name')?.textContent.toLowerCase() || '';
+            const lastMessage = item.querySelector('.last-message')?.textContent.toLowerCase() || '';
+            if (name.includes(searchTerm) || lastMessage.includes(searchTerm)) {
+                item.style.display = '';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+    }
+
+    // --- Initial Load --- //
+    // Load the default view (chats) when the page loads
+    // loadSidebarView('chats'); // Load chats initially - OR keep pre-rendered HTML
+    attachChatListListeners(); // Attach listeners to the pre-rendered chat list
+    attachModalListeners(); // Attach listeners for any existing modals
+
+    // Re-attach main chat functionality listeners (if they were in DOMContentLoaded)
+    // Example:
+    const chatForm = document.getElementById('chat-form');
+    if (chatForm) {
+         chatForm.addEventListener('submit', (e) => {
+             e.preventDefault();
+             window.sendMessage();
+         });
+     }
+
+    // Find references to kg_flag_icon.png and update them
+    const flagIconPath = '/static/images/contact_logo.png';  // Use contact logo as a fallback
+    // Update any DOM elements that reference this icon
+    if (document.querySelectorAll) {  // Check if document.querySelectorAll is available
+        const flagImages = document.querySelectorAll('img[src*="kg_flag_icon.png"]');
+        if (flagImages) {  // Ensure the collection exists
+            flagImages.forEach(img => {
+                if (img && typeof img === 'object' && 'src' in img) {  // Ensure img is a valid object with src property
+                    img.src = flagIconPath;
+                }
+            });
+        }
+    }
+
+    // Move modals to body to ensure they display properly
+    moveModalToBody();
+
+    // Logout
+    const logoutBtn = document.getElementById('logout-btn');
+    if (logoutBtn) {
+        console.log('Attaching logout event listener to profile sidebar button:', logoutBtn);
+        logoutBtn.addEventListener('click', (e) => {
+            console.log('Logout button clicked');
+            e.preventDefault();
+            logout();
+        });
+    }
+}); // End DOMContentLoaded 
+
+// Initialize Socket.IO connection for real-time messaging
+function initializeSocket() {
+    // Global variable to track if we've attached listeners
+    if (!window.socketListenersAttached) {
+        window.socketListenersAttached = false;
+    }
+
+    if (window.chatSocket) {
+        console.log('Socket connection already initialized');
+        if (!window.socketListenersAttached) {
+            setupSocketEventHandlers(window.chatSocket);
+            window.socketListenersAttached = true;
+        } else {
+            console.log('Socket event handlers already attached, skipping');
+        }
+        return;
+    }
+    
+    try {
+        // Use current window location instead of hardcoded localhost
+        const socketUrl = `${window.location.protocol}//${window.location.host}`;
+        console.log('Connecting to Socket.IO at:', socketUrl);
+        
+        const socket = io(socketUrl, {
+            transports: ['websocket', 'polling'],
+            reconnection: true,
+            reconnectionAttempts: 5,
+            reconnectionDelay: 1000
+        });
+        
+        window.chatSocket = socket;
+        console.log('Socket.IO initialized');
+        
+        if (!window.socketListenersAttached) {
+            setupSocketEventHandlers(socket);
+            window.socketListenersAttached = true;
+        }
+    } catch (error) {
+        console.error('Socket.IO initialization error:', error);
+    }
+}
+
+// Set up socket event handlers for real-time messaging
+function setupSocketEventHandlers(socket) {
+    // Remove any existing listeners to prevent duplicates
+    socket.off('connect');
+    socket.off('disconnect');
+    socket.off('reconnect');
+    socket.off('new_message');
+    socket.off('message_sent');
+    socket.off('message_status');
+    socket.off('user_status');
+    
+    // Handle socket connection events
+    socket.on('connect', () => {
+        console.log('Socket connected!');
+        
+        // Get current user information
+        const username = window.currentUsername || sessionStorage.getItem('username');
+        const userId = sessionStorage.getItem('user_id');
+        
+        // Join rooms for both username and user ID for reliable message delivery
+        if (username) {
+            console.log('Joining room for username:', username);
+            socket.emit('join', { room: username });
+        }
+        
+        if (userId) {
+            console.log('Joining room for user ID:', userId);
+            socket.emit('join', { room: userId });
+        }
+    });
+    
+    socket.on('disconnect', () => {
+        console.log('Socket disconnected');
+    });
+    
+    socket.on('reconnect', () => {
+        console.log('Socket reconnected');
+        
+        // Rejoin on reconnect
+        const username = window.currentUsername || sessionStorage.getItem('username');
+        const userId = sessionStorage.getItem('user_id');
+        
+        if (username) {
+            socket.emit('join', { room: username });
+        }
+        
+        if (userId) {
+            socket.emit('join', { room: userId });
+        }
+    });
+    
+    // Handle new message events
+    socket.on('new_message', (data) => {
+        console.log('New message received:', data);
+        
+        // Determine if this is a group message or direct message
+        const isGroupMessage = !!data.group_id;
+        
+        // Get relevant information from the data
+        const senderId = data.sender_id;
+        const senderUsername = data.sender_username;
+        const message = data.message;
+        const timestamp = data.timestamp || '';
+        
+        // Get current username to check if the message is for us
+        const currentUsername = window.currentUsername || sessionStorage.getItem('username');
+        if (!currentUsername) {
+            console.error('Current username not found, cannot process incoming message');
+            return;
+        }
+        
+        // Determine if this message is from the current user
+        const isFromCurrentUser = senderUsername === currentUsername;
+        
+        let chatId, messagesContainer;
+        
+        if (isGroupMessage) {
+            // Handle group message
+            chatId = data.group_id;
+            messagesContainer = document.getElementById(`${chatId}-messages`);
+        } else {
+            // Handle direct message - chatId is the sender's ID for received messages
+            // or the receiver's ID for sent messages
+            chatId = isFromCurrentUser ? data.receiver_id : senderId;
+            messagesContainer = document.getElementById(`${chatId}-messages`);
+        }
+        
+        // If we can't find the messages container, show notification and return
+        if (!messagesContainer) {
+            // Update unread count in the chat list
+            if (!isFromCurrentUser) {
+                updateChatUnreadFromUsername(senderUsername);
+                
+                // Show a notification for the new message
+                showNotification(`New message from ${senderUsername}: ${message.substring(0, 50)}${message.length > 50 ? '...' : ''}`, 'info');
+                
+                // Play notification sound
+                playNotificationSound();
+            }
+            return;
+        }
+        
+        // Create and add the message element
+        const messageEl = window.createMessageElement(
+            message, 
+            isFromCurrentUser,
+            isFromCurrentUser ? null : senderUsername,
+            data.message_id || null,
+            isFromCurrentUser ? 'sent' : undefined,
+            timestamp
+        );
+        
+        messagesContainer.appendChild(messageEl);
+        
+        // Scroll to the bottom of the container
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+        
+        // If this is an incoming message and the chat is active, mark as read
+        if (!isFromCurrentUser && window.currentChatId === chatId) {
+            if (data.message_id) {
+                updateMessageReadStatus(chatId, isGroupMessage ? 'group' : 'direct', data.message_id);
+                
+                // Update the badge to show no unread messages
+                updateChatUnreadCount(chatId, 0);
+            }
+        } else if (!isFromCurrentUser) {
+            // Otherwise, increment unread count for the chat
+            updateChatUnreadFromUsername(senderUsername);
+            
+            // Show a notification for the new message
+            showNotification(`New message from ${senderUsername}: ${message.substring(0, 50)}${message.length > 50 ? '...' : ''}`, 'info');
+            
+            // Play notification sound
+            playNotificationSound();
+        }
+    });
+    
+    // Also handle message_sent events for confirmation
+    socket.on('message_sent', (data) => {
+        console.log('Message sent confirmation received:', data);
+        // Update the UI to show message was sent successfully
+        if (data.receiver_id) {
+            updateMessageStatus(data.receiver_id, 'delivered');
+        }
+    });
+    
+    // Handle message status updates
+    socket.on('message_status', (data) => {
+        const { chat_id, status, message_id } = data;
+        console.log(`Message status update for message ${message_id} in chat ${chat_id}: ${status}`);
+        
+        // Find the message element with the matching ID and update its status
+        const chatContainer = document.getElementById(`${chat_id}-messages`);
+        if (chatContainer) {
+            const messageEl = chatContainer.querySelector(`.message[data-message-id="${message_id}"]`);
+            if (messageEl) {
+                updateMessageStatus(chat_id, status, messageEl);
+            } else {
+                // If specific message not found, update the last message (legacy behavior)
+                updateMessageStatus(chat_id, status);
+            }
+        }
+    });
+
+    // Handle user status updates (online, offline)
+    socket.on('user_status', (data) => {
+        console.log('User status update:', data);
+        const { username, status } = data;
+        
+        // Update the user's status in the UI
+        updateUserStatus(username, status);
+    });
+}
+
+// Format timestamp for display
+function formatTimeForDisplay(timestamp) {
+    let date;
+    
+    // Handle different timestamp formats
+    if (typeof timestamp === 'string') {
+        // Try to parse as ISO string
+        date = new Date(timestamp);
+        
+        // If that fails, try parsing as Unix timestamp (milliseconds)
+        if (isNaN(date.getTime()) && /^\d+$/.test(timestamp)) {
+            date = new Date(parseInt(timestamp, 10));
+        }
+    } else {
+        date = new Date(timestamp);
+    }
+    
+    // Check if date is valid
+            unreadBadge.style.display = 'none';
+        }
+    }
+}
+
+// Function to update unread count for a chat based on the username
+function updateChatUnreadFromUsername(username) {
+    if (!username) return;
+    
+    // Find the chat item for this username
+    const chatItem = document.querySelector(`.chat-item[data-username="${username}"]`);
+    if (!chatItem) {
+        console.warn(`Chat item not found for username: ${username}`);
+        return;
+    }
+    
+    const chatId = chatItem.dataset.chatId;
+    if (!chatId) return;
+    
+    // Find the unread count badge
+    let unreadBadge = chatItem.querySelector('.unread-count');
+    if (!unreadBadge) {
+        // Create badge if it doesn't exist
+        unreadBadge = document.createElement('div');
+        unreadBadge.className = 'unread-count';
+        chatItem.appendChild(unreadBadge);
+    }
+    
+    // Get current count and increment
+    let count = parseInt(unreadBadge.textContent, 10) || 0;
+    count++;
+    
+    // Update badge
+    unreadBadge.textContent = count > 99 ? '99+' : count;
+    unreadBadge.style.display = 'flex';
+    
+    // Highlight the chat item
+    chatItem.classList.add('has-unread');
+}
+
+// Function to play notification sound
+function playNotificationSound() {
+    // Check if sound is enabled (could be a user preference)
+    const soundEnabled = localStorage.getItem('notification_sound_enabled') !== 'false';
+    if (!soundEnabled) return;
+    
+    try {
+        // Create audio element if it doesn't exist
+        let notificationSound = document.getElementById('notification-sound');
+        if (!notificationSound) {
+            notificationSound = document.createElement('audio');
+            notificationSound.id = 'notification-sound';
+            notificationSound.src = '/static/sounds/notification.mp3';
+            notificationSound.style.display = 'none';
+            document.body.appendChild(notificationSound);
+        }
+        
+        // Play sound
+        notificationSound.currentTime = 0;
+        notificationSound.play().catch(err => {
+            console.warn('Could not play notification sound:', err);
+        });
+    } catch (error) {
+        console.error('Error playing notification sound:', error);
+    }
+}
+
+// Initialize notification settings
+function initializeNotificationSettings() {
+    // Find the user settings section to add notification toggle
+    const userSettings = document.querySelector('.user-settings');
+    if (!userSettings) return;
+    
+    // Create notification settings element
+    const notificationSettings = document.createElement('div');
+    notificationSettings.className = 'notification-settings';
+    
+    // Add notification toggle label
+    const notificationLabel = document.createElement('span');
+    notificationLabel.textContent = 'Звук билдирүүлөр:';
+    notificationSettings.appendChild(notificationLabel);
+    
+    // Create toggle switch
+    const toggleContainer = document.createElement('label');
+    toggleContainer.className = 'notification-toggle';
+    
+    const toggleInput = document.createElement('input');
+    toggleInput.type = 'checkbox';
+    toggleInput.id = 'notification-sound-toggle';
+    
+    // Set initial state from localStorage
+    const soundEnabled = localStorage.getItem('notification_sound_enabled') !== 'false';
+    toggleInput.checked = soundEnabled;
+    
+    // Create slider element
+    const toggleSlider = document.createElement('span');
+    toggleSlider.className = 'toggle-slider';
+    
+    // Add event listener to toggle
+    toggleInput.addEventListener('change', (e) => {
+        localStorage.setItem('notification_sound_enabled', e.target.checked);
+        
+        // Play test sound if enabled
+        if (e.target.checked) {
+            playNotificationSound();
+        }
+    });
+    
+    // Assemble toggle
+    toggleContainer.appendChild(toggleInput);
+    toggleContainer.appendChild(toggleSlider);
+    
+    // Add toggle to settings
+    notificationSettings.appendChild(toggleContainer);
+    
+    // Add notification settings to user settings
+    userSettings.appendChild(notificationSettings);
+}
+
+// Helper function to update the read status of a message
+function updateMessageReadStatus(chatId, chatType, messageId) {
+    if (!chatId || !messageId) return;
+    
+    const currentUsername = window.currentUsername || sessionStorage.getItem('username');
+    if (!currentUsername) return;
+    
+    console.log(`Updating message ${messageId} status to read in chat ${chatId} (${chatType})`);
+    
+    // Use Socket.IO if available
+    if (window.chatSocket && window.chatSocket.connected) {
+        window.chatSocket.emit('update_message_status', {
+            message_id: messageId,
+            chat_id: chatId,
+            chat_type: chatType,
+            status: 'read'
+        });
+        
+        // Update UI immediately for better user experience
+        updateMessageStatus(chatId, 'read', document.querySelector(`.message[data-message-id="${messageId}"]`));
+        return;
+    }
+    
+    // Fallback to REST API if Socket.IO is not available
+    const endpoint = chatType === 'group' 
+        ? 'update_group_message_status' 
+        : 'update_message_status';
+    
+    fetch(getApiUrl(endpoint), {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            username: currentUsername,
+            message_id: messageId,
+            status: 'read'
+        })
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error(`Failed to update message status: ${response.status}`);
+        }
+        return response.json();
+    })
+    .then(data => {
+        console.log('Message marked as read:', data);
+        
+        // Update UI to show the message has been read
+        updateMessageStatus(chatId, 'read', document.querySelector(`.message[data-message-id="${messageId}"]`));
+    })
+    .catch(error => {
+        console.error('Error updating message status:', error);
+    });
+}

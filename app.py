@@ -2,6 +2,7 @@ from flask import Flask, render_template, redirect, url_for, session, send_from_
 import os
 from datetime import timedelta
 from flask_socketio import SocketIO, emit, join_room, leave_room
+import time
 
 # Import blueprints
 from Backend.auth import bp as auth_bp, is_authenticated
@@ -25,7 +26,7 @@ socketio = SocketIO(app,
 
 # Register blueprints
 app.register_blueprint(auth_bp)
-app.register_blueprint(chat_bp)
+app.register_blueprint(chat_bp, url_prefix='/api')
 app.register_blueprint(settings_bp, url_prefix='/api')
 
 # Create required directories if they don't exist
@@ -181,7 +182,8 @@ def handle_message(data):
                 'sender_username': sender_username,
                 'message': message,
                 'group_id': group_id,
-                'timestamp': timestamp
+                'timestamp': timestamp,
+                'message_id': str(int(time.time())) + str(sender_id)  # Generate a unique ID
             }, room=room)
             
             return {'status': 'success', 'message': 'Group message sent'}
@@ -211,12 +213,17 @@ def handle_message(data):
             if not target_room:
                 return {'status': 'error', 'message': 'Could not determine recipient'}
             
+            # Generate a unique message ID for tracking
+            message_id = str(int(time.time())) + str(sender_id)
+            
             # Send to the recipient
             message_data = {
                 'sender_id': sender_id,
                 'sender_username': sender_username,
+                'receiver_id': receiver_id,
                 'message': message,
-                'timestamp': timestamp
+                'timestamp': timestamp,
+                'message_id': message_id
             }
             
             print(f"Emitting to room: {target_room}")
@@ -227,10 +234,11 @@ def handle_message(data):
                 'receiver_id': receiver_id,
                 'receiver_username': receiver_username,
                 'message': message,
-                'timestamp': timestamp
+                'timestamp': timestamp,
+                'message_id': message_id
             }, room=str(sender_id))
             
-            return {'status': 'success', 'message': 'Direct message sent'}
+            return {'status': 'success', 'message': 'Direct message sent', 'message_id': message_id}
         
         else:
             return {'status': 'error', 'message': 'No receiver specified'}
@@ -239,14 +247,79 @@ def handle_message(data):
         print(f'Error sending message: {str(e)}')
         return {'status': 'error', 'message': str(e)}
 
+@socketio.on('update_message_status')
+def handle_status_update(data):
+    """Handle status updates for messages and broadcast to relevant users"""
+    try:
+        # Extract data
+        message_id = data.get('message_id')
+        status = data.get('status', 'read')  # Default to 'read'
+        chat_id = data.get('chat_id')  # This could be user_id or group_id
+        chat_type = data.get('chat_type', 'direct')  # 'direct' or 'group'
+        
+        # Sender info (the one updating the status)
+        updater_id = session.get('user_id')
+        updater_username = session.get('username')
+        
+        if not message_id or not chat_id or not updater_id:
+            print(f"Missing data for status update: {data}")
+            return {'status': 'error', 'message': 'Incomplete data for status update'}
+            
+        # For direct messages, notify the sender
+        if chat_type == 'direct':
+            # The chat_id should be the sender of the original message
+            sender_room = str(chat_id)
+            
+            # Emit status update to the original message sender
+            emit('message_status', {
+                'message_id': message_id,
+                'status': status,
+                'chat_id': updater_id,  # The updater (recipient) is the chat_id from sender's perspective
+                'updated_by': updater_username,
+                'timestamp': time.time()
+            }, room=sender_room)
+            
+            print(f"Emitted status update to room {sender_room} for message {message_id}: {status}")
+            
+        elif chat_type == 'group':
+            # For group messages, notify all group members
+            room = f'group_{chat_id}'
+            
+            emit('message_status', {
+                'message_id': message_id,
+                'status': status,
+                'chat_id': chat_id,
+                'updated_by': updater_username,
+                'timestamp': time.time()
+            }, room=room, include_self=False)
+            
+            print(f"Emitted group status update to room {room} for message {message_id}: {status}")
+            
+        return {'status': 'success', 'message': 'Status update broadcast sent'}
+        
+    except Exception as e:
+        print(f"Error processing status update: {str(e)}")
+        return {'status': 'error', 'message': str(e)}
+
 if __name__ == '__main__':
+    # Get port from environment variables or use default
+    port = int(os.environ.get('PORT', 8888))  # Default port 8888
+    
+    # Set host to 0.0.0.0 to make it accessible on the local network
+    host = '0.0.0.0'  # Listen on all network interfaces
+    
+    # Enable development features
     app.debug = True  # Enable debug mode
     app.config['TEMPLATES_AUTO_RELOAD'] = True  # Enable template auto-reloading
-    # Allow connections from any IP and disable verification
+    
+    print(f"Starting TogolokChat on http://{host}:{port}/")
+    print(f"Access using your local IP address from other devices on the same network")
+    
+    # Run the application with SocketIO
     socketio.run(
         app, 
-        host='0.0.0.0', 
-        port=5000, 
+        host=host, 
+        port=port, 
         debug=True,
         allow_unsafe_werkzeug=True  # Only use in development!
-    ) 
+    )

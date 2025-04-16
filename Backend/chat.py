@@ -328,51 +328,68 @@ def send_message():
     receiver_username = data.get('receiver_username')
     message_text = data.get('message')
     
+    print(f"DEBUG: Received message request - Sender: {sender_username}, Receiver: {receiver_username}, Message: {message_text[:20]}...")
+    
     if not sender_username or not receiver_username or not message_text:
+        print(f"DEBUG: Missing required data - sender: {sender_username}, receiver: {receiver_username}, message: {'Yes' if message_text else 'No'}")
         return jsonify({"message": "Sender username, receiver username, and message are required!"}), 400
     
     conn = connect_db()
     cursor = conn.cursor()
     
-    # Get user IDs
-    print(f"Looking for sender: '{sender_username}'")
-    cursor.execute("SELECT id FROM users WHERE username = ?", (sender_username,))
-    sender = cursor.fetchone()
-    
-    print(f"Looking for receiver: '{receiver_username}'")
-    cursor.execute("SELECT id FROM users WHERE username = ?", (receiver_username,))
-    receiver = cursor.fetchone()
-    
-    if not sender:
-        print(f"ERROR: Sender not found: '{sender_username}'")
-        return jsonify({"message": f"Sender not found: '{sender_username}'"}), 404
-    if not receiver:
-        print(f"ERROR: Receiver not found: '{receiver_username}'")
-        return jsonify({"message": f"Receiver not found: '{receiver_username}'"}), 404
-    
-    sender_id = sender[0]
-    receiver_id = receiver[0]
-    print(f"Found sender ID: {sender_id}, receiver ID: {receiver_id}")
-    
-    # Get current timestamp
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    
-    # Save the message with initial status as 'sent'
-    cursor.execute('''
-        INSERT INTO messages (sender_id, receiver_id, message, time, status, is_edited)
-        VALUES (?, ?, ?, ?, 'sent', 0)
-    ''', (sender_id, receiver_id, message_text, timestamp))
-    
-    message_id = cursor.lastrowid
-    
-    conn.commit()
-    cursor.close()
-    conn.close()
-    
-    return jsonify({
-        "message": "Message sent successfully",
-        "message_id": message_id
-    }), 200
+    try:
+        # Get user IDs
+        print(f"DEBUG: Looking for sender: '{sender_username}'")
+        cursor.execute("SELECT id FROM users WHERE username = ?", (sender_username,))
+        sender = cursor.fetchone()
+        
+        print(f"DEBUG: Looking for receiver: '{receiver_username}'")
+        cursor.execute("SELECT id FROM users WHERE username = ?", (receiver_username,))
+        receiver = cursor.fetchone()
+        
+        if not sender:
+            print(f"ERROR: Sender not found: '{sender_username}'")
+            return jsonify({"message": f"Sender not found: '{sender_username}'"}), 404
+        if not receiver:
+            print(f"ERROR: Receiver not found: '{receiver_username}'")
+            return jsonify({"message": f"Receiver not found: '{receiver_username}'"}), 404
+        
+        sender_id = sender[0]
+        receiver_id = receiver[0]
+        print(f"DEBUG: Found sender ID: {sender_id}, receiver ID: {receiver_id}")
+        
+        # Get current timestamp
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # Save the message with initial status as 'sent'
+        print(f"DEBUG: Inserting message into database")
+        sql_query = '''
+            INSERT INTO messages (sender_id, receiver_id, message, time, status, is_edited)
+            VALUES (?, ?, ?, ?, 'sent', 0)
+        '''
+        print(f"DEBUG: SQL Query: {sql_query}")
+        print(f"DEBUG: Parameters: sender_id={sender_id}, receiver_id={receiver_id}, message={message_text[:20]}..., time={timestamp}")
+        
+        cursor.execute(sql_query, (sender_id, receiver_id, message_text, timestamp))
+        
+        message_id = cursor.lastrowid
+        print(f"DEBUG: Message inserted successfully with ID: {message_id}")
+        
+        conn.commit()
+        print(f"DEBUG: Transaction committed successfully")
+        
+        return jsonify({
+            "message": "Message sent successfully",
+            "message_id": message_id
+        }), 200
+    except Exception as e:
+        conn.rollback()
+        print(f"ERROR in send_message: {str(e)}")
+        return jsonify({"message": f"Database error: {str(e)}"}), 500
+    finally:
+        cursor.close()
+        conn.close()
+        print("DEBUG: Database connection closed")
 
 @bp.route('/get_messages', methods=['GET'])
 def get_messages():
@@ -431,54 +448,94 @@ def send_group_message():
     group_id = data.get('group_id')
     message_text = data.get('message')
     
+    print(f"DEBUG: Received group message request - Sender: {sender_username}, Group ID: {group_id}, Message: {message_text[:20]}...")
+    
     if not sender_username or not group_id or not message_text:
+        print(f"DEBUG: Missing required data - sender: {sender_username}, group_id: {group_id}, message: {'Yes' if message_text else 'No'}")
         return jsonify({"message": "Sender username, group ID, and message are required!"}), 400
     
     conn = connect_db()
     cursor = conn.cursor()
     
-    # Get sender ID
-    cursor.execute("SELECT id FROM users WHERE username = ?", (sender_username,))
-    sender = cursor.fetchone()
-    
-    if not sender:
-        return jsonify({"message": "Sender not found"}), 404
-    
-    sender_id = sender[0]
-    
-    # Check if group exists
-    cursor.execute("SELECT id FROM groups WHERE id = ?", (group_id,))
-    group = cursor.fetchone()
-    
-    if not group:
-        return jsonify({"message": "Group not found"}), 404
-    
-    # Check if sender is a member of the group
-    cursor.execute("SELECT id FROM group_members WHERE group_id = ? AND user_id = ?", (group_id, sender_id))
-    membership = cursor.fetchone()
-    
-    if not membership:
-        return jsonify({"message": "Sender is not a member of this group"}), 403
-    
-    # Get current timestamp
-    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    
-    # Save the group message with is_edited flag
-    cursor.execute('''
-        INSERT INTO group_messages (group_id, sender_id, message, time, is_edited)
-        VALUES (?, ?, ?, ?, 0)
-    ''', (group_id, sender_id, message_text, timestamp))
-    
-    message_id = cursor.lastrowid
-    
-    conn.commit()
-    cursor.close()
-    conn.close()
-    
-    return jsonify({
-        "message": "Group message sent successfully",
-        "message_id": message_id
-    }), 200
+    try:
+        # Get user ID
+        print(f"DEBUG: Looking for sender: '{sender_username}'")
+        cursor.execute("SELECT id FROM users WHERE username = ?", (sender_username,))
+        sender = cursor.fetchone()
+        
+        if not sender:
+            print(f"ERROR: Sender not found: '{sender_username}'")
+            return jsonify({"message": f"Sender not found: '{sender_username}'"}), 404
+        
+        sender_id = sender[0]
+        print(f"DEBUG: Found sender ID: {sender_id}")
+        
+        # Check if the group exists
+        print(f"DEBUG: Checking if group exists: {group_id}")
+        cursor.execute("SELECT id FROM groups WHERE id = ?", (group_id,))
+        group = cursor.fetchone()
+        
+        if not group:
+            print(f"ERROR: Group not found: {group_id}")
+            return jsonify({"message": f"Group not found: {group_id}"}), 404
+        
+        # Check if the user is in the group
+        print(f"DEBUG: Checking if user {sender_id} is member of group {group_id}")
+        cursor.execute("SELECT * FROM group_members WHERE user_id = ? AND group_id = ?", (sender_id, group_id))
+        membership = cursor.fetchone()
+        
+        if not membership:
+            print(f"ERROR: User {sender_username} is not a member of group {group_id}")
+            return jsonify({"message": "You are not a member of this group!"}), 403
+        
+        # Get current timestamp
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        
+        # Save the message
+        print(f"DEBUG: Inserting group message into database")
+        sql_query = '''
+            INSERT INTO group_messages (group_id, sender_id, message, time, is_edited)
+            VALUES (?, ?, ?, ?, 0)
+        '''
+        print(f"DEBUG: SQL Query: {sql_query}")
+        print(f"DEBUG: Parameters: group_id={group_id}, sender_id={sender_id}, message={message_text[:20]}..., time={timestamp}")
+        
+        cursor.execute(sql_query, (group_id, sender_id, message_text, timestamp))
+        message_id = cursor.lastrowid
+        print(f"DEBUG: Group message inserted successfully with ID: {message_id}")
+        
+        # For each group member, add a status record
+        print(f"DEBUG: Adding status records for each group member")
+        cursor.execute("SELECT user_id FROM group_members WHERE group_id = ?", (group_id,))
+        members = cursor.fetchall()
+        
+        for member in members:
+            member_id = member[0]
+            status = 'sent'
+            if member_id == sender_id:
+                status = 'read'  # Sender has already read the message
+            
+            print(f"DEBUG: Adding status '{status}' for member {member_id}")
+            cursor.execute('''
+                INSERT INTO group_message_status (message_id, user_id, status)
+                VALUES (?, ?, ?)
+            ''', (message_id, member_id, status))
+        
+        conn.commit()
+        print(f"DEBUG: Transaction committed successfully")
+        
+        return jsonify({
+            "message": "Group message sent successfully",
+            "message_id": message_id
+        }), 200
+    except Exception as e:
+        conn.rollback()
+        print(f"ERROR in send_group_message: {str(e)}")
+        return jsonify({"message": f"Database error: {str(e)}"}), 500
+    finally:
+        cursor.close()
+        conn.close()
+        print("DEBUG: Database connection closed")
 
 @bp.route('/get_group_messages', methods=['GET'])
 def get_group_messages():
@@ -1298,7 +1355,7 @@ def get_group_message_status():
     
     return jsonify({"status": result}), 200
 
-@bp.route('/api/potential-contacts', methods=['GET'])
+@bp.route('/potential-contacts', methods=['GET'])
 def api_potential_contacts():
     # Get the current user ID from the session
     from flask import session
@@ -1375,7 +1432,7 @@ def api_potential_contacts():
     finally:
         conn.close()
 
-@bp.route('/api/add-contact', methods=['POST'])
+@bp.route('/add-contact', methods=['POST'])
 def api_add_contact():
     # Get the current user ID from the session
     from flask import session
@@ -1461,7 +1518,7 @@ def api_add_contact():
         conn.close()
         return jsonify({"success": False, "message": f"Error adding contact: {str(e)}"}), 500
 
-@bp.route('/api/contacts', methods=['GET'])
+@bp.route('/contacts', methods=['GET'])
 def api_contacts():
     from flask import session
     # Get the current user ID from the session
@@ -1622,7 +1679,7 @@ def api_contacts():
     finally:
         conn.close()
 
-@bp.route('/api/search-users', methods=['GET'])
+@bp.route('/search-users', methods=['GET'])
 def api_search_users():
     """Search for users by username, name, or email"""
     from flask import session
@@ -1680,7 +1737,7 @@ def api_search_users():
     finally:
         conn.close()
 
-@bp.route('/api/update-contact-name', methods=['POST'])
+@bp.route('/update-contact-name', methods=['POST'])
 def api_update_contact_name():
     """Update the display name of a contact"""
     from flask import session
@@ -1725,7 +1782,7 @@ def api_update_contact_name():
     finally:
         conn.close()
 
-@bp.route('/api/check-user-exists', methods=['GET'])
+@bp.route('/check-user-exists', methods=['GET'])
 def check_user_exists():
     """Check if a user exists in the database by username"""
     username = request.args.get('username')

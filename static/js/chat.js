@@ -61,16 +61,26 @@ window.createMessageElement = function(message, isSent = true, senderName = 'Т�
 
     const messageText = document.createElement('p');
     
+    // Check if message is an object (from data.messages) or a string
+    let messageContent = '';
+    if (typeof message === 'object' && message !== null) {
+        // If it's an object, extract the message property
+        messageContent = message.message || '';
+    } else {
+        // If it's a string, use it directly
+        messageContent = message || '';
+    }
+    
     // Check if message is a URL
-    if (message.startsWith('http')) {
+    if (typeof messageContent === 'string' && messageContent.startsWith('http')) {
         const linkElem = document.createElement('a');
-        linkElem.href = message;
+        linkElem.href = messageContent;
         linkElem.className = 'message-link';
-        linkElem.textContent = message;
+        linkElem.textContent = messageContent;
         linkElem.target = '_blank';
         messageText.appendChild(linkElem);
     } else {
-        messageText.textContent = message;
+        messageText.textContent = messageContent;
     }
 
     contentDiv.appendChild(infoDiv);
@@ -148,6 +158,9 @@ window.loadChatMessages = function(chatId, chatType) {
             const existingMessages = messagesContainer.querySelectorAll('.message');
             existingMessages.forEach(msg => messagesContainer.removeChild(msg));
             
+            // Track the latest message ID for read receipts
+            let latestReceivedMessageId = null;
+            
             if (chatType === 'group') {
                 // Handle group messages
                 if (!data.messages || data.messages.length === 0) {
@@ -162,8 +175,21 @@ window.loadChatMessages = function(chatId, chatType) {
                 // Add each message to the container
                 data.messages.forEach(msg => {
                     const isSent = msg.sender === currentUsername;
-                    const messageEl = window.createMessageElement(msg.message, isSent, msg.sender);
+                    const messageEl = createMessageElement({
+                        id: msg.id,
+                        sender_id: msg.sender_id || msg.id, // Fallback to message id if sender_id not available
+                        sender_username: msg.sender,
+                        message: msg.message,
+                        time: msg.time,
+                        status: msg.status || (isSent ? 'sent' : 'delivered')
+                    }, isSent);
+                    
                     messagesContainer.appendChild(messageEl);
+                    
+                    // Track latest received message for read receipts
+                    if (!isSent && msg.id) {
+                        latestReceivedMessageId = msg.id;
+                    }
                 });
             } else {
                 // Handle direct messages
@@ -179,13 +205,47 @@ window.loadChatMessages = function(chatId, chatType) {
                 // Add each message to the container
                 data.messages.forEach(msg => {
                     const isSent = msg.sender === currentUsername;
-                    const messageEl = window.createMessageElement(msg.message, isSent);
+                    const messageEl = createMessageElement({
+                        id: msg.id,
+                        sender_id: msg.sender_id || (isSent ? null : msg.id), // Use message ID as sender ID for received messages
+                        sender_username: msg.sender,
+                        message: msg.message,
+                        time: msg.time,
+                        status: msg.status || (isSent ? 'sent' : 'delivered')
+                    }, isSent);
+                    
                     messagesContainer.appendChild(messageEl);
+                    
+                    // Track latest received message for read receipts
+                    if (!isSent && msg.id) {
+                        latestReceivedMessageId = msg.id;
+                    }
                 });
             }
             
             // Scroll to the bottom
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            
+            // Mark all received messages as read if this is the current chat
+            if (window.currentChatId === chatId && latestReceivedMessageId) {
+                console.log('Marking messages as read for chat:', chatId);
+                updateMessageReadStatus(chatId, chatType, latestReceivedMessageId);
+                
+                // Also update UI to show messages as read
+                messagesContainer.querySelectorAll('.message.received').forEach(msg => {
+                    msg.classList.add('read');
+                    msg.dataset.status = 'read';
+                });
+                
+                // Remove any unread indicator from the chat list
+                const chatItem = document.querySelector(`.chat-item[data-chat-id="${chatId}"]`);
+                if (chatItem) {
+                    const unreadIndicator = chatItem.querySelector('.message-status.unread');
+                    if (unreadIndicator) {
+                        unreadIndicator.remove();
+                    }
+                }
+            }
         })
         .catch(error => {
             console.error('Error loading messages:', error);
@@ -200,7 +260,43 @@ function getApiUrl(endpoint) {
         endpoint = endpoint.substring(1);
     }
     
-    // For message endpoints and API endpoints, just use direct paths
+    // Chat blueprint routes - all of these should go under /api/
+    const chatBlueprintRoutes = [
+        // Message handling routes
+        'update_message_status', 'update_group_message_status',
+        'get_message_status', 'get_group_message_status',
+        'send_message', 'send_group_message',
+        'get_messages', 'get_group_messages',
+        'edit_message', 'edit_group_message',
+        'delete_message', 'delete_group_message',
+        
+        // Contact and group management routes
+        'get_contacts', 'add_contact', 'create_group', 'delete_group',
+        'leave_group', 'add_contact_to_group', 'ban_user',
+        'get_user_groups', 'get_direct_images', 'get_group_images',
+        
+        // New format routes (with hyphens)
+        'contacts', 'potential-contacts', 'add-contact',
+        'search-users', 'update-contact-name', 'check-user-exists'
+    ];
+    
+    // Check if the endpoint or endpoint prefix is in our list of chat blueprint routes
+    let isApiRoute = chatBlueprintRoutes.some(route => {
+        return endpoint === route || endpoint.startsWith(route + '?');
+    });
+    
+    // Special handle case for API routes that use 'api/' prefix in the request
+    if (endpoint.startsWith('api/')) {
+        isApiRoute = true;
+        // Remove the 'api/' prefix since it will be added if isApiRoute is true
+        endpoint = endpoint.substring(4);
+    }
+    
+    if (isApiRoute) {
+        return `/api/${endpoint}`;
+    }
+    
+    // For all other endpoints, just use direct paths
     return `/${endpoint}`;
 }
 
@@ -1137,7 +1233,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     
                     try {
-                        const response = await fetch(getApiUrl('api/add-contact'), {
+                        const response = await fetch(getApiUrl('add-contact'), {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json'
@@ -1379,9 +1475,111 @@ function setupSocketEventHandlers(socket) {
     });
     
     // Handle incoming messages
-    socket.on('new_message', (data) => {
-        console.log('Received new message via socket:', data);
-        receiveMessage(data);
+    socket.on('new_message', async (data) => {
+        console.log('New message received:', data);
+        
+        // Extract data from the message
+        const {
+            sender_id,
+            sender_username,
+            receiver_id,
+            message,
+            group_id,
+            timestamp
+        } = data;
+        
+        const currentUsername = window.currentUsername || sessionStorage.getItem('username');
+        
+        // Skip if we can't identify the current user
+        if (!currentUsername) {
+            console.warn('Current username not found, cannot process incoming message');
+            return;
+        }
+        
+        // Determine if the message is sent by the current user
+        const isSentByCurrentUser = sender_username === currentUsername;
+        
+        // Handle group messages and direct messages differently
+        if (group_id) {
+            // This is a group message
+            const chatId = `group_${group_id}`;
+            const isCurrentChat = window.currentChatId === group_id && window.currentChatType === 'group';
+            
+            // Create the message element
+            const messageData = {
+                id: data.message_id || generateTempId(),
+                sender_id,
+                sender_username,
+                message,
+                timestamp,
+                status: 'delivered'
+            };
+            
+            // Add the message to the messages container
+            const messagesContainer = document.getElementById(`${chatId}-messages`);
+            if (messagesContainer) {
+                const messageEl = createMessageElement(messageData, isSentByCurrentUser);
+                messagesContainer.appendChild(messageEl);
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                
+                // Mark as read immediately if this is the current chat
+                if (isCurrentChat && !isSentByCurrentUser) {
+                    // Mark this message as read
+                    updateMessageReadStatus(group_id, 'group', data.message_id || sender_id);
+                } else {
+                    // Update unread count for this chat
+                    updateUnreadCountForChat(chatId);
+                }
+            }
+            
+            // Update chat list UI with the new message
+            updateChatListWithMessage(chatId, 'group', message, sender_username);
+            
+        } else {
+            // This is a direct message
+            // For received messages, chatId is the sender_id
+            // For sent messages, chatId is the receiver_id
+            const chatId = isSentByCurrentUser ? receiver_id : sender_id;
+            const isCurrentChat = window.currentChatId === chatId && window.currentChatType === 'contact';
+            
+            // Create the message element
+            const messageData = {
+                id: data.message_id || generateTempId(),
+                sender_id,
+                sender_username,
+                message,
+                timestamp,
+                status: isSentByCurrentUser ? 'sent' : 'delivered'
+            };
+            
+            // Add the message to the messages container
+            const messagesContainer = document.getElementById(`${chatId}-messages`);
+            if (messagesContainer) {
+                const messageEl = createMessageElement(messageData, isSentByCurrentUser);
+                messagesContainer.appendChild(messageEl);
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+                
+                // Mark as read immediately if this is the current chat and not sent by current user
+                if (isCurrentChat && !isSentByCurrentUser) {
+                    // Mark this message as read
+                    updateMessageReadStatus(chatId, 'direct', data.message_id || sender_id);
+                    
+                    // Update UI to show message as read
+                    const statusElement = messageEl.querySelector('.message-status-icon');
+                    if (statusElement) {
+                        statusElement.classList.remove('sent', 'delivered');
+                        statusElement.classList.add('read');
+                        statusElement.innerHTML = '<i class="fas fa-check-double"></i>';
+                    }
+                } else if (!isCurrentChat && !isSentByCurrentUser) {
+                    // Update unread count for this chat
+                    updateUnreadCountForChat(chatId);
+                }
+            }
+            
+            // Update chat list UI with the new message
+            updateChatListWithMessage(chatId, 'contact', message, isSentByCurrentUser ? 'You' : sender_username);
+        }
     });
     
     // Also handle message_sent events for confirmation
@@ -1401,12 +1599,26 @@ function setupSocketEventHandlers(socket) {
         // Find the message element with the matching ID and update its status
         const chatContainer = document.getElementById(`${chat_id}-messages`);
         if (chatContainer) {
+            // Try to find by message ID first
             const messageEl = chatContainer.querySelector(`.message[data-message-id="${message_id}"]`);
             if (messageEl) {
+                console.log('Found message by ID, updating status');
                 updateMessageStatus(chat_id, status, messageEl);
             } else {
-                // If specific message not found, update the last message (legacy behavior)
-                updateMessageStatus(chat_id, status);
+                // Try to find by sender ID if message ID not found
+                const messageBySender = chatContainer.querySelector(`.message[data-sender-id="${message_id}"]`);
+                if (messageBySender) {
+                    console.log('Found message by sender ID, updating status');
+                    updateMessageStatus(chat_id, status, messageBySender);
+                } else {
+                    // If specific message not found, update the last sent message (legacy behavior)
+                    console.log('Message not found, updating last sent message');
+                    const sentMessages = chatContainer.querySelectorAll('.message.sent');
+                    if (sentMessages.length > 0) {
+                        const lastSentMessage = sentMessages[sentMessages.length - 1];
+                        updateMessageStatus(chat_id, status, lastSentMessage);
+                    }
+                }
             }
         }
     });
@@ -1433,6 +1645,65 @@ function setupSocketEventHandlers(socket) {
             }
         });
     });
+}
+
+// Function to update chat list with a new message
+function updateChatListWithMessage(chatId, chatType, message, senderName = null) {
+    // Find the chat item in the list
+    const chatItem = document.querySelector(`.chat-item[data-chat-id="${chatId}"]`);
+    
+    if (chatItem) {
+        // Update last message text
+        const lastMessageEl = chatItem.querySelector('.last-message p');
+        if (lastMessageEl) {
+            // Format message preview (handle image messages specially)
+            let messageText = message;
+            if (message && message.startsWith('[IMAGE:')) {
+                messageText = '📷 Photo';
+            }
+            
+            // Add sender name prefix for group chats
+            if (chatType === 'group' && senderName) {
+                lastMessageEl.textContent = `${senderName}: ${messageText}`;
+            } else {
+                lastMessageEl.textContent = messageText;
+            }
+        }
+        
+        // Update timestamp to now
+        const timeEl = chatItem.querySelector('.time');
+        if (timeEl) {
+            timeEl.textContent = formatTimeForDisplay(new Date());
+        }
+        
+        // Move chat to top of list
+        const chatList = document.getElementById('chat-list');
+        if (chatList && chatList.firstChild) {
+            chatList.insertBefore(chatItem, chatList.firstChild);
+        }
+    }
+}
+
+// Function to update unread count for a chat
+function updateUnreadCountForChat(chatId) {
+    const chatItem = document.querySelector(`.chat-item[data-chat-id="${chatId}"]`);
+    if (!chatItem) return;
+    
+    // Increment unread count
+    let unreadEl = chatItem.querySelector('.message-status.unread');
+    if (unreadEl) {
+        let unreadCount = parseInt(unreadEl.textContent, 10) || 0;
+        unreadEl.textContent = unreadCount + 1;
+    } else {
+        // Create unread indicator if it doesn't exist
+        const lastMessageEl = chatItem.querySelector('.last-message');
+        if (lastMessageEl) {
+            unreadEl = document.createElement('div');
+            unreadEl.className = 'message-status unread';
+            unreadEl.textContent = '1';
+            lastMessageEl.appendChild(unreadEl);
+        }
+    }
 }
 
 // Add this missing function
@@ -1494,10 +1765,10 @@ function loadUserContacts() {
     console.log('Chat list found or created:', !!chatList);
     
     // Show loading state
-    chatList.innerHTML = '<div class="loading">Loading contacts...</div>';
+    chatList.innerHTML = '<div class="loading">Жүктөлүүдө...</div>';
     
     // Make API call to get user contacts
-    fetch(getApiUrl('api/contacts'))
+    fetch(getApiUrl('contacts'))
         .then(response => {
             if (!response.ok) {
                 throw new Error(`Failed to load contacts: ${response.status}`);
@@ -2233,45 +2504,56 @@ function setUpContactDetailsListeners() {
 async function initializePotentialContacts() {
     console.log('Initializing potential contacts');
     
-    const contacts = await getPotentialContacts();
-    const contactList = document.querySelector('#add-contact-list');
-    
-    const loadingMessage = document.querySelector('#loading-contacts');
-    const emptyMessage = document.querySelector('#empty-users-message');
-    
-    if (loadingMessage) loadingMessage.style.display = 'none';
-    
-    if (!contactList) {
-        console.error('Contact list element not found');
-        return;
-    }
-    
-    // Clear the list except for loading/empty messages
-    Array.from(contactList.children)
-        .filter(child => !child.matches('#loading-contacts, #empty-users-message'))
-        .forEach(child => child.remove());
-    
-    if (!contacts || contacts.length === 0) {
-        console.log('No potential contacts found');
-        if (emptyMessage) {
-            emptyMessage.style.display = 'block';
-            const messageP = emptyMessage.querySelector('p');
-            if (messageP) messageP.textContent = 'Контакттер табылган жок';
+    try {
+        // Fetch potential contacts
+        const response = await fetch(getApiUrl('potential-contacts'));
+        if (!response.ok) {
+            throw new Error(`Error: ${response.status}`);
         }
-        return;
+        
+        const data = await response.json();
+        const contactList = document.querySelector('#add-contact-list');
+        
+        const loadingMessage = document.querySelector('#loading-contacts');
+        const emptyMessage = document.querySelector('#empty-users-message');
+        
+        if (loadingMessage) loadingMessage.style.display = 'none';
+        
+        if (!contactList) {
+            console.error('Contact list element not found');
+            return;
+        }
+        
+        // Clear the list except for loading/empty messages
+        Array.from(contactList.children)
+            .filter(child => !child.matches('#loading-contacts, #empty-users-message'))
+            .forEach(child => child.remove());
+        
+        if (!data || data.length === 0) {
+            console.log('No potential contacts found');
+            if (emptyMessage) {
+                emptyMessage.style.display = 'block';
+                const messageP = emptyMessage.querySelector('p');
+                if (messageP) messageP.textContent = 'Контакттер табылган жок';
+            }
+            return;
+        }
+        
+        console.log(`Found ${data.length} potential contacts`);
+        if (emptyMessage) emptyMessage.style.display = 'none';
+        
+        // Add each contact to the list
+        data.forEach(user => {
+            const contactItem = createContactItem(user);
+            contactList.appendChild(contactItem);
+        });
+        
+        // Add click listeners to the contact items
+        addContactItemListeners();
+    } catch (error) {
+        console.error('Error initializing potential contacts:', error);
+        // Handle error appropriately
     }
-    
-    console.log(`Found ${contacts.length} potential contacts`);
-    if (emptyMessage) emptyMessage.style.display = 'none';
-    
-    // Add each contact to the list
-    contacts.forEach(user => {
-        const contactItem = createContactItem(user);
-        contactList.appendChild(contactItem);
-    });
-    
-    // Add click listeners to the contact items
-    addContactItemListeners();
 }
 
 // Function to create a contact item element for potential contacts
@@ -2990,15 +3272,54 @@ function receiveMessage(data) {
 }
 
 // Helper function to update the read status of a message
-function updateMessageReadStatus(chatId, chatType, senderId) {
-    if (!chatId || !senderId) return;
+function updateMessageReadStatus(chatId, chatType, messageId) {
+    console.log('Updating message read status:', { chatId, chatType, messageId });
+    
+    if (!chatId || !messageId) {
+        console.error('Missing required parameters for updateMessageReadStatus:', { chatId, chatType, messageId });
+        return;
+    }
+    
+    const currentUsername = window.currentUsername || sessionStorage.getItem('username');
+    if (!currentUsername) {
+        console.error('Current username not found, cannot update message status');
+        return;
+    }
+    
+    // Check if socket is available
+    if (window.chatSocket && window.chatSocket.connected) {
+        // Use socket to update message status (this avoids the 404 error)
+        window.chatSocket.emit('update_message_status', {
+            message_id: messageId,
+            status: 'read',
+            chat_id: chatId,
+            chat_type: chatType
+        });
+        
+        console.log('Sent status update via socket:', {
+            message_id: messageId,
+            chat_id: chatId,
+            chat_type: chatType
+        });
+        
+        // Update UI immediately (optimistic update)
+        updateMessageUIStatus(chatId, messageId, 'read');
+        return;
+    }
+    
+    // Fallback to HTTP if socket is not available
+    console.log('Socket not available, using HTTP fallback');
     
     const endpoint = chatType === 'group' 
         ? 'update_group_message_status' 
         : 'update_message_status';
     
-    const currentUsername = window.currentUsername || sessionStorage.getItem('username');
-    if (!currentUsername) return;
+    // Log the request
+    console.log('Sending status update request via HTTP:', {
+        endpoint,
+        username: currentUsername,
+        message_id: messageId
+    });
     
     fetch(getApiUrl(endpoint), {
         method: 'POST',
@@ -3007,102 +3328,173 @@ function updateMessageReadStatus(chatId, chatType, senderId) {
         },
         body: JSON.stringify({
             username: currentUsername,
-            message_id: senderId,  // For direct message this is actually message_id
+            message_id: messageId,
             status: 'read'
         })
     })
     .then(response => {
         if (!response.ok) {
+            console.error(`Status update failed: ${response.status}`, response);
             throw new Error(`Failed to update message status: ${response.status}`);
         }
         return response.json();
     })
     .then(data => {
         console.log('Message marked as read:', data);
+        updateMessageUIStatus(chatId, messageId, 'read');
     })
     .catch(error => {
         console.error('Error updating message status:', error);
     });
 }
 
+// Helper function to update the UI for message status changes
+function updateMessageUIStatus(chatId, messageId, status) {
+    console.log(`Updating UI status for message ${messageId} in chat ${chatId} to ${status}`);
+    
+    // Update UI
+    const messagesContainer = document.getElementById(`${chatId}-messages`);
+    if (messagesContainer) {
+        // Find the specific message
+        const messageEl = messagesContainer.querySelector(`.message[data-message-id="${messageId}"]`);
+        if (messageEl) {
+            // Update status visually
+            messageEl.classList.add(status);
+            messageEl.dataset.status = status;
+            
+            // Update the status icon - for sent messages
+            if (messageEl.classList.contains('sent')) {
+                const statusWrapper = messageEl.querySelector('.message-status-wrapper');
+                if (statusWrapper) {
+                    const statusEl = statusWrapper.querySelector('.message-status-icon');
+                    if (statusEl) {
+                        statusEl.classList.remove('sent', 'delivered');
+                        statusEl.classList.add(status);
+                        
+                        if (status === 'read') {
+                            statusEl.innerHTML = '<i class="fas fa-check-double"></i>';
+                        } else if (status === 'delivered') {
+                            statusEl.innerHTML = '<i class="fas fa-check-double"></i>';
+                        } else {
+                            statusEl.innerHTML = '<i class="fas fa-check"></i>';
+                        }
+                        
+                        // Update tooltip
+                        const tooltip = statusWrapper.querySelector('.message-status-tooltip');
+                        if (tooltip) {
+                            tooltip.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+                        }
+                    }
+                }
+            }
+        }
+        
+        // Also update any messages with this sender ID
+        const senderMessages = messagesContainer.querySelectorAll(`.message[data-sender-id="${messageId}"]`);
+        senderMessages.forEach(msgEl => {
+            if (msgEl !== messageEl) {
+                msgEl.classList.add(status);
+                msgEl.dataset.status = status;
+                
+                // Update status icon for sent messages
+                if (msgEl.classList.contains('sent')) {
+                    const statusWrapper = msgEl.querySelector('.message-status-wrapper');
+                    if (statusWrapper) {
+                        const statusEl = statusWrapper.querySelector('.message-status-icon');
+                        if (statusEl) {
+                            statusEl.classList.remove('sent', 'delivered');
+                            statusEl.classList.add(status);
+                            
+                            if (status === 'read') {
+                                statusEl.innerHTML = '<i class="fas fa-check-double"></i>';
+                            } else if (status === 'delivered') {
+                                statusEl.innerHTML = '<i class="fas fa-check-double"></i>';
+                            } else {
+                                statusEl.innerHTML = '<i class="fas fa-check"></i>';
+                            }
+                            
+                            // Update tooltip
+                            const tooltip = statusWrapper.querySelector('.message-status-tooltip');
+                            if (tooltip) {
+                                tooltip.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+                            }
+                        }
+                    }
+                }
+            }
+        });
+    }
+    
+    // Remove unread count from chat list item
+    const chatItem = document.querySelector(`.chat-item[data-chat-id="${chatId}"]`);
+    if (chatItem) {
+        const unreadIndicator = chatItem.querySelector('.message-status.unread');
+        if (unreadIndicator) {
+            unreadIndicator.remove();
+        }
+    }
+}
+
 // Function to update message status in the UI
-function updateMessageStatus(chatId, status, messageEl) {
+function updateMessageStatus(chatId, status, messageEl = null) {
     console.log(`Updating message status for chat ${chatId} to ${status}`);
     
-    // If a specific message element is provided, use that
+    // Handle specific message element if provided
     if (messageEl) {
-        const statusIcon = messageEl.querySelector('.message-status i');
-        
-        if (statusIcon) {
-            // Update icon based on status
-            statusIcon.className = ''; // Clear existing classes
-            
-            switch (status) {
-                case 'sent':
-                    statusIcon.classList.add('fas', 'fa-check');
-                    break;
-                case 'delivered':
-                    statusIcon.classList.add('fas', 'fa-check-double');
-                    break;
-                case 'read':
-                    statusIcon.classList.add('fas', 'fa-check-double');
-                    statusIcon.style.color = '#4fc3f7'; // Blue color for read
-                    break;
-                case 'error':
-                    statusIcon.classList.add('fas', 'fa-exclamation-triangle');
-                    statusIcon.style.color = 'red';
-                    break;
-                default:
-                    statusIcon.classList.add('fas', 'fa-clock');
+        const statusWrapper = messageEl.querySelector('.message-status-wrapper');
+        if (statusWrapper) {
+            // Remove old status class
+            const statusEl = statusWrapper.querySelector('.message-status-icon');
+            if (statusEl) {
+                statusEl.classList.remove('sent', 'delivered', 'read');
+                statusEl.classList.add(status);
+                
+                // Update icon based on status
+                if (status === 'read') {
+                    statusEl.innerHTML = '<i class="fas fa-check-double"></i>';
+                } else if (status === 'delivered') {
+                    statusEl.innerHTML = '<i class="fas fa-check-double"></i>';
+                } else {
+                    statusEl.innerHTML = '<i class="fas fa-check"></i>';
+                }
+                
+                // Update tooltip
+                const tooltip = statusWrapper.querySelector('.message-status-tooltip');
+                if (tooltip) {
+                    tooltip.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+                }
             }
+        }
+        return;
+    }
+    
+    // Update last message status in chat list for the given chat
+    const chatItem = document.querySelector(`.chat-item[data-chat-id="${chatId}"]`);
+    if (chatItem) {
+        // Find the status indicator or create it
+        let statusEl = chatItem.querySelector('.message-status-icon');
+        if (!statusEl) {
+            const lastMessage = chatItem.querySelector('.last-message');
+            if (lastMessage) {
+                statusEl = document.createElement('span');
+                statusEl.className = 'message-status-icon';
+                lastMessage.appendChild(statusEl);
+            }
+        }
+        
+        if (statusEl) {
+            // Update the status icon
+            statusEl.classList.remove('sent', 'delivered', 'read');
+            statusEl.classList.add(status);
             
-            // Update the message element's status attribute
-            messageEl.setAttribute('data-status', status);
+            if (status === 'read') {
+                statusEl.innerHTML = '<i class="fas fa-check-double"></i>';
+            } else if (status === 'delivered') {
+                statusEl.innerHTML = '<i class="fas fa-check-double"></i>';
+            } else {
+                statusEl.innerHTML = '<i class="fas fa-check"></i>';
+            }
         }
-        return;
-    }
-    
-    // Otherwise find the last sent message in the chat
-    const messagesContainer = document.getElementById(`${chatId}-messages`);
-    if (!messagesContainer) {
-        console.warn(`No messages container found for chat ID: ${chatId}`);
-        return;
-    }
-    
-    const sentMessages = messagesContainer.querySelectorAll('.message.sent');
-    if (sentMessages.length === 0) {
-        console.warn('No sent messages found to update status');
-        return;
-    }
-    
-    const lastMessage = sentMessages[sentMessages.length - 1];
-    const statusIcon = lastMessage.querySelector('.message-status i');
-    
-    if (statusIcon) {
-        // Update icon based on status
-        statusIcon.className = ''; // Clear existing classes
-        
-        switch (status) {
-            case 'sent':
-                statusIcon.classList.add('fas', 'fa-check');
-                break;
-            case 'delivered':
-                statusIcon.classList.add('fas', 'fa-check-double');
-                break;
-            case 'read':
-                statusIcon.classList.add('fas', 'fa-check-double');
-                statusIcon.style.color = '#4fc3f7'; // Blue color for read
-                break;
-            case 'error':
-                statusIcon.classList.add('fas', 'fa-exclamation-triangle');
-                statusIcon.style.color = 'red';
-                break;
-            default:
-                statusIcon.classList.add('fas', 'fa-clock');
-        }
-        
-        // Update the message element's status attribute
-        lastMessage.setAttribute('data-status', status);
     }
 }
 
@@ -3250,7 +3642,7 @@ async function addNewContact(event) {
             return;
         }
         
-        const response = await fetch(getApiUrl('api/add-contact'), {
+        const response = await fetch(getApiUrl('add-contact'), {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
@@ -3337,7 +3729,7 @@ async function logout() {
 
 async function getPotentialContacts() {
     try {
-        const response = await fetch(getApiUrl('api/potential-contacts'));
+        const response = await fetch(getApiUrl('potential-contacts'));
         if (!response.ok) {
             throw new Error(`HTTP error! status: ${response.status}`);
         }
@@ -3384,7 +3776,7 @@ function loadUserContacts() {
     chatList.innerHTML = '<div class="loading">Жүктөлүүдө...</div>';
     
     // Make API call to get user contacts
-    fetch(getApiUrl('api/contacts'))
+    fetch(getApiUrl('contacts'))
         .then(response => {
             if (!response.ok) {
                 throw new Error(`Failed to load contacts: ${response.status}`);
@@ -3530,3 +3922,516 @@ async function loadSidebarView(viewName) {
         throw error;
     }
 }
+
+// Create message status indicator element
+function createMessageStatusElement(status = 'sent') {
+    console.log('Creating status element with status:', status);
+    
+    const statusWrapper = document.createElement('div');
+    statusWrapper.className = 'message-status-wrapper';
+    
+    const statusEl = document.createElement('span');
+    statusEl.className = `message-status-icon ${status}`;
+    
+    // Different icons based on status
+    if (status === 'read') {
+        statusEl.innerHTML = '<i class="fas fa-check-double"></i>';
+        // Apply special color for read status 
+        statusEl.style.color = '#25D366';
+    } else if (status === 'delivered') {
+        statusEl.innerHTML = '<i class="fas fa-check-double"></i>';
+        // Default gray color
+        statusEl.style.color = '#999';
+    } else {
+        // Default sent status
+        statusEl.innerHTML = '<i class="fas fa-check"></i>';
+        statusEl.style.color = '#999';
+    }
+    
+    // Add tooltip with status text
+    const tooltip = document.createElement('span');
+    tooltip.className = 'message-status-tooltip';
+    tooltip.textContent = status.charAt(0).toUpperCase() + status.slice(1);
+    
+    statusWrapper.appendChild(statusEl);
+    statusWrapper.appendChild(tooltip);
+    
+    return statusWrapper;
+}
+
+// Create message element
+function createMessageElement(message, isSent = false) {
+    const messageEl = document.createElement('div');
+    messageEl.className = isSent ? 'message sent' : 'message received';
+    
+    // Add message ID for status updates - needed for marking as read
+    if (message.id) {
+        messageEl.dataset.messageId = message.id;
+    }
+    
+    // Add sender ID for grouped status updates - needed for tracking who sent the message
+    if (message.sender_id) {
+        messageEl.dataset.senderId = message.sender_id;
+    }
+    
+    // Create message avatar
+    const avatarEl = document.createElement('div');
+    avatarEl.className = 'message-avatar';
+    
+    const avatarImg = document.createElement('img');
+    // Use sender avatar if available, otherwise use default
+    avatarImg.src = message.sender_avatar || '/static/images/contact_logo.png';
+    avatarImg.alt = 'Avatar';
+    
+    avatarEl.appendChild(avatarImg);
+    
+    // Create message content container
+    const contentEl = document.createElement('div');
+    contentEl.className = 'message-content';
+    
+    // Create message header with sender info and time
+    const infoEl = document.createElement('div');
+    infoEl.className = 'message-info';
+    
+    if (!isSent) {
+        const senderEl = document.createElement('div');
+        senderEl.className = 'sender-name';
+        senderEl.textContent = message.sender_username || 'Unknown';
+        infoEl.appendChild(senderEl);
+    }
+    
+    const timeEl = document.createElement('div');
+    timeEl.className = 'message-time';
+    timeEl.textContent = formatMessageTime(message.timestamp || message.time);
+    infoEl.appendChild(timeEl);
+    
+    contentEl.appendChild(infoEl);
+    
+    // Create message text
+    const textEl = document.createElement('div');
+    textEl.className = 'message-text';
+    
+    // Check if message is an image
+    if (message.message && message.message.startsWith('[IMAGE:')) {
+        // Extract image path from the message
+        const imgPath = message.message.replace('[IMAGE:', '').replace(']', '');
+        const img = document.createElement('img');
+        img.src = `/uploads/${isSent ? 'direct_images' : 'group_images'}/${imgPath}`;
+        img.alt = 'Shared image';
+        img.className = 'message-image';
+        img.style.maxWidth = '200px';
+        img.style.borderRadius = '8px';
+        
+        // Add click handler to open full image
+        img.addEventListener('click', () => {
+            window.open(img.src, '_blank');
+        });
+        
+        textEl.appendChild(img);
+    } else {
+        // Regular text message
+        textEl.textContent = message.message;
+    }
+    
+    contentEl.appendChild(textEl);
+    
+    // Add footer with status for sent messages
+    if (isSent) {
+        const footerEl = document.createElement('div');
+        footerEl.className = 'message-footer';
+        
+        // Get message status with fallback
+        const messageStatus = message.status || 'sent';
+        
+        // Add status indicator for sent messages
+        const statusElement = createMessageStatusElement(messageStatus);
+        footerEl.appendChild(statusElement);
+        
+        contentEl.appendChild(footerEl);
+    }
+    
+    // Assemble the message element
+    messageEl.appendChild(avatarEl);
+    messageEl.appendChild(contentEl);
+    
+    // Add a data attribute for read status tracking
+    messageEl.dataset.status = message.status || (isSent ? 'sent' : 'delivered');
+    
+    // Mark with status class
+    const status = message.status || (isSent ? 'sent' : 'delivered');
+    messageEl.classList.add(status);
+    
+    return messageEl;
+}
+
+// Handle click on a chat item
+function attachChatItemListeners() {
+    const chatItems = document.querySelectorAll('.chat-item');
+    chatItems.forEach(item => {
+        item.addEventListener('click', function() {
+            const chatId = this.dataset.chatId;
+            const chatType = this.dataset.chatType;
+            
+            if (!chatId) return;
+            
+            console.log(`Chat item clicked: ID=${chatId}, Type=${chatType}`);
+            
+            // Unselect all chat items
+            chatItems.forEach(item => item.classList.remove('active'));
+            
+            // Select this chat item
+            this.classList.add('active');
+            
+            // Hide all message containers
+            document.querySelectorAll('.messages-container').forEach(container => {
+                container.classList.remove('active');
+            });
+            
+            // Show the messages container for this chat
+            const messagesContainer = document.getElementById(`${chatId}-messages`);
+            if (messagesContainer) {
+                messagesContainer.classList.add('active');
+                
+                // Scroll to bottom
+                messagesContainer.scrollTop = messagesContainer.scrollHeight;
+            } else {
+                console.error(`No message container found for chat ${chatId}`);
+                
+                // Create a new messages container if needed
+                createMessagesContainer(chatId, chatType);
+                
+                // Load messages for this chat
+                loadChatMessages(chatId, chatType);
+            }
+            
+            // Update current chat tracking
+            window.currentChatId = chatId;
+            window.currentChatType = chatType;
+            
+            // Update chat header
+            updateChatHeader(chatId, chatType);
+            
+            // Mark all messages as read
+            markAllMessagesAsRead(chatId, chatType);
+        });
+    });
+}
+
+// Debug function to help diagnose message status issues
+function debugMessageStatus() {
+    console.log('--- Message Status Debug Info ---');
+    
+    // Current chat info
+    console.log('Current chat:', {
+        chatId: window.currentChatId,
+        chatType: window.currentChatType
+    });
+    
+    // Check if active messages container exists
+    const activeContainer = document.querySelector('.messages-container.active');
+    if (!activeContainer) {
+        console.log('No active messages container found');
+        return;
+    }
+    
+    console.log(`Active container ID: ${activeContainer.id}`);
+    
+    // Count messages by type and status
+    const allMessages = activeContainer.querySelectorAll('.message');
+    const sentMessages = activeContainer.querySelectorAll('.message.sent');
+    const receivedMessages = activeContainer.querySelectorAll('.message.received');
+    const readMessages = activeContainer.querySelectorAll('.message.read');
+    
+    console.log('Message counts:', {
+        total: allMessages.length,
+        sent: sentMessages.length,
+        received: receivedMessages.length,
+        read: readMessages.length
+    });
+    
+    // Check message attributes
+    if (allMessages.length > 0) {
+        console.log('Sample message attributes:');
+        allMessages.forEach((msg, index) => {
+            if (index < 5) { // Limit to first 5 messages
+                console.log(`Message ${index + 1}:`, {
+                    id: msg.dataset.messageId,
+                    senderId: msg.dataset.senderId,
+                    status: msg.dataset.status,
+                    classes: msg.className,
+                    hasStatusIcon: !!msg.querySelector('.message-status-icon')
+                });
+            }
+        });
+    }
+    
+    // Check chat list unread indicators
+    const chatItems = document.querySelectorAll('.chat-item');
+    console.log('Chat items with unread indicators:');
+    let unreadCount = 0;
+    chatItems.forEach(item => {
+        const unreadIndicator = item.querySelector('.message-status.unread');
+        if (unreadIndicator) {
+            unreadCount++;
+            console.log(`Chat ${item.dataset.chatId}: ${unreadIndicator.textContent} unread`);
+        }
+    });
+    console.log(`Total chats with unread messages: ${unreadCount}`);
+    
+    console.log('--- End Debug Info ---');
+    
+    // Return debug data for display in UI if needed
+    return {
+        currentChat: {
+            id: window.currentChatId,
+            type: window.currentChatType
+        },
+        messageCounts: {
+            total: allMessages.length,
+            sent: sentMessages.length,
+            received: receivedMessages.length,
+            read: readMessages.length
+        },
+        unreadChats: unreadCount
+    };
+}
+
+// Call debug function when clicking on chat header (for convenient testing)
+document.addEventListener('DOMContentLoaded', function() {
+    const chatHeader = document.getElementById('chat-header');
+    if (chatHeader) {
+        chatHeader.addEventListener('dblclick', function(e) {
+            e.stopPropagation(); // Prevent other event handlers from firing
+            const debug = debugMessageStatus();
+            console.log('Debug result:', debug);
+            showNotification('Debug info logged to console', 'info');
+        });
+    }
+});
+
+// Function to format message time for display
+function formatMessageTime(timestamp) {
+    if (!timestamp) return '';
+    
+    // Create Date object from timestamp
+    let date;
+    try {
+        if (typeof timestamp === 'string') {
+            // Handle different timestamp formats
+            if (timestamp.includes('T')) {
+                // ISO format
+                date = new Date(timestamp);
+            } else if (timestamp.includes('-')) {
+                // YYYY-MM-DD HH:MM:SS format
+                date = new Date(timestamp.replace(' ', 'T'));
+            } else {
+                // Timestamp in milliseconds
+                date = new Date(parseInt(timestamp, 10));
+            }
+        } else {
+            date = new Date(timestamp);
+        }
+        
+        // Check if date is valid
+        if (isNaN(date.getTime())) {
+            console.warn('Invalid timestamp:', timestamp);
+            return '';
+        }
+        
+        // Get current date for comparison
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const yesterday = new Date(today);
+        yesterday.setDate(yesterday.getDate() - 1);
+        
+        // Format based on how recent the message is
+        if (date >= today) {
+            // Today - show time only
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        } else if (date >= yesterday) {
+            // Yesterday
+            return 'Yesterday ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        } else {
+            // Earlier - show date and time
+            return date.toLocaleDateString() + ' ' + date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+    } catch (error) {
+        console.error('Error formatting timestamp:', error, timestamp);
+        return '';
+    }
+}
+
+// Function to mark all messages in the current chat as read
+function markAllMessagesAsRead(chatId, chatType) {
+    console.log('Marking all messages as read for chat:', chatId);
+    
+    if (!chatId) return;
+    
+    // Get the messages container
+    const messagesContainer = document.getElementById(`${chatId}-messages`);
+    if (!messagesContainer) return;
+    
+    // Find all received messages that are not marked as read
+    const unreadMessages = messagesContainer.querySelectorAll('.message.received:not(.read)');
+    if (unreadMessages.length === 0) {
+        console.log('No unread messages to mark');
+        return;
+    }
+    
+    console.log(`Found ${unreadMessages.length} unread messages to mark as read`);
+    
+    // Get all message IDs that need to be marked as read
+    const messageIds = [];
+    unreadMessages.forEach(msg => {
+        const msgId = msg.dataset.messageId;
+        if (msgId) {
+            messageIds.push(msgId);
+            
+            // Mark message as read in UI
+            msg.classList.add('read');
+            msg.dataset.status = 'read';
+            
+            // Update status icon
+            const statusWrapper = msg.querySelector('.message-status-wrapper');
+            if (statusWrapper) {
+                const statusEl = statusWrapper.querySelector('.message-status-icon');
+                if (statusEl) {
+                    statusEl.classList.remove('sent', 'delivered');
+                    statusEl.classList.add('read');
+                    statusEl.innerHTML = '<i class="fas fa-check-double"></i>';
+                    
+                    // Update tooltip
+                    const tooltip = statusWrapper.querySelector('.message-status-tooltip');
+                    if (tooltip) {
+                        tooltip.textContent = 'Read';
+                    }
+                }
+            }
+        }
+    });
+    
+    // Send status updates for all unread messages
+    if (messageIds.length > 0) {
+        // Update the most recent message (which will cascade to mark all older ones as read too)
+        const latestMessageId = messageIds[messageIds.length - 1];
+        updateMessageReadStatus(chatId, chatType, latestMessageId);
+        
+        // Also remove unread indicator from chat list
+        const chatItem = document.querySelector(`.chat-item[data-chat-id="${chatId}"]`);
+        if (chatItem) {
+            const unreadIndicator = chatItem.querySelector('.message-status.unread');
+            if (unreadIndicator) {
+                unreadIndicator.remove();
+            }
+        }
+    }
+}
+
+// Function to switch to a specific chat
+function switchChat(chatId, chatType) {
+    console.log(`Switching to chat: ID=${chatId}, Type=${chatType}`);
+    
+    if (!chatId) return;
+    
+    // Hide all message containers
+    document.querySelectorAll('.messages-container').forEach(container => {
+        container.style.display = 'none';
+    });
+    
+    // Show or create the messages container for this chat
+    let messagesContainer = document.getElementById(`${chatId}-messages`);
+    
+    if (!messagesContainer) {
+        console.log(`Creating new messages container for chat ${chatId}`);
+        // Create a new messages container
+        messagesContainer = createMessagesContainer(chatId, chatType);
+        
+        // Load messages for this chat
+        loadChatMessages(chatId, chatType);
+    } else {
+        messagesContainer.style.display = 'flex';
+        
+        // Scroll to bottom
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+    
+    // Update active chat tracking
+    window.currentChatId = chatId;
+    window.currentChatType = chatType;
+    
+    // Update chat header
+    updateChatHeader(chatId, chatType);
+    
+    // Mark all messages as read
+    markAllMessagesAsRead(chatId, chatType);
+    
+    // Debug message status
+    setTimeout(() => {
+        debugMessageStatus(chatId);
+    }, 500);
+    
+    // Update sidebar to show the active chat
+    document.querySelectorAll('.chat-item').forEach(item => {
+        item.classList.remove('active');
+        if (item.dataset.chatId === chatId) {
+            item.classList.add('active');
+        }
+    });
+    
+    // Show the input area
+    document.querySelector('.input-container').style.display = 'flex';
+}
+
+// Debug function to check message status state
+function debugMessageStatus(chatId) {
+    console.log('Debugging message status for chat:', chatId);
+    
+    const messagesContainer = document.getElementById(`${chatId}-messages`);
+    if (!messagesContainer) {
+        console.log('Messages container not found');
+        return;
+    }
+    
+    const messages = messagesContainer.querySelectorAll('.message');
+    console.log(`Found ${messages.length} messages in total`);
+    
+    // Count by type
+    const sentMessages = messagesContainer.querySelectorAll('.message.sent');
+    const receivedMessages = messagesContainer.querySelectorAll('.message.received');
+    console.log(`Sent messages: ${sentMessages.length}, Received messages: ${receivedMessages.length}`);
+    
+    // Count by status
+    const sentUnread = messagesContainer.querySelectorAll('.message.sent:not(.read)');
+    const sentRead = messagesContainer.querySelectorAll('.message.sent.read');
+    const receivedUnread = messagesContainer.querySelectorAll('.message.received:not(.read)');
+    const receivedRead = messagesContainer.querySelectorAll('.message.received.read');
+    
+    console.log(`Sent unread: ${sentUnread.length}, Sent read: ${sentRead.length}`);
+    console.log(`Received unread: ${receivedUnread.length}, Received read: ${receivedRead.length}`);
+    
+    // Check status icons
+    console.log('Checking status icons:');
+    sentMessages.forEach((msg, index) => {
+        const statusWrapper = msg.querySelector('.message-status-wrapper');
+        const statusEl = statusWrapper?.querySelector('.message-status-icon');
+        const statusIcon = statusEl?.innerHTML || 'none';
+        console.log(`Message ${index}: status=${msg.dataset.status}, icon=${statusIcon}`);
+    });
+    
+    return {
+        total: messages.length,
+        sent: sentMessages.length,
+        received: receivedMessages.length,
+        sentUnread: sentUnread.length,
+        sentRead: sentRead.length,
+        receivedUnread: receivedUnread.length,
+        receivedRead: receivedRead.length
+    };
+}
+
+// Call this debug function whenever a chat is opened
+window.debugMessageStatusOnOpen = function() {
+    if (window.currentChatId) {
+        debugMessageStatus(window.currentChatId);
+    }
+};
