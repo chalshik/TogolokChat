@@ -1,0 +1,35 @@
+    <!DOCTYPE html>
+<html>
+<head>
+    <title>Template Test</title>
+</head>
+<body>
+    <h1>Template Test</h1>
+    
+    <p>Testing template access:</p>
+    
+    <ul>
+        <li><a href="/templates/_sidebar_create_group.html" target="_blank">Test create_group template</a></li>
+        <li><a href="/templates/_sidebar_chats.html" target="_blank">Test chats template</a></li>
+    </ul>
+    
+    <script>
+        async function testTemplateAccess() {
+            try {
+                const response = await fetch('/templates/_sidebar_create_group.html');
+                const text = await response.text();
+                console.log('Response status:', response.status);
+                console.log('Response text:', text.substring(0, 100) + '...');
+                document.getElementById('result').textContent = 
+                    `Status: ${response.status}, Text sample: ${text.substring(0, 50)}...`;
+            } catch (error) {
+                console.error('Error fetching template:', error);
+                document.getElementById('result').textContent = `Error: ${error.message}`;
+            }
+        }
+    </script>
+    
+    <button onclick="testTemplateAccess()">Test API Call</button>
+    <div id="result" style="margin-top: 20px; padding: 10px; border: 1px solid #ccc;"></div>
+</body>
+</html> 

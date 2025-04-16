@@ -422,6 +422,36 @@
     </div>
     <!-- End Group Edit Modals -->
 
+    <!-- Group creation modal -->
+    <div id="create-group-modal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <span class="close-modal-btn">&times;</span>
+                <h3>Жаңы тегерек үстөлдү жаратуу</h3>
+            </div>
+            <div class="modal-body">
+                <div class="group-icon-container">
+                    <img src="/static/images/group_icon.png" id="new-group-avatar-preview" alt="Group Icon">
+                    <div class="group-image-controls">
+                        <button id="select-image-btn" class="btn btn-outline">Сүрөт тандоо</button>
+                        <button id="remove-new-group-avatar-btn" class="btn btn-danger">Сүрөттү өчүрүү</button>
+                    </div>
+                    <input type="file" id="new-group-avatar-upload" accept="image/*" style="display: none;">
+                </div>
+                <div class="group-name-container">
+                    <label for="new-group-name-input">Тегерек үстөлдүн аты:</label>
+                    <input type="text" id="new-group-name-input" placeholder="Тегерек үстөлдүн атын киргизиңиз" class="group-name-input">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button id="cancel-group-creation-btn" class="btn btn-secondary">Жокко чыгаруу</button>
+                <button id="save-group-creation-btn" class="btn btn-primary">Жаратуу</button>
+            </div>
+        </div>
+    </div>
+    
+    <!-- End Group Edit Modals -->
+
     <!-- Code injected by live-server -->
     <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.1.3/dist/js/bootstrap.bundle.min.js"></script>
@@ -429,7 +459,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/js/all.min.js"></script>
     
     <!-- Socket.IO client library -->
-    <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
+    <script src="https://cdn.socket.io/4.5.4/socket.io.min.js" integrity="sha384-/KNQL8Nu5gCHLqwqfQjA689Hhoqgi2S84SNUxC3roTe4EhJ9AfLkp8QiQcU8AMzI" crossorigin="anonymous"></script>
     
     <!-- Mock sidebar template for chats view in case server doesn't return it -->
     <script id="mock-chats-template" type="text/template">
@@ -437,14 +467,54 @@
             <div class="view-header">
                 <h2>Маектер</h2>
                 <div class="search-box">
-                    <input type="text" id="chat-search-input" placeholder="Издөө...">
                     <i class="fas fa-search"></i>
+                    <input type="text" placeholder="Издөө..." id="main-search-input">
                 </div>
             </div>
             <div class="chat-list-container scrollable-list">
                 <div id="chat-list" class="chat-list">
                     <!-- Chat items will be added here -->
                 </div>
+            </div>
+        </div>
+    </script>
+    
+    <!-- Mock sidebar template for create-group view in case server doesn't return it -->
+    <script id="mock-create-group-template" type="text/template">
+        <div class="sidebar-view active" id="create-group-view" style="display: flex; flex-direction: column; height: 100%; opacity: 1; visibility: visible;">
+            <div class="sidebar-view-header">
+                <span class="view-title">Жаңы тегерек үстөл</span>
+                <button class="close-sidebar-view-btn" data-target-view="chats">&times;</button>
+            </div>
+            <div class="sidebar-search">
+                <div class="search-container">
+                    <i class="fas fa-search"></i>
+                    <input type="text" placeholder="издөө" id="create-group-search-input">
+                </div>
+            </div>
+            <div class="member-selection-container scrollable-list">
+                <ul class="member-list" id="create-group-member-list">
+                    <li class="member-item" data-user-id="user1">
+                        <img src="/static/images/contact_logo.png" alt="User Avatar" class="member-avatar">
+                        <span class="member-name">Эмил Агай</span>
+                        <span class="selection-indicator"></span>
+                    </li>
+                    <li class="member-item" data-user-id="user2">
+                        <img src="/static/images/contact_logo.png" alt="User Avatar" class="member-avatar">
+                        <span class="member-name">Мунара Эжеке</span>
+                        <span class="selection-indicator"></span>
+                    </li>
+                    <li class="member-item" data-user-id="user3">
+                        <img src="/static/images/contact_logo.png" alt="User Avatar" class="member-avatar">
+                        <span class="member-name">Улан Агай</span>
+                        <span class="selection-indicator"></span>
+                    </li>
+                </ul>
+            </div>
+            <div class="sidebar-view-footer">
+                <button class="btn btn-primary full-width" id="create-group-btn">
+                    Жаратуу
+                </button>
             </div>
         </div>
     </script>
@@ -471,45 +541,50 @@
                 modal.style.display = 'none';
             });
             
-            // Give the chat.js script time to load and execute
+            // Ensure io is defined before running socket initialization
+            if (typeof io !== 'undefined') {
+                console.log('Socket.IO is available, initializing...');
+                if (typeof initializeSocket === 'function') {
+                    initializeSocket();
+                } else {
+                    console.error('initializeSocket function not defined');
+                }
+            } else {
+                console.error('Socket.IO (io) not available. Check network connectivity or script loading.');
+                // Show error notification
+                if (typeof showNotification === 'function') {
+                    showNotification('Chat server connection failed. Please refresh the page.', 'error');
+                }
+            }
+            
+            // Ensure receiveMessage function is defined
+            if (typeof receiveMessage !== 'function') {
+                window.receiveMessage = function(data) {
+                    console.log('Received message:', data);
+                    // This is a fallback implementation
+                };
+            }
+            
+            // Wait a bit to ensure everything is loaded
             setTimeout(function() {
                 // Check if sidebar content area exists
                 const sidebarContentArea = document.getElementById('sidebar-content-area');
                 if (sidebarContentArea) {
                     console.log("Sidebar content area found, loading chats view");
                     
-                    // Try to load the default sidebar view
-                    if (typeof window.loadSidebarView === 'function') {
-                        console.log("Using loadSidebarView function");
-                        window.loadSidebarView('chats').catch(error => {
-                            console.error("Error loading sidebar view:", error);
-                            console.log("Falling back to direct DOM manipulation");
-                            // Fallback: Insert mock template
-                            const mockTemplate = document.getElementById('mock-chats-template');
-                            if (mockTemplate) {
-                                sidebarContentArea.innerHTML = mockTemplate.innerHTML;
-                                // Try to load contacts directly
-                                if (typeof window.loadUserContacts === 'function') {
-                                    window.loadUserContacts();
-                                }
-                            }
-                        });
-                    } else {
-                        console.error("loadSidebarView function not found, using direct DOM manipulation");
-                        // Insert mock template
-                        const mockTemplate = document.getElementById('mock-chats-template');
-                        if (mockTemplate) {
-                            sidebarContentArea.innerHTML = mockTemplate.innerHTML;
-                            // Try to load contacts directly
-                            if (typeof window.loadUserContacts === 'function') {
-                                window.loadUserContacts();
-                            }
+                    // Insert mock template if loadSidebarView is not available
+                    const mockTemplate = document.getElementById('mock-chats-template');
+                    if (mockTemplate) {
+                        sidebarContentArea.innerHTML = mockTemplate.innerHTML;
+                        // Try to load contacts directly
+                        if (typeof loadUserContacts === 'function') {
+                            loadUserContacts();
                         }
                     }
                 } else {
                     console.error("Sidebar content area not found");
                 }
-            }, 500); // Give half a second delay to ensure scripts are loaded
+            }, 500);
         });
     </script>
 </body>

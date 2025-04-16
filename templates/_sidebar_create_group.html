@@ -1,3 +1,4 @@
+<!-- START OF CREATE GROUP SIDEBAR VIEW -->
 <div class="sidebar-view" id="create-group-view">
 <div class="sidebar-view-header">
     <span class="view-title">Жаңы тегерек үстөл</span>
@@ -11,33 +12,32 @@
 </div>
 <div class="member-selection-container scrollable-list">
     <ul class="member-list" id="create-group-member-list">
-        <!-- Example contacts to add -->
-        <li class="member-item" data-user-id="user1">
-            <img src="/static/images/contact_logo.png" alt="User Avatar" class="member-avatar">
-            <span class="member-name">Эмил Агай</span>
-            <span class="selection-indicator"></span>
-        </li>
-        <li class="member-item" data-user-id="user2">
-            <img src="/static/images/contact_logo.png" alt="User Avatar" class="member-avatar">
-            <span class="member-name">Мунара Эжеке</span>
-            <span class="selection-indicator"></span>
-        </li>
-        <li class="member-item" data-user-id="user3">
-             <img src="/static/images/contact_logo.png" alt="User Avatar" class="member-avatar"> <!-- Changed from kg_flag_icon.png -->
-             <span class="member-name">Улан Агай</span>
-            <span class="selection-indicator"></span>
-         </li>
-         <li class="member-item" data-user-id="user4">
-             <img src="/static/images/logo.png" alt="User Avatar" class="member-avatar"> <!-- Example with different icon -->
-             <span class="member-name">Нурмухаммед</span>
-            <span class="selection-indicator"></span>
-         </li>
-         <li class="member-item" data-user-id="user5">
-             <img src="/static/images/contact_logo.png" alt="User Avatar" class="member-avatar">
-             <span class="member-name">Акбар</span>
-            <span class="selection-indicator"></span>
-         </li>
-        <!-- More contacts will be loaded here -->
+        {% if contacts and contacts|length > 0 %}
+            {% for contact in contacts %}
+            <li class="member-item" data-user-id="{{ contact.user_id }}">
+                <img src="{{ contact.avatar_url or '/static/images/contact_logo.png' }}" alt="User Avatar" class="member-avatar">
+                <span class="member-name">{{ contact.name }}</span>
+                <span class="selection-indicator"></span>
+            </li>
+            {% endfor %}
+        {% else %}
+            <!-- Fallback contacts if none are provided -->
+            <li class="member-item" data-user-id="user1">
+                <img src="/static/images/contact_logo.png" alt="User Avatar" class="member-avatar">
+                <span class="member-name">Эмил Агай</span>
+                <span class="selection-indicator"></span>
+            </li>
+            <li class="member-item" data-user-id="user2">
+                <img src="/static/images/contact_logo.png" alt="User Avatar" class="member-avatar">
+                <span class="member-name">Мунара Эжеке</span>
+                <span class="selection-indicator"></span>
+            </li>
+            <li class="member-item" data-user-id="user3">
+                <img src="/static/images/contact_logo.png" alt="User Avatar" class="member-avatar">
+                <span class="member-name">Улан Агай</span>
+                <span class="selection-indicator"></span>
+            </li>
+        {% endif %}
     </ul>
 </div>
 <div class="sidebar-view-footer">
@@ -45,4 +45,5 @@
         Жаратуу
     </button>
 </div>
-</div> 
+</div>
+<!-- END OF CREATE GROUP SIDEBAR VIEW --> 
