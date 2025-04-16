@@ -7,7 +7,7 @@
     width: 100% !important;
     height: 100% !important;
     background-color: rgba(0, 0, 0, 0.7) !important;
-    z-index: 99999 !important;
+    z-index: 3000 !important;
     justify-content: center !important;
     align-items: center !important;
     overflow: auto !important;
@@ -20,11 +20,11 @@
 .modal-content {
     background-color: #fff !important;
     padding: 20px !important;
-    border-radius: 5px !important;
+    border-radius: 8px !important;
     width: 80% !important;
     max-width: 400px !important;
     position: relative !important;
-    z-index: 100000 !important;
+    z-index: 3001 !important;
     box-shadow: 0 5px 15px rgba(0, 0, 0, 0.5) !important;
 }
 
@@ -33,14 +33,15 @@
     justify-content: space-between !important;
     align-items: center !important;
     border-bottom: 1px solid #eee !important;
-    padding-bottom: 10px !important;
-    margin-bottom: 15px !important;
+    padding-bottom: 15px !important;
+    margin-bottom: 20px !important;
 }
 
 .modal-header h4 {
     margin: 0 !important;
     color: #333 !important;
     font-size: 18px !important;
+    font-weight: 500 !important;
 }
 
 .close-modal-btn {
@@ -48,6 +49,7 @@
     font-size: 24px !important;
     font-weight: bold !important;
     cursor: pointer !important;
+    transition: color 0.2s ease !important;
 }
 
 .close-modal-btn:hover {
@@ -55,7 +57,7 @@
 }
 
 .modal-body {
-    margin-bottom: 15px !important;
+    margin-bottom: 20px !important;
     color: #333 !important;
 }
 
@@ -64,16 +66,17 @@
     justify-content: flex-end !important;
     gap: 10px !important;
     border-top: 1px solid #eee !important;
-    padding-top: 10px !important;
+    padding-top: 15px !important;
 }
 
 /* Button styling */
 .btn {
-    padding: 8px 16px !important;
-    border-radius: 4px !important;
+    padding: 10px 16px !important;
+    border-radius: 6px !important;
     cursor: pointer !important;
     font-weight: 500 !important;
     transition: all 0.3s !important;
+    font-size: 14px !important;
 }
 
 .btn-primary {
@@ -101,18 +104,36 @@
 .modal-body input[type="password"],
 .modal-body input[type="email"] {
     width: 100% !important;
-    padding: 8px !important;
+    padding: 10px 12px !important;
     border: 1px solid #ddd !important;
-    border-radius: 4px !important;
-    margin-bottom: 10px !important;
+    border-radius: 6px !important;
+    margin-bottom: 15px !important;
+    font-size: 14px !important;
+}
+
+.form-group {
+    margin-bottom: 15px !important;
+}
+
+.form-group label {
+    display: block !important;
+    margin-bottom: 5px !important;
+    font-weight: 500 !important;
+}
+
+.form-group small {
+    display: block !important;
+    color: #666 !important;
+    margin-top: 5px !important;
+    font-size: 12px !important;
 }
 
 /* Contact-specific styling */
 .selected-user-info {
     display: flex !important;
     align-items: center !important;
-    margin-bottom: 15px !important;
-    gap: 10px !important;
+    margin-bottom: 20px !important;
+    gap: 15px !important;
 }
 
 .selected-user-info img {
@@ -120,8 +141,78 @@
     height: 50px !important;
     border-radius: 50% !important;
     object-fit: cover !important;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.1) !important;
 }
 
 #contact-name-entry-modal {
     z-index: 999999 !important;
+}
+
+/* Group Creation Modal Styling - Matching the reference image */
+#create-group-modal {
+    background-color: rgba(0, 0, 0, 0.8) !important;
+}
+
+#create-group-modal .modal-content {
+    background-color: #252525 !important;
+    color: #f1f1f1 !important;
+    padding: 0 !important;
+    overflow: hidden !important;
+    max-width: 360px !important;
+    border-radius: 12px !important;
+}
+
+#create-group-modal .modal-header {
+    background-color: #252525 !important;
+    padding: 16px 20px !important;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1) !important;
+    margin-bottom: 0 !important;
+}
+
+#create-group-modal .modal-header h4 {
+    color: #f1f1f1 !important;
+    font-size: 16px !important;
+    font-weight: 500 !important;
+}
+
+#create-group-modal .close-modal-btn {
+    color: #f1f1f1 !important;
+}
+
+#create-group-modal .modal-body {
+    padding: 0 !important;
+    margin-bottom: 0 !important;
+}
+
+#create-group-modal .form-group {
+    padding: 15px 20px !important;
+}
+
+#create-group-modal input[type="text"] {
+    background-color: #333 !important;
+    border: none !important;
+    color: #f1f1f1 !important;
+    padding: 12px 15px !important;
+    border-radius: 20px !important;
+}
+
+#create-group-modal input[type="text"]::placeholder {
+    color: #aaa !important;
+}
+
+#create-group-modal .modal-footer {
+    padding: 15px 20px !important;
+    border-top: none !important;
+    background-color: #252525 !important;
+    justify-content: center !important;
+}
+
+#create-group-modal .btn-primary {
+    background-color: #0ABF53 !important;
+    color: #fff !important;
+    width: 100% !important;
+    padding: 12px !important;
+    border-radius: 24px !important;
+    font-size: 16px !important;
+    text-align: center !important;
 } 

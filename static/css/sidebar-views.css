@@ -30,8 +30,8 @@
     opacity: 1;
     visibility: visible;
     z-index: 20;
-    /* Debug border to verify activation */
-    border: 2px solid red;
+    /* Remove debug border */
+    border: none;
 }
 
 /* Common Header for Views */
@@ -39,9 +39,10 @@
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: 15px 20px;
+    padding: 16px 20px; /* Standardized padding */
     background-color: rgba(0, 0, 0, 0.6);
     flex-shrink: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1); /* Added subtle border */
 }
 
 .view-title {
@@ -56,19 +57,28 @@
     font-size: 1.8em;
     cursor: pointer;
     line-height: 1;
+    padding: 0 5px; /* Added padding for better touch target */
+    transition: color 0.2s ease; /* Added transition */
+}
+
+.close-sidebar-view-btn:hover {
+    color: #ffffff; /* Added hover color */
 }
 
 /* Common Search Bar Style */
 .sidebar-search {
-    padding: 10px 15px;
-    background-color: transparent; /* Match view background */
+    padding: 12px 15px; /* Increased padding */
+    background-color: rgba(40, 40, 40, 0.5); /* Added subtle background */
     flex-shrink: 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05); /* Added subtle border */
 }
 
 .sidebar-search .search-container {
     background-color: rgba(255, 255, 255, 0.8);
     border-radius: 20px;
     padding: 8px 15px;
+    display: flex; /* Added for better alignment */
+    align-items: center; /* Added for better alignment */
 }
 
 .sidebar-search .search-container input {
@@ -76,8 +86,11 @@
     border: none;
     outline: none;
     color: #333;
-    width: calc(100% - 25px); /* Adjust based on icon size */
+    width: 100%; /* Full width */
+    padding: 4px 0; /* Added padding */
+    font-size: 14px; /* Standardized font size */
 }
+
 .sidebar-search .search-container input::placeholder {
     color: #555;
 }
@@ -85,14 +98,14 @@
 .sidebar-search .search-container i {
     color: #555;
     margin-right: 8px;
+    font-size: 14px; /* Standardized icon size */
 }
-
 
 /* Common Scrollable List Style */
 .scrollable-list {
     flex: 1;
     overflow-y: auto;
-    padding: 0 5px 0 15px; /* Add some padding, adjust right for scrollbar */
+    padding: 5px 15px; /* Adjusted padding */
     min-height: 0; /* Crucial for flexbox */
 }
 
@@ -102,12 +115,14 @@
     background-color: rgba(0, 0, 0, 0.6);
     flex-shrink: 0;
     margin-top: auto; /* Push to bottom if content is short */
+    border-top: 1px solid rgba(255, 255, 255, 0.1); /* Added subtle border */
 }
 
 .btn.full-width {
     width: 100%;
     padding: 12px;
     font-size: 1em;
+    border-radius: 6px; /* Standardized border radius */
 }
 
 /* --- Specific View Styling --- */
@@ -122,14 +137,16 @@
 .member-item, .contact-item {
     display: flex;
     align-items: center;
-    padding: 10px 15px 10px 0; /* Adjust padding */
+    padding: 12px 10px; /* Adjusted padding for better alignment */
     cursor: pointer;
     border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-    transition: background-color 0.2s ease;
+    transition: all 0.2s ease;
+    border-radius: 6px; /* Added border radius */
+    margin-bottom: 2px; /* Added spacing between items */
 }
 
 .member-item:hover, .contact-item:hover {
-    background-color: rgba(255, 255, 255, 0.1);
+    background-color: rgba(255, 255, 255, 0.15); /* Increased contrast */
 }
 
 .member-avatar, .contact-avatar {
@@ -138,6 +155,7 @@
     border-radius: 50%;
     margin-right: 15px;
     object-fit: cover;
+    border: 1px solid rgba(255, 255, 255, 0.2); /* Added subtle border */
 }
 
 .member-name, .contact-name {
@@ -145,25 +163,37 @@
     font-size: 0.95em;
 }
 
+/* Contact email */
+.contact-info {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+}
+
+.contact-email {
+    font-size: 0.8em;
+    color: rgba(255, 255, 255, 0.7);
+    margin-top: 3px;
+}
+
 /* Create Group Selection */
 .member-item .selection-indicator {
     width: 20px;
     height: 20px;
     border-radius: 50%;
-    border: 2px solid #ccc;
+    border: 2px solid rgba(255, 255, 255, 0.5); /* Lightened border */
     margin-left: 10px;
-    transition: background-color 0.2s ease, border-color 0.2s ease;
+    transition: all 0.2s ease;
 }
 
 .member-item.selected {
-    background-color: rgba(255, 255, 255, 0.9); /* Whiteish background */
-    color: #333; /* Dark text for contrast */
+    background-color: rgba(255, 255, 255, 0.15); /* Lighter selection */
+    color: #fff; /* Keep text white for dark bg */
 }
 
 .member-item.selected:hover {
-    background-color: rgba(255, 255, 255, 0.95);
+    background-color: rgba(255, 255, 255, 0.2);
 }
-
 
 .member-item.selected .selection-indicator {
     background-color: #128c7e; /* Theme color */
@@ -172,7 +202,14 @@
 
 .member-item.selected .member-name {
     font-weight: bold;
-    color: #333;
+}
+
+/* Loading and empty states */
+.loading-message, .empty-chat-message {
+    text-align: center;
+    padding: 20px;
+    color: rgba(255, 255, 255, 0.7);
+    font-style: italic;
 }
 
 /* Settings View */

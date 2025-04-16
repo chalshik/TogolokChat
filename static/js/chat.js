@@ -785,41 +785,6 @@ document.addEventListener('DOMContentLoaded', () => {
             throw new Error('Sidebar content area not found');
         }
 
-        // Check if we should use a local mock template first
-        const mockTemplate = document.getElementById(`mock-${viewName}-template`);
-        if (mockTemplate) {
-            console.log(`Using mock template for ${viewName}`);
-            sidebarContentArea.innerHTML = mockTemplate.innerHTML;
-            
-            // Update current sidebar view
-            currentSidebarView = viewName;
-            
-            // Re-attach necessary event listeners for the new view's content
-            try {
-                attachSidebarViewListeners(viewName);
-                
-                // Make sure the logout button works if it exists
-                const logoutBtn = document.getElementById('logout-btn');
-                if (logoutBtn) {
-                    console.log('Attaching logout event listener to button after view load (mock):', logoutBtn);
-                    logoutBtn.addEventListener('click', (e) => {
-                        console.log('Logout button clicked');
-                        e.preventDefault();
-                        logout();
-                    });
-                }
-            } catch (listenerError) {
-                console.error(`Error attaching listeners for view ${viewName}:`, listenerError);
-            }
-            
-            // If this is the chats view, load contacts
-            if (viewName === 'chats') {
-                loadUserContacts();
-            }
-            
-            return;
-        }
-
         // Construct the URL for the template snippet
         const templateUrl = `/templates/_sidebar_${viewName.replace('-', '_')}.html`;
         console.log("Requesting template from URL:", templateUrl);
@@ -896,42 +861,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error(`Could not load sidebar view '${viewName}':`, error);
-            
-            // Fallback to built-in templates if the server call fails
-            const mockTemplate = document.getElementById(`mock-${viewName}-template`);
-            if (mockTemplate) {
-                console.log(`Falling back to mock template for ${viewName}`);
-                sidebarContentArea.innerHTML = mockTemplate.innerHTML;
-                
-                // If this is the chats view, load contacts
-                if (viewName === 'chats') {
-                    loadUserContacts();
-                }
-                
-                // Update current sidebar view
-                currentSidebarView = viewName;
-                
-                // Re-attach necessary event listeners for the new view's content
-                try {
-                    attachSidebarViewListeners(viewName);
-                    
-                    // Make sure the logout button works if it exists
-                    const logoutBtn = document.getElementById('logout-btn');
-                    if (logoutBtn) {
-                        console.log('Attaching logout event listener to button (fallback):', logoutBtn);
-                        logoutBtn.addEventListener('click', (e) => {
-                            console.log('Logout button clicked');
-                            e.preventDefault();
-                            logout();
-                        });
-                    }
-                } catch (listenerError) {
-                    console.error(`Error attaching listeners for view ${viewName}:`, listenerError);
-                }
-            } else {
-                sidebarContentArea.innerHTML = `<p class="error-message">Error loading view: ${error.message}</p>`;
-                throw error; // Re-throw to allow catch handlers to work
-            }
+            sidebarContentArea.innerHTML = `<p class="error-message">Error loading view: ${error.message}</p>`;
+            throw error; // Re-throw to allow catch handlers to work
         }
     }
 
@@ -2250,60 +2181,47 @@ function setUpContactDetailsListeners() {
 
 // Function to fetch potential contacts
 async function initializePotentialContacts() {
-    try {
-        // Get potential contacts from API
-        const response = await fetch('/Backend/chat/api/potential-contacts');
-        if (!response.ok) {
-            throw new Error('Failed to load potential contacts');
-        }
-        const data = await response.json();
-        console.log('Potential contacts loaded:', data);
-        
-        // Clear the contacts list except for loading and empty messages
-        Array.from(contactList.children)
-            .filter(child => !child.matches('#loading-contacts, #empty-users-message'))
-            .forEach(child => child.remove());
-        
-        // Process the potential contacts
-        if (data.users && data.users.length > 0) {
-            data.users.forEach(user => {
-                const contactItem = createContactItem(user);
-                contactList.appendChild(contactItem);
-            });
-            
-            console.log(`Added ${data.users.length} contact items to the list`);
-            loadingMessage.style.display = 'none';
-            
-            // Add click listeners to contact items
-            addContactItemListeners();
-        } else {
-            console.log('No users found');
-            loadingMessage.style.display = 'none';
-            if (emptyMessage) emptyMessage.style.display = 'block';
-        }
-    } catch (error) {
-        console.error('Error loading potential contacts:', error);
-        const loadingMessage = sidebarContentArea?.querySelector('#loading-contacts');
-        const emptyMessage = sidebarContentArea?.querySelector('#empty-users-message');
-        
-        if (loadingMessage) loadingMessage.style.display = 'none';
+    console.log('Initializing potential contacts');
+    
+    const contacts = await getPotentialContacts();
+    const contactList = document.querySelector('#add-contact-list');
+    
+    const loadingMessage = document.querySelector('#loading-contacts');
+    const emptyMessage = document.querySelector('#empty-users-message');
+    
+    if (loadingMessage) loadingMessage.style.display = 'none';
+    
+    if (!contactList) {
+        console.error('Contact list element not found');
+        return;
+    }
+    
+    // Clear the list except for loading/empty messages
+    Array.from(contactList.children)
+        .filter(child => !child.matches('#loading-contacts, #empty-users-message'))
+        .forEach(child => child.remove());
+    
+    if (!contacts || contacts.length === 0) {
+        console.log('No potential contacts found');
         if (emptyMessage) {
             emptyMessage.style.display = 'block';
             const messageP = emptyMessage.querySelector('p');
-            if (messageP) messageP.textContent = 'Контакттерди жүктөөдө ката кетти';
+            if (messageP) messageP.textContent = 'Контакттер табылган жок';
         }
-        
-        // Create a mock contact for testing if needed (uncomment to use)
-        /*
-        const contactList = sidebarContentArea?.querySelector('#add-contact-list');
-        if (contactList) {
-            const mockUser = { id: '999', username: 'Test User', email: 'test@example.com', avatar: null };
-            const contactItem = createContactItem(mockUser);
-            contactList.appendChild(contactItem);
-            addContactItemListeners();
-        }
-        */
+        return;
     }
+    
+    console.log(`Found ${contacts.length} potential contacts`);
+    if (emptyMessage) emptyMessage.style.display = 'none';
+    
+    // Add each contact to the list
+    contacts.forEach(user => {
+        const contactItem = createContactItem(user);
+        contactList.appendChild(contactItem);
+    });
+    
+    // Add click listeners to the contact items
+    addContactItemListeners();
 }
 
 // Function to create a contact item element for potential contacts
@@ -3308,27 +3226,50 @@ async function addNewContact(event) {
 
 async function logout() {
     try {
-        const response = await fetch('/logout', {
+        console.log('Logout function called');
+        
+        // Use the correct endpoint with the auth prefix
+        const response = await fetch('/auth/logout', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
-            }
+            },
+            // Send empty body to ensure proper request format
+            body: JSON.stringify({})
         });
         
-        if (response.ok) {
-            // Clear any session data
-            sessionStorage.removeItem('username');
-            sessionStorage.removeItem('user_id');
-            
-            // Redirect to login page
+        // Always perform these cleanup steps regardless of response
+        console.log('Clearing all session data and storage');
+        
+        // Clear any local storage data
+        localStorage.clear();
+        
+        // Clear any session storage data
+        sessionStorage.clear();
+        
+        // Force clear any cookies
+        document.cookie.split(";").forEach(function(c) {
+            document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+        });
+        
+        console.log('Redirecting to login page');
+        
+        // Force a hard reload to the root path
+        window.location.replace('/');
+        
+        // As a fallback, if replace doesn't work
+        setTimeout(() => {
             window.location.href = '/';
-        } else {
-            console.error('Logout failed');
-            showToast('Чыгууда ката кетти');
-        }
+        }, 100);
+        
     } catch (error) {
         console.error('Error during logout:', error);
-        showToast('Чыгууда ката кетти');
+        
+        // Even if there's an error, try to redirect
+        alert('Чыгууда ката кетти, бирок баары бир чыгуу аракет кылынат.');
+        
+        // Force reload as a last resort
+        window.location.href = '/';
     }
 }
 
@@ -3487,4 +3428,69 @@ window.showToast = function(message) {
     setTimeout(() => {
         toast.classList.remove('show');
     }, 3000);
+}
+
+// Function to load a sidebar view
+async function loadSidebarView(viewName) {
+    if (!viewName) {
+        console.error('View name is required');
+        return;
+    }
+    
+    console.log(`Loading sidebar view: ${viewName}`);
+    const sidebarContentArea = document.getElementById('sidebar-content-area');
+    
+    if (!sidebarContentArea) {
+        console.error('Sidebar content area not found');
+        return;
+    }
+    
+    try {
+        // First, remove the 'active' class from all sidebar buttons
+        const sidebarButtons = document.querySelectorAll('.sidebar-nav-button');
+        sidebarButtons.forEach(btn => btn.classList.remove('active'));
+        
+        // Add 'active' class to the current button
+        const activeButton = document.querySelector(`.sidebar-nav-button[data-view="${viewName}"]`);
+        if (activeButton) {
+            activeButton.classList.add('active');
+        }
+        
+        // Fetch the view content from the server
+        const response = await fetch(`/templates/_sidebar_${viewName}.html`);
+        
+        if (!response.ok) {
+            throw new Error(`Error loading view: ${response.status} ${response.statusText}`);
+        }
+        
+        const content = await response.text();
+        
+        // Update content area
+        sidebarContentArea.innerHTML = content;
+        
+        // Special cases for different views
+        if (viewName === 'chats') {
+            await loadUserContacts();
+            attachChatListListeners();
+        } else if (viewName === 'profile') {
+            loadUserProfile();
+            attachProfileListeners();
+        } else if (viewName === 'create_group') {
+            initializePotentialContacts();
+            attachCreateGroupListeners();
+        } else if (viewName === 'settings') {
+            attachSettingsListeners();
+        } else if (viewName === 'add_contact') {
+            initializePotentialContacts();
+            attachAddContactListeners();
+        }
+        
+        // Attach common sidebar view listeners
+        attachSidebarViewListeners(viewName);
+        
+        return content;
+    } catch (error) {
+        console.error(`Error loading sidebar view ${viewName}:`, error.message);
+        throw error;
+    }
 }

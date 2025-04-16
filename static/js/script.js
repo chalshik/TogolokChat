@@ -88,7 +88,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
         try {
             // Make an actual API call to the backend
-            const response = await fetch('/login', {
+            const response = await fetch('/auth/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json'
@@ -185,6 +185,9 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('register-form-element').addEventListener('submit', async function(e) {
         e.preventDefault();
         
+        // Log that the register button was clicked
+        console.log('Register button clicked');
+        
         const isPasswordValid = validatePassword();
         const isPasswordMatch = validatePasswordMatch();
         
@@ -198,39 +201,17 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
         }
 
-        const formData = new FormData(e.target);
-        const registerData = {
-            username: formData.get('username'),
-            email: formData.get('email'),
-            password: formData.get('password'),
-            security_question: "Default security question", // You might want to prompt for this
-            secret_word: "Default secret word" // You might want to prompt for this
-        };
-
-        try {
-            // Make an actual API call to the backend
-            const response = await fetch('/register', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify(registerData)
-            });
-
-            const data = await response.json();
-
-            if (response.ok) {
-                alert('Registration successful! Please log in.');
-                // Switch to login form
-                registerForm.classList.add('hidden');
-                loginForm.classList.remove('hidden');
-            } else {
-                alert(data.message || 'Registration failed. Please try again.');
-            }
-        } catch (error) {
-            alert('An error occurred during registration. Please try again.');
-            console.error('Registration error:', error);
+        // Show security modal for user to enter security question and answer
+        if (securityModal) {
+            securityModal.classList.add('show');
+            console.log('Security modal shown');
+        } else {
+            console.error('Security modal not found');
+            alert('Коопсуздук модалдык терезе табылган жок');
         }
+        
+        // The actual registration happens when the user clicks the save button in the modal
+        // See the "Handle security setup save" part below
     });
 
     // Hide validation messages when clicking outside
@@ -261,64 +242,11 @@ document.addEventListener('DOMContentLoaded', () => {
         passwordRequirements.classList.remove('show');
     });
 
-    // Email validation
-    document.getElementById('register-email').addEventListener('blur', async function() {
-        if (this.value) {
-            const isUnique = await checkEmailUniqueness(this.value);
-            emailIndicator.style.display = !isUnique ? 'block' : 'none';
-            this.setCustomValidity(!isUnique ? 'Email already exists' : '');
-        }
-    });
-
-    // Username validation
-    document.getElementById('register-username').addEventListener('blur', async function() {
-        if (this.value) {
-            const isUnique = await checkUsernameUniqueness(this.value);
-            usernameIndicator.style.display = !isUnique ? 'block' : 'none';
-            this.setCustomValidity(!isUnique ? 'Username already exists' : '');
-        }
-    });
-
     // Get modal elements
     const saveSecurityBtn = document.getElementById('save-security');
     const cancelSecurityBtn = document.getElementById('cancel-security');
     const securityQuestion = document.getElementById('security-question');
     const secretWord = document.getElementById('secret-word');
-
-    // Email and username uniqueness check functions
-    async function checkEmailUniqueness(email) {
-        try {
-            const response = await fetch('/check-email', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ email })
-            });
-            // If response is ok (200), it means email exists (not unique)
-            return !response.ok;
-        } catch (error) {
-            console.error('Email check error:', error);
-            return true; // Allow registration to proceed if check fails
-        }
-    }
-
-    async function checkUsernameUniqueness(username) {
-        try {
-            const response = await fetch('/check-username', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json'
-                },
-                body: JSON.stringify({ username })
-            });
-            // If response is ok (200), it means username exists (not unique)
-            return !response.ok;
-        } catch (error) {
-            console.error('Username check error:', error);
-            return true; // Allow registration to proceed if check fails
-        }
-    }
 
     // Handle security setup save
     if (saveSecurityBtn) {
@@ -353,6 +281,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             try {
+                // Create the registration data object with the security question and answer
                 const registerData = {
                     username: formData.get('username'),
                     email: formData.get('email'),
@@ -366,7 +295,11 @@ document.addEventListener('DOMContentLoaded', () => {
                     password: '[HIDDEN]'
                 });
 
-                const response = await fetch('/register', {
+                // Show an alert that registration is being processed
+                alert('Каттоо процесси башталды...');
+
+                // Call the register endpoint
+                const response = await fetch('/auth/register', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
@@ -849,7 +782,7 @@ document.addEventListener('DOMContentLoaded', () => {
             }
 
             try {
-                const response = await fetch('/reset-password', {
+                const response = await fetch('/auth/reset-password', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'

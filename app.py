@@ -1,4 +1,4 @@
-from flask import Flask, render_template, redirect, url_for, session, send_from_directory
+from flask import Flask, render_template, redirect, url_for, session, send_from_directory, request, jsonify
 import os
 from datetime import timedelta
 from flask_socketio import SocketIO, emit, join_room, leave_room
@@ -9,7 +9,7 @@ from Backend.chat import bp as chat_bp
 from Backend.settings import bp as settings_bp
 
 # Initialize database
-from Backend.db import create_tables
+from Backend.db import create_tables, connect_db
 
 # Create Flask app
 app = Flask(__name__)
@@ -35,6 +35,11 @@ os.makedirs('uploads/group_images', exist_ok=True)
 
 # Ensure database tables exist
 create_tables()
+
+# Serve favicon.ico to prevent 404 errors
+@app.route('/favicon.ico')
+def favicon():
+    return '', 204  # Return no content
 
 # Serve the chat application page (requires authentication)
 @app.route('/chat')
