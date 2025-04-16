@@ -1719,6 +1719,24 @@ function attachProfileListeners() {
     // Load user profile data
     loadUserProfile();
     
+    // Logout button
+    const logoutButton = document.getElementById('logout-btn');
+    if (logoutButton) {
+        console.log('Adding event listener to logout button');
+        // Remove any existing listeners by cloning and replacing
+        const newLogoutBtn = logoutButton.cloneNode(true);
+        logoutButton.parentNode.replaceChild(newLogoutBtn, logoutButton);
+        
+        // Add new event listener
+        newLogoutBtn.addEventListener('click', function(e) {
+            e.preventDefault();
+            console.log('Logout button clicked');
+            logout();
+        });
+    } else {
+        console.error('Logout button not found in the profile view');
+    }
+    
     // Edit Name Modal
     if (editNameBtn && editNameModal) {
         editNameBtn.addEventListener('click', () => {
@@ -3226,7 +3244,22 @@ async function addNewContact(event) {
 
 async function logout() {
     try {
-        console.log('Logout function called');
+        console.log('Logout initiated');
+        
+        // Show a loading indicator
+        const loadingOverlay = document.createElement('div');
+        loadingOverlay.style.position = 'fixed';
+        loadingOverlay.style.top = '0';
+        loadingOverlay.style.left = '0';
+        loadingOverlay.style.width = '100%';
+        loadingOverlay.style.height = '100%';
+        loadingOverlay.style.backgroundColor = 'rgba(0, 0, 0, 0.7)';
+        loadingOverlay.style.zIndex = '9999';
+        loadingOverlay.style.display = 'flex';
+        loadingOverlay.style.justifyContent = 'center';
+        loadingOverlay.style.alignItems = 'center';
+        loadingOverlay.innerHTML = '<div style="color: white; font-size: 16px;">Чыгуу...</div>';
+        document.body.appendChild(loadingOverlay);
         
         // Use the correct endpoint with the auth prefix
         const response = await fetch('/auth/logout', {
@@ -3234,11 +3267,11 @@ async function logout() {
             headers: {
                 'Content-Type': 'application/json'
             },
-            // Send empty body to ensure proper request format
-            body: JSON.stringify({})
+            credentials: 'same-origin', // Include cookies
+            body: JSON.stringify({}) // Empty body
         });
         
-        // Always perform these cleanup steps regardless of response
+        // Always perform these cleanup steps
         console.log('Clearing all session data and storage');
         
         // Clear any local storage data
@@ -3254,13 +3287,11 @@ async function logout() {
         
         console.log('Redirecting to login page');
         
-        // Force a hard reload to the root path
-        window.location.replace('/');
-        
-        // As a fallback, if replace doesn't work
+        // Add a small delay to ensure the logout request completes
         setTimeout(() => {
+            // Force a hard reload to the root path
             window.location.href = '/';
-        }, 100);
+        }, 500);
         
     } catch (error) {
         console.error('Error during logout:', error);
@@ -3286,7 +3317,7 @@ async function getPotentialContacts() {
     }
 }
 
-// Update loadUserContacts function to use mock data when API fails
+// Load user contacts function - clean implementation without mock data
 function loadUserContacts() {
     console.log('Loading user contacts...');
     
@@ -3300,52 +3331,26 @@ function loadUserContacts() {
     // Look for the chat list view
     let chatView = sidebarContentArea.querySelector('#chats-view');
     if (!chatView) {
-        // If not present, we might need to load it
-        console.log('Chat view not found, creating a temporary one');
-        chatView = document.createElement('div');
-        chatView.id = 'chats-view';
-        chatView.className = 'sidebar-view active';
-        
-        // Add a header for the view
-        const header = document.createElement('div');
-        header.className = 'view-header';
-        header.innerHTML = `
-            <h2>Маектер</h2>
-            <div class="search-box">
-                <input type="text" id="chat-search-input" placeholder="Издөө...">
-                <i class="fas fa-search"></i>
-            </div>
-        `;
-        chatView.appendChild(header);
-        
-        sidebarContentArea.appendChild(chatView);
+        console.error('Chat view not found, make sure the template is properly loaded');
+        return;
     }
     
     // Now try to find the chat list container
     let chatListContainer = chatView.querySelector('.chat-list-container');
     if (!chatListContainer) {
-        // Create chat list container if it doesn't exist
-        console.log('Creating chat list container');
-        chatListContainer = document.createElement('div');
-        chatListContainer.className = 'chat-list-container scrollable-list';
-        chatView.appendChild(chatListContainer);
+        console.error('Chat list container not found');
+        return;
     }
     
-    // Now find or create the chat list itself
+    // Now find the chat list itself
     let chatList = chatListContainer.querySelector('#chat-list');
     if (!chatList) {
-        // Create chat list if it doesn't exist
-        console.log('Creating chat list element');
-        chatList = document.createElement('div');
-        chatList.id = 'chat-list';
-        chatList.className = 'chat-list';
-        chatListContainer.appendChild(chatList);
+        console.error('Chat list element not found');
+        return;
     }
     
-    console.log('Chat list found or created:', !!chatList);
-    
     // Show loading state
-    chatList.innerHTML = '<div class="loading">Loading contacts...</div>';
+    chatList.innerHTML = '<div class="loading">Жүктөлүүдө...</div>';
     
     // Make API call to get user contacts
     fetch(getApiUrl('api/contacts'))
