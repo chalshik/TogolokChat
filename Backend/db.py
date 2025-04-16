@@ -115,6 +115,7 @@ def create_tables():
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
     contact_id INTEGER NOT NULL,
+    display_name TEXT,
     UNIQUE (user_id, contact_id),  -- Prevent duplicate contacts
     CHECK (user_id <> contact_id), -- Prevent self-contact
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,

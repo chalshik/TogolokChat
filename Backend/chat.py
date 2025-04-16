@@ -1309,6 +1309,8 @@ def api_potential_contacts():
 
     # Get search query if provided
     query = request.args.get('query', '')
+    exact = request.args.get('exact', 'false').lower() == 'true'
+    
     search_condition = ''
     search_params = [user_id, user_id]
     
@@ -1317,17 +1319,25 @@ def api_potential_contacts():
 
     try:
         # If search query provided, add condition to filter by it
-        if query and len(query) >= 2:
-            # Check if this is a nickname search (starts with ~)
-            if query.startswith('~'):
-                nickname = query[1:]  # Remove the ~ prefix
-                search_param = f"%{nickname}%"
-                search_condition = "AND username LIKE ?"
-                search_params.append(search_param)
+        if query:
+            # Check if this is a exact match or like search
+            if exact:
+                # Exact username match
+                search_condition = "AND username = ?"
+                search_params.append(query)
             else:
-                search_param = f"%{query}%"
-                search_condition = "AND (username LIKE ? OR email LIKE ? OR name LIKE ?)"
-                search_params.extend([search_param, search_param, search_param])
+                # Traditional like search with minimum length
+                if len(query) >= 2:
+                    # Check if this is a nickname search (starts with ~)
+                    if query.startswith('~'):
+                        nickname = query[1:]  # Remove the ~ prefix
+                        search_param = f"%{nickname}%"
+                        search_condition = "AND username LIKE ?"
+                        search_params.append(search_param)
+                    else:
+                        search_param = f"%{query}%"
+                        search_condition = "AND (username LIKE ? OR email LIKE ? OR name LIKE ?)"
+                        search_params.extend([search_param, search_param, search_param])
         
         # Get all users except the current user and those already in contacts
         sql_query = f'''
@@ -1377,6 +1387,11 @@ def api_add_contact():
     data = request.get_json()
     contact_id = data.get('contact_id')
     display_name = data.get('display_name')
+    contact_username = data.get('contact_username')  # Added support for contact_username
+    
+    # Use display_name if provided, otherwise use contact_username
+    if not display_name and contact_username:
+        display_name = contact_username
     
     if not contact_id:
         return jsonify({"success": False, "message": "Contact ID is required"}), 400

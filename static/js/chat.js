@@ -1137,7 +1137,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
                     
                     try {
-                        const response = await fetch('/Backend/chat/api/add-contact', {
+                        const response = await fetch(getApiUrl('api/add-contact'), {
                             method: 'POST',
                             headers: {
                                 'Content-Type': 'application/json'
@@ -1180,9 +1180,27 @@ document.addEventListener('DOMContentLoaded', () => {
             console.warn('Missing required DOM elements for the contact list');
         }
         
-        // Set up event listeners for search
+        // Set up event listeners for search - modified to use Enter key or debounce
         if (searchInput) {
-            searchInput.addEventListener('input', (e) => handleContactSearch(e.target.value));
+            // Remove any existing listeners by cloning
+            const newSearchInput = searchInput.cloneNode(true);
+            searchInput.parentNode.replaceChild(newSearchInput, searchInput);
+            
+            // Add keydown event listener for Enter key
+            newSearchInput.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter') {
+                    e.preventDefault();
+                    const value = e.target.value.trim();
+                    if (value) {
+                        handleContactSearch(value);
+                    } else {
+                        initializePotentialContacts();
+                    }
+                }
+            });
+            
+            // Add placeholder to inform users about the search behavior
+            newSearchInput.placeholder = "Издөө үчүн толук атты жазып Enter басыңыз";
         }
     }
 
@@ -2406,8 +2424,8 @@ function showContactDetailsModal(contactId, contactUsername, avatarSrc) {
 async function handleContactSearch(query) {
     console.log('Searching for contacts with query:', query);
     
-    if (!query || query.length < 2) {
-        // If query is empty or too short, reset to show all potential contacts
+    // Clear any previous search results if the query is empty
+    if (!query) {
         initializePotentialContacts();
         return;
     }
@@ -2422,6 +2440,7 @@ async function handleContactSearch(query) {
             return;
         }
         
+        // Show loading while waiting for results
         if (loadingMessage) loadingMessage.style.display = 'block';
         if (emptyMessage) emptyMessage.style.display = 'none';
         
@@ -2430,7 +2449,8 @@ async function handleContactSearch(query) {
             .filter(child => !child.matches('#loading-contacts, #empty-users-message'))
             .forEach(child => child.remove());
         
-        const response = await fetch(`/api/potential-contacts?query=${encodeURIComponent(query)}`);
+        // Only search if there appears to be a complete username (no minimum length check)
+        const response = await fetch(`/api/potential-contacts?query=${encodeURIComponent(query)}&exact=true`);
         
         if (!response.ok) {
             throw new Error(`Failed to search users: ${response.status} ${response.statusText}`);
