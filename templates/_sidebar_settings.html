@@ -4,7 +4,7 @@
     <button class="close-sidebar-view-btn" data-target-view="chats">&times;</button>
 </div>
 <div class="settings-options">
-    <button class="btn settings-btn" id="admin-page-btn" onclick="document.getElementById('admin-modal').style.display='flex'; event.preventDefault(); event.stopImmediatePropagation(); return false;">Админдик бетке өтүү</button>
+    <button class="btn settings-btn" id="admin-page-btn" onclick="document.getElementById('admin-modal').style.display='flex'; console.log('Admin button clicked (inline)'); return false;">Админдик бетке өтүү</button>
     <button class="btn settings-btn" id="change-password-btn">Сыр сөздү өзгөртүү</button>
     <div class="language-setting">
         <label for="language-select">Тил өзгөртүү:</label>
@@ -19,11 +19,11 @@
 </div>
 
 <!-- Admin Modal -->
-<div id="admin-modal" class="modal" onclick="if(event.target === this) { this.style.display='none'; }">
+<div id="admin-modal" class="modal">
     <div class="modal-content">
         <div class="modal-header">
             <h2>Админ</h2>
-            <span class="close-modal" onclick="document.getElementById('admin-modal').style.display='none';">&times;</span>
+            <span class="close-modal">&times;</span>
         </div>
         <div class="modal-body">
             <input type="password" id="admin-password" placeholder="Админдин сыр сөзү" class="form-control">
@@ -116,4 +116,115 @@
 .modal-body button:hover {
     background-color: #d0d0d0;
 }
-</style> 
+</style>
+
+<script>
+// Debug helper
+function debugLog(message) {
+    console.log('SETTINGS DEBUG: ' + message);
+    // Also output to visible element if needed
+    const debugElement = document.createElement('div');
+    debugElement.style.position = 'fixed';
+    debugElement.style.bottom = '10px';
+    debugElement.style.right = '10px';
+    debugElement.style.background = 'rgba(0,0,0,0.7)';
+    debugElement.style.color = 'white';
+    debugElement.style.padding = '5px';
+    debugElement.style.zIndex = '9999';
+    debugElement.textContent = message;
+    document.body.appendChild(debugElement);
+    setTimeout(() => debugElement.remove(), 3000);
+}
+
+// Custom implementation for settings buttons
+(function() {
+    debugLog('Script started');
+    
+    // Function to initialize all settings buttons
+    function initializeSettingsButtons() {
+        debugLog('Initializing settings buttons');
+        
+        try {
+            // Admin button & modal functionality
+            const adminModal = document.getElementById('admin-modal');
+            const adminBtn = document.getElementById('admin-page-btn');
+            
+            debugLog('Elements found: ' + 
+                     'adminModal=' + (adminModal ? 'yes' : 'no') + 
+                     ', adminBtn=' + (adminBtn ? 'yes' : 'no'));
+            
+            if (adminBtn && adminModal) {
+                // Direct add, no cloning
+                adminBtn.addEventListener('click', function(e) {
+                    debugLog('Admin button clicked (JS)');
+                    adminModal.style.display = 'flex';
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return false;
+                });
+                
+                // Fallback global function
+                window.openAdminModal = function() {
+                    debugLog('Global openAdminModal called');
+                    if (adminModal) adminModal.style.display = 'flex';
+                    return false;
+                };
+                
+                // Add attribute to button for debugging
+                adminBtn.setAttribute('data-has-handler', 'true');
+                
+                // Also try direct property assignment
+                adminBtn.onclick = function(e) {
+                    debugLog('Admin button onclick property triggered');
+                    adminModal.style.display = 'flex';
+                    e.preventDefault();
+                    e.stopPropagation();
+                    return false;
+                };
+            }
+            
+            // Close modal handlers
+            const closeModalBtn = document.querySelector('.close-modal');
+            if (closeModalBtn && adminModal) {
+                closeModalBtn.addEventListener('click', function() {
+                    debugLog('Close button clicked');
+                    adminModal.style.display = 'none';
+                });
+            }
+            
+            // Close when clicking outside modal
+            if (adminModal) {
+                adminModal.addEventListener('click', function(e) {
+                    if (e.target === adminModal) {
+                        debugLog('Outside modal clicked');
+                        adminModal.style.display = 'none';
+                    }
+                });
+            }
+        } catch (err) {
+            console.error('Error in settings initialization:', err);
+            debugLog('Error: ' + err.message);
+        }
+    }
+    
+    // Initialize immediately
+    initializeSettingsButtons();
+    
+    // Also initialize when the DOM is fully loaded
+    document.addEventListener('DOMContentLoaded', initializeSettingsButtons);
+    
+    // And again after a short delay to ensure we override any other listeners
+    setTimeout(initializeSettingsButtons, 200);
+    
+    // Add a global trigger function as a last resort
+    window.debugSettings = function() {
+        debugLog('Debug function called');
+        const modal = document.getElementById('admin-modal');
+        if (modal) {
+            modal.style.display = 'flex';
+            return 'Modal shown';
+        }
+        return 'Modal not found';
+    };
+})();
+</script> 
