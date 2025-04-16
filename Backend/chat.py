@@ -1318,9 +1318,16 @@ def api_potential_contacts():
     try:
         # If search query provided, add condition to filter by it
         if query and len(query) >= 2:
-            search_param = f"%{query}%"
-            search_condition = "AND (username LIKE ? OR email LIKE ? OR name LIKE ?)"
-            search_params.extend([search_param, search_param, search_param])
+            # Check if this is a nickname search (starts with ~)
+            if query.startswith('~'):
+                nickname = query[1:]  # Remove the ~ prefix
+                search_param = f"%{nickname}%"
+                search_condition = "AND username LIKE ?"
+                search_params.append(search_param)
+            else:
+                search_param = f"%{query}%"
+                search_condition = "AND (username LIKE ? OR email LIKE ? OR name LIKE ?)"
+                search_params.extend([search_param, search_param, search_param])
         
         # Get all users except the current user and those already in contacts
         sql_query = f'''
@@ -1462,17 +1469,31 @@ def api_contacts():
         else:
             return jsonify({"error": "User not found"}), 404
 
+    # Get search query if provided
+    query = request.args.get('query', '')
+    search_condition = ''
+    search_params = [user_id]
+    
     conn = connect_db()
     cursor = conn.cursor()
 
     try:
         # First, get the user's contacts
-        cursor.execute('''
+        base_query = '''
             SELECT c.contact_id, u.username, u.email, u.profile_picture, c.display_name
             FROM contacts c
             JOIN users u ON c.contact_id = u.id
             WHERE c.user_id = ?
-        ''', (user_id,))
+        '''
+        
+        # If search query provided, add condition to filter by it
+        if query and len(query) >= 2:
+            search_param = f"%{query}%"
+            search_condition = " AND (u.username LIKE ? OR u.email LIKE ? OR c.display_name LIKE ?)"
+            search_params.extend([search_param, search_param, search_param])
+            base_query += search_condition
+        
+        cursor.execute(base_query, search_params)
         
         contacts_data = cursor.fetchall()
         
