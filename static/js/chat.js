@@ -1719,22 +1719,36 @@ function attachProfileListeners() {
     // Load user profile data
     loadUserProfile();
     
-    // Logout button
-    const logoutButton = document.getElementById('logout-btn');
+    // Logout button - use both ID and class selector to be more robust
+    const logoutButton = document.querySelector('#logout-btn, .logout-btn');
     if (logoutButton) {
         console.log('Adding event listener to logout button');
-        // Remove any existing listeners by cloning and replacing
+        
+        // Remove any existing listeners to avoid duplication
         const newLogoutBtn = logoutButton.cloneNode(true);
         logoutButton.parentNode.replaceChild(newLogoutBtn, logoutButton);
         
-        // Add new event listener
+        // Add new direct event listener
         newLogoutBtn.addEventListener('click', function(e) {
             e.preventDefault();
+            e.stopPropagation();
             console.log('Logout button clicked');
+            // Call the logout function
             logout();
+            return false;
         });
     } else {
         console.error('Logout button not found in the profile view');
+        
+        // As a fallback, add a listener to any logout buttons that might be present
+        document.querySelectorAll('.logout-btn').forEach(btn => {
+            console.log('Found logout button by class, adding listener');
+            btn.addEventListener('click', function(e) {
+                e.preventDefault();
+                console.log('Logout button (by class) clicked');
+                logout();
+            });
+        });
     }
     
     // Edit Name Modal
@@ -3287,19 +3301,16 @@ async function logout() {
         
         console.log('Redirecting to login page');
         
-        // Add a small delay to ensure the logout request completes
-        setTimeout(() => {
-            // Force a hard reload to the root path
-            window.location.href = '/';
-        }, 500);
+        // Directly redirect to login page immediately
+        window.location.href = '/';
         
     } catch (error) {
         console.error('Error during logout:', error);
         
-        // Even if there's an error, try to redirect
+        // Even if there's an error, redirect to login page
         alert('Чыгууда ката кетти, бирок баары бир чыгуу аракет кылынат.');
         
-        // Force reload as a last resort
+        // Force redirect to login page
         window.location.href = '/';
     }
 }
