@@ -992,7 +992,9 @@ document.addEventListener('DOMContentLoaded', () => {
                 attachCreateGroupListeners();
                 break;
             case 'settings':
-                attachSettingsListeners();
+                // We no longer need to call attachSettingsListeners
+                // Modal functionality is handled directly in _sidebar_settings.html
+                console.log('Settings view loaded - button handlers are defined in the template');
                 break;
             case 'add-contact':
                 attachAddContactListeners();
@@ -1121,17 +1123,6 @@ document.addEventListener('DOMContentLoaded', () => {
          if (searchInput) {
              // Add input event listener for search
          }
-    }
-
-    function attachSettingsListeners() {
-        console.log('Attaching settings listeners...');
-        const adminBtn = sidebarContentArea.querySelector('#admin-page-btn');
-        const pwdBtn = sidebarContentArea.querySelector('#change-password-btn');
-        const langSelect = sidebarContentArea.querySelector('#language-select');
-
-        if (adminBtn) adminBtn.addEventListener('click', () => { alert('Админдик бетке өтүү clicked'); });
-        if (pwdBtn) pwdBtn.addEventListener('click', () => { alert('Сыр сөздү өзгөртүү clicked'); });
-        if (langSelect) langSelect.addEventListener('change', (e) => { alert(`Тил өзгөртүү: ${e.target.value}`); });
     }
 
     function attachAddContactListeners() {
@@ -3907,7 +3898,9 @@ async function loadSidebarView(viewName) {
             initializePotentialContacts();
             attachCreateGroupListeners();
         } else if (viewName === 'settings') {
-            attachSettingsListeners();
+            // We no longer need to call attachSettingsListeners
+            // Modal functionality is handled directly in _sidebar_settings.html
+            console.log('Settings view loaded - button handlers are defined in the template');
         } else if (viewName === 'add_contact') {
             initializePotentialContacts();
             attachAddContactListeners();
