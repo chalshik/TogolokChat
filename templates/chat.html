@@ -59,8 +59,8 @@
                         <img src="/static/images/group_icon.png" alt="Current Chat" id="current-chat-avatar">
                     </div>
                     <div class="chat-details">
-                        <h2 id="current-chat-title">AIT-CS'24</h2>
-                        <p id="current-chat-subtitle">Эмил Агай, Мурат Агай, Нурмухаммед, Акбар, Ынтымак...</p>
+                        <h2 id="current-chat-title"></h2>
+                        <p id="current-chat-subtitle"></p>
                     </div>
                 </div>
                 <div class="chat-actions">
@@ -71,111 +71,12 @@
 
             <!-- Messages Area -->
             <div class="messages-container" id="group1-messages">
-                <!-- Group 1 messages -->
-                <div class="message received">
-                    <div class="message-avatar">
-                        <img src="/static/images/contact_logo.png" alt="User">
-                    </div>
-                    <div class="message-content">
-                        <div class="message-info">
-                            <span class="sender-name">Нурмухаммед</span>
-                            <span class="message-time">12:38 AM</span>
-                        </div>
-                        <p>Классикага кошумча балл берилебү?</p>
-                    </div>
-                </div>
-
-                <div class="message sent">
-                    <div class="message-content">
-                        <div class="message-info">
-                            <span class="message-time">12:39 AM</span>
-                            <span class="message-status">
-                                <i class="fas fa-check-double"></i>
-                            </span>
-                        </div>
-                        <p>Оо, креативдүү 😊</p>
-                    </div>
-                </div>
-                
-                <div class="message received">
-                    <div class="message-avatar">
-                        <img src="/static/images/contact_logo.png" alt="User">
-                    </div>
-                    <div class="message-content">
-                        <div class="message-info">
-                            <span class="sender-name">Тоголоктакт(3)</span>
-                            <span class="message-time">10:44 AM</span>
-                        </div>
-                        <p>Бүгүн сабактар болбойт</p>
-                    </div>
-                </div>
-                
-                <div class="message received">
-                    <div class="message-avatar">
-                        <img src="/static/images/contact_logo.png" alt="User">
-                    </div>
-                    <div class="message-content">
-                        <div class="message-info">
-                            <span class="sender-name">Тоголоктакт(1)</span>
-                            <span class="message-time">10:59 AM</span>
-                        </div>
-                        <p><a href="https://meet.google.com/kvi-foaa-cwy" class="message-link">https://meet.google.com/kvi-foaa-cwy</a></p>
-                    </div>
-                </div>
+                <!-- Messages will be loaded dynamically -->
             </div>
             
             <!-- User 1 messages - initially hidden -->
             <div class="messages-container" id="user1-messages" style="display: none;">
-                <div class="message received">
-                    <div class="message-avatar">
-                        <img src="/static/images/contact_logo.png" alt="User">
-                    </div>
-                    <div class="message-content">
-                        <div class="message-info">
-                            <span class="sender-name">Нурмухаммед</span>
-                            <span class="message-time">11:44 PM</span>
-                        </div>
-                        <p>Биз эмне кылабыз?</p>
-                    </div>
-                </div>
-                
-                <div class="message sent">
-                    <div class="message-content">
-                        <div class="message-info">
-                            <span class="message-time">11:51 PM</span>
-                            <span class="message-status">
-                                <i class="fas fa-check-double"></i>
-                            </span>
-                        </div>
-                        <p>Сабак башталдыбы?</p>
-                    </div>
-                </div>
-                
-                <div class="message received">
-                    <div class="message-avatar">
-                        <img src="/static/images/contact_logo.png" alt="User">
-                    </div>
-                    <div class="message-content">
-                        <div class="message-info">
-                            <span class="sender-name">Нурмухаммед</span>
-                            <span class="message-time">9:00 AM</span>
-                        </div>
-                        <p>Аа, мен да кеттам, тыгым экен бул жерлер</p>
-                    </div>
-                </div>
-                
-                <div class="message received">
-                    <div class="message-avatar">
-                        <img src="/static/images/contact_logo.png" alt="User">
-                    </div>
-                    <div class="message-content">
-                        <div class="message-info">
-                            <span class="sender-name">Нурмухаммед</span>
-                            <span class="message-time">10:44 AM</span>
-                        </div>
-                        <p>Башталса мага жазып койчу</p>
-                    </div>
-                </div>
+                <!-- Messages will be loaded dynamically -->
             </div>
 
             <!-- Input Area -->
@@ -207,72 +108,17 @@
                         </div>
                     </div>
                     <div class="group-name">
-                        <h2 id="group-name-display">AIT-CS'24</h2>
+                        <h2 id="group-name-display"></h2>
                         <a href="#" class="edit-group" id="edit-group-name"><i class="fas fa-pen"></i></a>
                     </div>
                     <div class="group-members-count">
-                        Катышуучулардын саны: 60
+                        Катышуучулардын саны: <span id="group-members-count">0</span>
                     </div>
                 </div>
             </div>
             
-            <div class="members-list">
-                <div class="member">
-                    <div class="member-avatar">
-                        <img src="/static/images/contact_logo.png" alt="User">
-                    </div>
-                    <div class="member-name">Эмил Агай</div>
-                </div>
-                
-                <div class="member">
-                    <div class="member-avatar">
-                        <img src="/static/images/contact_logo.png" alt="User">
-                    </div>
-                    <div class="member-name">Мурара Эжеке</div>
-                </div>
-                
-                <div class="member">
-                    <div class="member-avatar">
-                        <img src="/static/images/contact_logo.png" alt="User">
-                    </div>
-                    <div class="member-name">Улан Агай</div>
-                </div>
-                
-                <div class="member">
-                    <div class="member-avatar">
-                        <div class="online-indicator"></div>
-                        <img src="/static/images/contact_logo.png" alt="User">
-                    </div>
-                    <div class="member-name">Нурмухаммед</div>
-                </div>
-                
-                <div class="member">
-                    <div class="member-avatar">
-                        <img src="/static/images/contact_logo.png" alt="User">
-                    </div>
-                    <div class="member-name">Акбар</div>
-                </div>
-                
-                <div class="member">
-                    <div class="member-avatar">
-                        <img src="/static/images/contact_logo.png" alt="User">
-                    </div>
-                    <div class="member-name">Ынтымак</div>
-                </div>
-                
-                <div class="member">
-                    <div class="member-avatar">
-                        <img src="/static/images/contact_logo.png" alt="User">
-                    </div>
-                    <div class="member-name">Атабек</div>
-                </div>
-                
-                <div class="member">
-                    <div class="member-avatar">
-                        <img src="/static/images/contact_logo.png" alt="User">
-                    </div>
-                    <div class="member-name">Нуртилек</div>
-                </div>
+            <div class="members-list" id="group-members-list">
+                <!-- Group members will be loaded dynamically -->
             </div>
             
             <div class="profile-actions">
@@ -296,20 +142,17 @@
                         <img src="/static/images/contact_logo.png" alt="Contact" id="contact-avatar-img">
                     </div>
                     <div class="contact-name">
-                        <h2 id="contact-name-display">Нурмухаммед</h2>
+                        <h2 id="contact-name-display"></h2>
                         <a href="#" class="edit-contact" id="edit-contact-name"><i class="fas fa-pen"></i></a>
                     </div>
-                    <div class="contact-nickname">
-                        ~Jaman_bala
+                    <div class="contact-nickname" id="contact-nickname">
                     </div>
                 </div>
             </div>
             
             <div class="contact-details">
                 <h3>Маалымат:</h3>
-                <p id="contact-info-text">
-                    ТоголокЧатты нөлдөн жасап чыккан иштепчыгуучу мына мен болом, аты-жөнүм Нурмухаммед Калмаматов, ЖАМАН БАЛА
-                </p>
+                <p id="contact-info-text"></p>
             </div>
             
             <div class="profile-actions contact-actions">
@@ -431,24 +274,6 @@
     <!-- Socket.IO client library -->
     <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
     
-    <!-- Mock sidebar template for chats view in case server doesn't return it -->
-    <script id="mock-chats-template" type="text/template">
-        <div id="chats-view" class="sidebar-view active">
-            <div class="view-header">
-                <h2>Маектер</h2>
-                <div class="search-box">
-                    <input type="text" id="chat-search-input" placeholder="Издөө...">
-                    <i class="fas fa-search"></i>
-                </div>
-            </div>
-            <div class="chat-list-container scrollable-list">
-                <div id="chat-list" class="chat-list">
-                    <!-- Chat items will be added here -->
-                </div>
-            </div>
-        </div>
-    </script>
-    
     <!-- Main chat script -->
     <script src="{{ url_for('static', filename='js/chat.js') }}"></script>
     <script>
@@ -483,28 +308,9 @@
                         console.log("Using loadSidebarView function");
                         window.loadSidebarView('chats').catch(error => {
                             console.error("Error loading sidebar view:", error);
-                            console.log("Falling back to direct DOM manipulation");
-                            // Fallback: Insert mock template
-                            const mockTemplate = document.getElementById('mock-chats-template');
-                            if (mockTemplate) {
-                                sidebarContentArea.innerHTML = mockTemplate.innerHTML;
-                                // Try to load contacts directly
-                                if (typeof window.loadUserContacts === 'function') {
-                                    window.loadUserContacts();
-                                }
-                            }
                         });
                     } else {
-                        console.error("loadSidebarView function not found, using direct DOM manipulation");
-                        // Insert mock template
-                        const mockTemplate = document.getElementById('mock-chats-template');
-                        if (mockTemplate) {
-                            sidebarContentArea.innerHTML = mockTemplate.innerHTML;
-                            // Try to load contacts directly
-                            if (typeof window.loadUserContacts === 'function') {
-                                window.loadUserContacts();
-                            }
-                        }
+                        console.error("loadSidebarView function not found");
                     }
                 } else {
                     console.error("Sidebar content area not found");

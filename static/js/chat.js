@@ -785,41 +785,6 @@ document.addEventListener('DOMContentLoaded', () => {
             throw new Error('Sidebar content area not found');
         }
 
-        // Check if we should use a local mock template first
-        const mockTemplate = document.getElementById(`mock-${viewName}-template`);
-        if (mockTemplate) {
-            console.log(`Using mock template for ${viewName}`);
-            sidebarContentArea.innerHTML = mockTemplate.innerHTML;
-            
-            // Update current sidebar view
-            currentSidebarView = viewName;
-            
-            // Re-attach necessary event listeners for the new view's content
-            try {
-                attachSidebarViewListeners(viewName);
-                
-                // Make sure the logout button works if it exists
-                const logoutBtn = document.getElementById('logout-btn');
-                if (logoutBtn) {
-                    console.log('Attaching logout event listener to button after view load (mock):', logoutBtn);
-                    logoutBtn.addEventListener('click', (e) => {
-                        console.log('Logout button clicked');
-                        e.preventDefault();
-                        logout();
-                    });
-                }
-            } catch (listenerError) {
-                console.error(`Error attaching listeners for view ${viewName}:`, listenerError);
-            }
-            
-            // If this is the chats view, load contacts
-            if (viewName === 'chats') {
-                loadUserContacts();
-            }
-            
-            return;
-        }
-
         // Construct the URL for the template snippet
         const templateUrl = `/templates/_sidebar_${viewName.replace('-', '_')}.html`;
         console.log("Requesting template from URL:", templateUrl);
@@ -896,42 +861,8 @@ document.addEventListener('DOMContentLoaded', () => {
             }
         } catch (error) {
             console.error(`Could not load sidebar view '${viewName}':`, error);
-            
-            // Fallback to built-in templates if the server call fails
-            const mockTemplate = document.getElementById(`mock-${viewName}-template`);
-            if (mockTemplate) {
-                console.log(`Falling back to mock template for ${viewName}`);
-                sidebarContentArea.innerHTML = mockTemplate.innerHTML;
-                
-                // If this is the chats view, load contacts
-                if (viewName === 'chats') {
-                    loadUserContacts();
-                }
-                
-                // Update current sidebar view
-                currentSidebarView = viewName;
-                
-                // Re-attach necessary event listeners for the new view's content
-                try {
-                    attachSidebarViewListeners(viewName);
-                    
-                    // Make sure the logout button works if it exists
-                    const logoutBtn = document.getElementById('logout-btn');
-                    if (logoutBtn) {
-                        console.log('Attaching logout event listener to button (fallback):', logoutBtn);
-                        logoutBtn.addEventListener('click', (e) => {
-                            console.log('Logout button clicked');
-                            e.preventDefault();
-                            logout();
-                        });
-                    }
-                } catch (listenerError) {
-                    console.error(`Error attaching listeners for view ${viewName}:`, listenerError);
-                }
-            } else {
-                sidebarContentArea.innerHTML = `<p class="error-message">Error loading view: ${error.message}</p>`;
-                throw error; // Re-throw to allow catch handlers to work
-            }
+            sidebarContentArea.innerHTML = `<p class="error-message">Error loading view: ${error.message}</p>`;
+            throw error; // Re-throw to allow catch handlers to work
         }
     }
 
@@ -1154,69 +1085,97 @@ document.addEventListener('DOMContentLoaded', () => {
                 
                 console.log('Selected contact for adding:', contactId, contactUsername);
                 
-                // Check if this is an existing contact (has contactId but no isNewContact attribute)
-                if (selectedContact.dataset.isNewContact !== 'true') {
-                    // This is an existing contact - confirm chat start
-                    showConfirmDialog(
-                        'Маекти баштоо', 
-                        `${contactUsername} менен маекти баштагыңыз келеби?`,
-                        () => {
-                            // Start chat with this contact
-                            startChatWithContact(contactId);
-                        }
-                    );
-                    return;
+                // Create a direct HTML modal instead of using fancy functions
+                const modalHtml = `
+                <div id="direct-contact-modal" class="modal" style="display: flex !important; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 9999999; justify-content: center; align-items: center;">
+                    <div class="modal-content" style="background: white; padding: 20px; border-radius: 8px; width: 80%; max-width: 400px;">
+                        <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #eee; padding-bottom: 10px; margin-bottom: 15px;">
+                            <h4 style="margin: 0; font-size: 18px;">Контакт аты</h4>
+                            <span class="close-btn" style="cursor: pointer; font-size: 24px;" onclick="document.getElementById('direct-contact-modal').remove();">&times;</span>
+                        </div>
+                        <div class="modal-body" style="margin-bottom: 15px;">
+                            <p>Бул контакт үчүн атты киргизиңиз:</p>
+                            <div style="display: flex; align-items: center; margin-bottom: 15px; gap: 10px;">
+                                <img src="${avatarSrc}" alt="${contactUsername}" style="width: 50px; height: 50px; border-radius: 50%;">
+                                <span>${contactUsername}</span>
+                            </div>
+                            <div style="margin-top: 15px;">
+                                <input type="text" id="direct-contact-name" value="${contactUsername}" style="width: 100%; padding: 8px; border: 1px solid #ddd; border-radius: 4px; margin-bottom: 10px;">
+                                <small style="color: #666; font-size: 12px;">Бул колдонуучу үчүн жергиликтүү гана ат.</small>
+                                <input type="hidden" id="direct-contact-id" value="${contactId}">
+                            </div>
+                        </div>
+                        <div class="modal-footer" style="display: flex; justify-content: flex-end; gap: 10px; border-top: 1px solid #eee; padding-top: 10px;">
+                            <button style="padding: 8px 16px; background: #f1f1f1; border: 1px solid #ddd; border-radius: 4px; cursor: pointer;" onclick="document.getElementById('direct-contact-modal').remove();">Жокко чыгаруу</button>
+                            <button id="direct-confirm-btn" style="padding: 8px 16px; background: #128c7e; color: white; border: none; border-radius: 4px; cursor: pointer;">Кошуу</button>
+                        </div>
+                    </div>
+                </div>
+                `;
+                
+                // Remove any existing modals
+                const existingModal = document.getElementById('direct-contact-modal');
+                if (existingModal) {
+                    existingModal.remove();
                 }
                 
-                // New contact - show confirmation dialog
-                showConfirmDialog(
-                    'Контакт кошуу',
-                    `${contactUsername} колдонуучусун контакттарыңызга кошкуңуз келеби?`,
-                    async () => {
-                        try {
-                            const response = await fetch(getApiUrl('api/add-contact'), {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json'
-                                },
-                                body: JSON.stringify({
-                                    contact_id: contactId,
-                                    display_name: contactUsername
-                                })
-                            });
-                            
-                            const result = await response.json();
-                            
-                            if (response.ok) {
-                                showToast('Контакт ийгиликтүү кошулду');
-                                
-                                // Remove the added contact from the list if it's a new contact
-                                if (selectedContact.dataset.isNewContact === 'true') {
-                                    selectedContact.remove();
-                                }
-                                
-                                // Reset button
-                                newBtn.disabled = true;
-                                
-                                // Refresh contacts in both the sidebar and main contact list
-                                loadExistingContacts();
-                                loadUserContacts();
-                            } else {
-                                showToast(`Ката: ${result.message}`);
-                            }
-                        } catch (error) {
-                            console.error('Error adding contact:', error);
-                            showToast('Контакт кошууда ката кетти');
-                        }
+                // Add the modal to the DOM
+                document.body.insertAdjacentHTML('beforeend', modalHtml);
+                
+                // Set up confirm button
+                document.getElementById('direct-confirm-btn').addEventListener('click', async function() {
+                    const modal = document.getElementById('direct-contact-modal');
+                    const nameInput = document.getElementById('direct-contact-name');
+                    const idInput = document.getElementById('direct-contact-id');
+                    
+                    const displayName = nameInput.value.trim();
+                    const contactId = idInput.value;
+                    
+                    if (!displayName) {
+                        showToast('Контакт аты бош боло албайт');
+                        return;
                     }
-                );
+                    
+                    try {
+                        const response = await fetch('/Backend/chat/api/add-contact', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                contact_id: contactId,
+                                display_name: displayName
+                            })
+                        });
+                        
+                        const result = await response.json();
+                        
+                        if (response.ok) {
+                            showToast('Контакт ийгиликтүү кошулду');
+                            modal.remove();
+                            
+                            // Remove the added contact from the list
+                            selectedContact.remove();
+                            
+                            // Reset button
+                            newBtn.disabled = true;
+                            
+                            // Refresh contacts
+                            loadUserContacts();
+                        } else {
+                            showToast(`Ката: ${result.message}`);
+                        }
+                    } catch (error) {
+                        console.error('Error adding contact:', error);
+                        showToast('Контакт кошууда ката кетти');
+                    }
+                });
             });
         }
         
         // Initialize UI - Only if required elements exist
         if (contactList && loadingMessage) {
-            // Load existing contacts first
-            loadExistingContacts();
+            initializePotentialContacts();
         } else {
             console.warn('Missing required DOM elements for the contact list');
         }
@@ -1224,174 +1183,6 @@ document.addEventListener('DOMContentLoaded', () => {
         // Set up event listeners for search
         if (searchInput) {
             searchInput.addEventListener('input', (e) => handleContactSearch(e.target.value));
-        }
-    }
-
-    // Function to show a confirmation dialog
-    function showConfirmDialog(title, message, onConfirm) {
-        // Create a modal dialog for confirmation
-        const modal = document.createElement('div');
-        modal.className = 'modal';
-        modal.style.display = 'block';
-        modal.style.zIndex = '3000';
-        
-        modal.innerHTML = `
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h4>${title}</h4>
-                    <span class="close-modal-btn">&times;</span>
-                </div>
-                <div class="modal-body">
-                    <p>${message}</p>
-                </div>
-                <div class="modal-footer">
-                    <button class="btn btn-secondary cancel-btn">Жок</button>
-                    <button class="btn btn-primary" id="confirm-action-btn">Ооба</button>
-                </div>
-            </div>
-        `;
-        
-        document.body.appendChild(modal);
-        
-        // Add event listeners
-        const closeBtn = modal.querySelector('.close-modal-btn');
-        const cancelBtn = modal.querySelector('.cancel-btn');
-        const confirmBtn = modal.querySelector('#confirm-action-btn');
-        
-        const closeModal = () => {
-            modal.remove();
-        };
-        
-        closeBtn.addEventListener('click', closeModal);
-        cancelBtn.addEventListener('click', closeModal);
-        
-        confirmBtn.addEventListener('click', () => {
-            closeModal();
-            if (typeof onConfirm === 'function') {
-                onConfirm();
-            }
-        });
-    }
-
-    // Function to start a chat with a contact
-    function startChatWithContact(contactId) {
-        // Switch to the chat view
-        loadSidebarView('chats');
-        updateNavButtons('chats');
-        
-        // Select the chat in the list
-        const chatItem = document.querySelector(`.chat-item[data-chat-id="${contactId}"]`);
-        if (chatItem) {
-            chatItem.click();
-        } else {
-            // If chat item doesn't exist yet, refresh contacts and try again
-            console.log('Chat item not found, refreshing contacts');
-            loadUserContacts();
-            
-            // Try to select the chat after contacts are loaded
-            setTimeout(() => {
-                const newChatItem = document.querySelector(`.chat-item[data-chat-id="${contactId}"]`);
-                if (newChatItem) newChatItem.click();
-            }, 500);
-        }
-    }
-
-    // Function to load existing contacts in the add contact sidebar
-    async function loadExistingContacts() {
-        const contactList = document.querySelector('#add-contact-list');
-        const loadingMessage = document.querySelector('#loading-contacts');
-        const emptyMessage = document.querySelector('#empty-users-message');
-        
-        if (!contactList) {
-            console.error('Contact list element not found');
-            return;
-        }
-        
-        if (loadingMessage) loadingMessage.style.display = 'block';
-        if (emptyMessage) emptyMessage.style.display = 'none';
-        
-        try {
-            // Clear the contacts list except for loading and empty messages
-            Array.from(contactList.children)
-                .filter(child => !child.matches('#loading-contacts, #empty-users-message'))
-                .forEach(child => child.remove());
-            
-            // Get existing contacts from API
-            const response = await fetch(getApiUrl('api/contacts'));
-            if (!response.ok) {
-                throw new Error('Failed to load contacts');
-            }
-            
-            const data = await response.json();
-            console.log('Existing contacts loaded:', data);
-            
-            if (Array.isArray(data) && data.length > 0) {
-                data.forEach(contact => {
-                    const contactItem = createContactItem({
-                        id: contact.id,
-                        username: contact.name || contact.username,
-                        email: contact.email || '',
-                        avatar: contact.avatar_url
-                    }, false); // Not a new contact
-                    contactList.appendChild(contactItem);
-                });
-                
-                console.log(`Added ${data.length} existing contacts to the list`);
-                if (loadingMessage) loadingMessage.style.display = 'none';
-                
-                // Directly attach event listeners to each contact item
-                contactList.querySelectorAll('.contact-item').forEach(item => {
-                    // Mark as having handlers
-                    item.setAttribute('data-has-handlers', 'true');
-                    
-                    // Double-click handler for existing contacts
-                    item.ondblclick = function(e) {
-                        e.preventDefault();
-                        e.stopPropagation();
-                        
-                        const contactId = this.dataset.userId;
-                        const contactUsername = this.querySelector('.contact-name')?.textContent || 'Unknown';
-                        const avatarImg = this.querySelector('img');
-                        const avatarSrc = avatarImg ? avatarImg.src : '/static/images/contact_logo.png';
-                        
-                        console.log('Double-clicked on existing contact (direct handler):', contactId);
-                        showContactDetailsModal(contactId, contactUsername, avatarSrc);
-                        return false;
-                    };
-                    
-                    // Add single click for selection
-                    item.onclick = function(e) {
-                        if (e.detail === 1) { // Single click
-                            console.log('Contact item clicked:', this.dataset.userId);
-                            // Toggle selection
-                            contactList.querySelectorAll('.contact-item').forEach(i => i.classList.remove('selected'));
-                            this.classList.add('selected');
-                            
-                            // Enable the add button
-                            const addContactBtn = document.querySelector('#add-selected-contact-btn');
-                            if (addContactBtn) {
-                                addContactBtn.disabled = false;
-                            }
-                        }
-                    };
-                });
-            } else {
-                console.log('No existing contacts found');
-                if (loadingMessage) loadingMessage.style.display = 'none';
-                if (emptyMessage) {
-                    emptyMessage.style.display = 'block';
-                    const messageP = emptyMessage.querySelector('p');
-                    if (messageP) messageP.textContent = 'Контакттар табылган жок';
-                }
-            }
-        } catch (error) {
-            console.error('Error loading existing contacts:', error);
-            if (loadingMessage) loadingMessage.style.display = 'none';
-            if (emptyMessage) {
-                emptyMessage.style.display = 'block';
-                const messageP = emptyMessage.querySelector('p');
-                if (messageP) messageP.textContent = 'Контакттерди жүктөөдө ката кетти';
-            }
         }
     }
 
@@ -2390,95 +2181,54 @@ function setUpContactDetailsListeners() {
 
 // Function to fetch potential contacts
 async function initializePotentialContacts() {
-    try {
-        // Get potential contacts from API
-        const response = await fetch(getApiUrl('api/potential-contacts'));
-        if (!response.ok) {
-            throw new Error('Failed to load potential contacts');
-        }
-        const data = await response.json();
-        console.log('Potential contacts loaded:', data);
-        
-        const contactList = document.querySelector('#add-contact-list');
-        const loadingMessage = document.querySelector('#loading-contacts');
-        const emptyMessage = document.querySelector('#empty-users-message');
-        
-        if (!contactList) {
-            console.error('Contact list element not found');
-            return;
-        }
-        
-        // Clear the contacts list except for loading and empty messages
-        Array.from(contactList.children)
-            .filter(child => !child.matches('#loading-contacts, #empty-users-message'))
-            .forEach(child => child.remove());
-        
-        // Process the potential contacts
-        if (data.users && data.users.length > 0) {
-            data.users.forEach(user => {
-                const contactItem = createContactItem(user, true); // Mark as new contact
-                contactList.appendChild(contactItem);
-            });
-            
-            console.log(`Added ${data.users.length} contact items to the list`);
-            if (loadingMessage) loadingMessage.style.display = 'none';
-            
-            // Directly attach event listeners to each contact item
-            contactList.querySelectorAll('.contact-item').forEach(item => {
-                // Mark as having handlers
-                item.setAttribute('data-has-handlers', 'true');
-                
-                // Add single click for selection
-                item.onclick = function(e) {
-                    if (e.detail === 1) { // Single click
-                        console.log('Contact item clicked:', this.dataset.userId);
-                        // Toggle selection
-                        contactList.querySelectorAll('.contact-item').forEach(i => i.classList.remove('selected'));
-                        this.classList.add('selected');
-                        
-                        // Enable the add button
-                        const addContactBtn = document.querySelector('#add-selected-contact-btn');
-                        if (addContactBtn) {
-                            addContactBtn.disabled = false;
-                        }
-                    }
-                };
-                
-                // No double-click handler for new/potential contacts
-            });
-        } else {
-            console.log('No users found');
-            if (loadingMessage) loadingMessage.style.display = 'none';
-            if (emptyMessage) {
-                emptyMessage.style.display = 'block';
-                const messageP = emptyMessage.querySelector('p');
-                if (messageP) messageP.textContent = 'Колдонуучулар табылган жок';
-            }
-        }
-    } catch (error) {
-        console.error('Error loading potential contacts:', error);
-        const loadingMessage = document.querySelector('#loading-contacts');
-        const emptyMessage = document.querySelector('#empty-users-message');
-        
-        if (loadingMessage) loadingMessage.style.display = 'none';
+    console.log('Initializing potential contacts');
+    
+    const contacts = await getPotentialContacts();
+    const contactList = document.querySelector('#add-contact-list');
+    
+    const loadingMessage = document.querySelector('#loading-contacts');
+    const emptyMessage = document.querySelector('#empty-users-message');
+    
+    if (loadingMessage) loadingMessage.style.display = 'none';
+    
+    if (!contactList) {
+        console.error('Contact list element not found');
+        return;
+    }
+    
+    // Clear the list except for loading/empty messages
+    Array.from(contactList.children)
+        .filter(child => !child.matches('#loading-contacts, #empty-users-message'))
+        .forEach(child => child.remove());
+    
+    if (!contacts || contacts.length === 0) {
+        console.log('No potential contacts found');
         if (emptyMessage) {
             emptyMessage.style.display = 'block';
             const messageP = emptyMessage.querySelector('p');
-            if (messageP) messageP.textContent = 'Контакттерди жүктөөдө ката кетти';
+            if (messageP) messageP.textContent = 'Контакттер табылган жок';
         }
+        return;
     }
+    
+    console.log(`Found ${contacts.length} potential contacts`);
+    if (emptyMessage) emptyMessage.style.display = 'none';
+    
+    // Add each contact to the list
+    contacts.forEach(user => {
+        const contactItem = createContactItem(user);
+        contactList.appendChild(contactItem);
+    });
+    
+    // Add click listeners to the contact items
+    addContactItemListeners();
 }
 
 // Function to create a contact item element for potential contacts
-function createContactItem(user, isNewContact = false) {
+function createContactItem(user) {
     const item = document.createElement('li');
     item.className = 'contact-item';
     item.dataset.userId = user.id;
-    
-    // Mark new contacts to distinguish them from existing ones
-    if (isNewContact) {
-        item.dataset.isNewContact = 'true';
-    }
     
     item.innerHTML = `
         <div class="contact-avatar">
@@ -2493,159 +2243,140 @@ function createContactItem(user, isNewContact = false) {
     return item;
 }
 
-// Function to add click listeners to contact items (legacy method, only used as fallback)
+// Function to add click listeners to contact items
 function addContactItemListeners() {
-    console.log('[LEGACY] Adding contact item listeners as fallback');
     const contactList = document.querySelector('#add-contact-list');
-    if (!contactList) {
-        console.error('Contact list element not found');
-        return;
-    }
+    if (!contactList) return;
     
     const contactItems = contactList.querySelectorAll('.contact-item');
     const addContactBtn = document.querySelector('#add-selected-contact-btn');
     
-    console.log('[LEGACY] Adding listeners to', contactItems.length, 'contact items');
+    console.log('Adding listeners to', contactItems.length, 'contact items');
+    console.log('Add contact button found:', !!addContactBtn);
     
     contactItems.forEach(item => {
-        // Skip if already has direct handlers
-        if (item.getAttribute('data-has-handlers') === 'true') {
-            console.log('Item already has handlers, skipping:', item.dataset.userId);
-            return;
-        }
-        
-        item.setAttribute('data-has-handlers', 'true');
-        
-        // Only add double-click handlers to existing contacts (not marked as new)
-        if (item.dataset.isNewContact !== 'true') {
-            // Double click handler only for existing contacts
-            item.ondblclick = function(e) {
-                e.preventDefault();
-                e.stopPropagation();
-                
-                const contactId = this.dataset.userId;
-                const contactUsername = this.querySelector('.contact-name')?.textContent || 'Unknown';
-                const avatarImg = this.querySelector('img');
-                const avatarSrc = avatarImg ? avatarImg.src : '/static/images/contact_logo.png';
-                
-                console.log('Double-clicked on existing contact (legacy handler):', contactId);
-                showContactDetailsModal(contactId, contactUsername, avatarSrc);
-                return false;
-            };
-        }
-        
-        // Single click handler for all contacts
-        item.onclick = function(e) {
-            if (e.detail === 1) { // Single click
-                console.log('Contact item clicked (legacy handler):', this.dataset.userId);
-                // Toggle selection
-                contactItems.forEach(i => i.classList.remove('selected'));
-                this.classList.add('selected');
-                
-                // Enable the add button
-                if (addContactBtn) {
-                    addContactBtn.disabled = false;
-                }
+        // Single click for selection
+        item.addEventListener('click', () => {
+            console.log('Contact item clicked:', item.dataset.userId);
+            // Toggle selection
+            contactItems.forEach(i => i.classList.remove('selected'));
+            item.classList.add('selected');
+            
+            // Enable the add button
+            if (addContactBtn) {
+                addContactBtn.disabled = false;
+                console.log('Add button enabled');
             }
-        };
+        });
+        
+        // Double click to show contact details
+        item.addEventListener('dblclick', () => {
+            const contactId = item.dataset.userId;
+            const contactUsername = item.querySelector('.contact-name')?.textContent || 'Unknown';
+            const avatarImg = item.querySelector('img');
+            const avatarSrc = avatarImg ? avatarImg.src : '/static/images/contact_logo.png';
+            
+            console.log('Double-clicked on contact:', contactId);
+            showContactDetailsModal(contactId, contactUsername, avatarSrc);
+        });
     });
 }
 
 // Function to show contact details modal
 function showContactDetailsModal(contactId, contactUsername, avatarSrc) {
-    // Remove any existing modal first
-    const existingModal = document.getElementById('contact-details-modal');
-    if (existingModal) {
-        existingModal.remove();
+    // Look for existing modal or create it
+    let detailsModal = document.getElementById('contact-details-modal');
+    
+    if (!detailsModal) {
+        // Create the modal if it doesn't exist
+        detailsModal = document.createElement('div');
+        detailsModal.id = 'contact-details-modal';
+        detailsModal.className = 'modal';
+        
+        const modalContent = document.createElement('div');
+        modalContent.className = 'modal-content';
+        
+        // Add modal header
+        const modalHeader = document.createElement('div');
+        modalHeader.className = 'modal-header';
+        modalHeader.innerHTML = `
+            <h4>Контакт</h4>
+            <span class="close-modal-btn">&times;</span>
+        `;
+        
+        // Add modal body
+        const modalBody = document.createElement('div');
+        modalBody.className = 'modal-body';
+        modalBody.innerHTML = `
+            <div class="contact-details">
+                <img id="details-contact-avatar" src="${avatarSrc}" alt="Contact Avatar">
+                <h3 id="details-contact-name">${contactUsername}</h3>
+                <p id="details-contact-username" class="text-muted">${contactUsername}</p>
+            </div>
+            <div class="contact-actions">
+                <button class="btn btn-primary" id="start-chat-btn" data-contact-id="${contactId}">
+                    <i class="far fa-comment"></i> Маек баштоо
+                </button>
+                <button class="btn btn-outline-secondary" id="edit-details-contact-name-btn" data-contact-id="${contactId}">
+                    <i class="fas fa-pencil-alt"></i> Атын өзгөртүү
+                </button>
+                <button class="btn btn-outline-danger" id="report-contact-btn">
+                    <i class="fas fa-flag"></i> Даттануу
+                </button>
+            </div>
+        `;
+        
+        // Assemble modal
+        modalContent.appendChild(modalHeader);
+        modalContent.appendChild(modalBody);
+        detailsModal.appendChild(modalContent);
+        
+        // Add to document
+        document.body.appendChild(detailsModal);
+        
+        // Set up listeners for this modal
+        const closeBtn = detailsModal.querySelector('.close-modal-btn');
+        if (closeBtn) {
+            closeBtn.addEventListener('click', () => {
+                detailsModal.style.display = 'none';
+            });
+        }
+        
+        // Modal click outside to close
+        detailsModal.addEventListener('click', (event) => {
+            if (event.target === detailsModal) {
+                detailsModal.style.display = 'none';
+            }
+        });
+        
+        // Set up the contact details listeners
+        setUpContactDetailsListeners();
+    } else {
+        // Update existing modal content
+        const avatar = detailsModal.querySelector('#details-contact-avatar');
+        const name = detailsModal.querySelector('#details-contact-name');
+        const username = detailsModal.querySelector('#details-contact-username');
+        const startChatBtn = detailsModal.querySelector('#start-chat-btn');
+        const editNameBtn = detailsModal.querySelector('#edit-details-contact-name-btn');
+        
+        if (avatar) avatar.src = avatarSrc;
+        if (name) name.textContent = contactUsername;
+        if (username) username.textContent = contactUsername;
+        if (startChatBtn) startChatBtn.dataset.contactId = contactId;
+        if (editNameBtn) editNameBtn.dataset.contactId = contactId;
     }
     
-    // Create the modal
-    const detailsModal = document.createElement('div');
-    detailsModal.id = 'contact-details-modal';
-    detailsModal.className = 'modal';
-    detailsModal.style.display = 'block';
-    detailsModal.style.zIndex = '3000';
-    
-    // Create the modal content with avatar, name, nickname, and action buttons
-    detailsModal.innerHTML = `
-        <div class="modal-content">
-            <div class="modal-header">
-                <h4>Контакт маалыматы</h4>
-                <span class="close-modal-btn">&times;</span>
-            </div>
-            <div class="modal-body">
-                <div class="contact-details">
-                    <img id="details-contact-avatar" src="${avatarSrc}" alt="Contact Avatar">
-                    <h3 id="details-contact-name">${contactUsername}</h3>
-                    <p id="details-contact-username" class="text-muted">~${contactUsername}</p>
-                </div>
-                <div class="contact-actions">
-                    <button class="btn btn-primary" id="start-chat-btn">
-                        <i class="far fa-comment"></i> Маек баштоо
-                    </button>
-                    <button class="btn btn-outline-danger" id="report-contact-btn">
-                        <i class="fas fa-flag"></i> Даттануу
-                    </button>
-                </div>
-            </div>
-        </div>
-    `;
-    
-    // Add the modal to the DOM
-    document.body.appendChild(detailsModal);
-    
-    // Add event listeners to buttons
-    const closeBtn = detailsModal.querySelector('.close-modal-btn');
-    const startChatBtn = detailsModal.querySelector('#start-chat-btn');
-    const reportBtn = detailsModal.querySelector('#report-contact-btn');
-    
-    // Close button
-    closeBtn.addEventListener('click', () => {
-        detailsModal.remove();
-    });
-    
-    // Start chat button
-    startChatBtn.addEventListener('click', () => {
-        // Save contactId to the button for reference
-        startChatBtn.dataset.contactId = contactId;
-        
-        // Close the details modal
-        detailsModal.remove();
-        
-        // Show confirmation dialog for starting chat
-        showConfirmDialog(
-            'Маекти баштоо',
-            `${contactUsername} менен маекти баштагыңыз келеби?`,
-            () => {
-                // Start chat with this contact
-                startChatWithContact(contactId);
-            }
-        );
-    });
-    
-    // Report button
-    reportBtn.addEventListener('click', () => {
-        // Show report dialog
-        detailsModal.remove();
-        
-        showConfirmDialog(
-            'Контактка даттануу',
-            `${contactUsername} колдонуучусуна даттануу жөнөткүңүз келеби?`,
-            () => {
-                // Report functionality (placeholder for now)
-                showToast('Даттануу ийгиликтүү жөнөтүлдү');
-            }
-        );
-    });
+    // Display the modal
+    detailsModal.style.display = 'flex';
 }
 
-// Function to handle contact search - modified to search both contacts and new users
+// Function to handle contact search
 async function handleContactSearch(query) {
     console.log('Searching for contacts with query:', query);
     
     if (!query || query.length < 2) {
-        // If query is empty or too short, reset to show existing contacts
-        loadExistingContacts();
+        // If query is empty or too short, reset to show all potential contacts
+        initializePotentialContacts();
         return;
     }
     
@@ -2667,8 +2398,7 @@ async function handleContactSearch(query) {
             .filter(child => !child.matches('#loading-contacts, #empty-users-message'))
             .forEach(child => child.remove());
         
-        // Search for users based on the query
-        const response = await fetch(getApiUrl(`api/search-users?query=${encodeURIComponent(query)}`));
+        const response = await fetch(`/api/potential-contacts?query=${encodeURIComponent(query)}`);
         
         if (!response.ok) {
             throw new Error(`Failed to search users: ${response.status} ${response.statusText}`);
@@ -2680,42 +2410,13 @@ async function handleContactSearch(query) {
         // Process the search results
         if (data.users && data.users.length > 0) {
             data.users.forEach(user => {
-                const contactItem = createContactItem({
-                    id: user.id,
-                    username: user.username,
-                    email: user.email || '',
-                    name: user.name || user.username,
-                    avatar: user.avatar
-                }, true); // Mark as new contact
+                const contactItem = createContactItem(user);
                 contactList.appendChild(contactItem);
             });
             
             if (loadingMessage) loadingMessage.style.display = 'none';
             if (emptyMessage) emptyMessage.style.display = 'none';
-            
-            // Add click listeners to contact items
-            contactList.querySelectorAll('.contact-item').forEach(item => {
-                // Mark as having handlers
-                item.setAttribute('data-has-handlers', 'true');
-                
-                // Add single click for selection
-                item.onclick = function(e) {
-                    if (e.detail === 1) { // Single click
-                        console.log('Contact item clicked:', this.dataset.userId);
-                        // Toggle selection
-                        contactList.querySelectorAll('.contact-item').forEach(i => i.classList.remove('selected'));
-                        this.classList.add('selected');
-                        
-                        // Enable the add button
-                        const addContactBtn = document.querySelector('#add-selected-contact-btn');
-                        if (addContactBtn) {
-                            addContactBtn.disabled = false;
-                        }
-                    }
-                };
-                
-                // No double-click handler for search results (new contacts)
-            });
+            addContactItemListeners();
         } else {
             if (loadingMessage) loadingMessage.style.display = 'none';
             if (emptyMessage) {
@@ -3525,27 +3226,50 @@ async function addNewContact(event) {
 
 async function logout() {
     try {
-        const response = await fetch('/logout', {
+        console.log('Logout function called');
+        
+        // Use the correct endpoint with the auth prefix
+        const response = await fetch('/auth/logout', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json'
-            }
+            },
+            // Send empty body to ensure proper request format
+            body: JSON.stringify({})
         });
         
-        if (response.ok) {
-            // Clear any session data
-            sessionStorage.removeItem('username');
-            sessionStorage.removeItem('user_id');
-            
-            // Redirect to login page
+        // Always perform these cleanup steps regardless of response
+        console.log('Clearing all session data and storage');
+        
+        // Clear any local storage data
+        localStorage.clear();
+        
+        // Clear any session storage data
+        sessionStorage.clear();
+        
+        // Force clear any cookies
+        document.cookie.split(";").forEach(function(c) {
+            document.cookie = c.replace(/^ +/, "").replace(/=.*/, "=;expires=" + new Date().toUTCString() + ";path=/");
+        });
+        
+        console.log('Redirecting to login page');
+        
+        // Force a hard reload to the root path
+        window.location.replace('/');
+        
+        // As a fallback, if replace doesn't work
+        setTimeout(() => {
             window.location.href = '/';
-        } else {
-            console.error('Logout failed');
-            showToast('Чыгууда ката кетти');
-        }
+        }, 100);
+        
     } catch (error) {
         console.error('Error during logout:', error);
-        showToast('Чыгууда ката кетти');
+        
+        // Even if there's an error, try to redirect
+        alert('Чыгууда ката кетти, бирок баары бир чыгуу аракет кылынат.');
+        
+        // Force reload as a last resort
+        window.location.href = '/';
     }
 }
 
@@ -3704,4 +3428,69 @@ window.showToast = function(message) {
     setTimeout(() => {
         toast.classList.remove('show');
     }, 3000);
+}
+
+// Function to load a sidebar view
+async function loadSidebarView(viewName) {
+    if (!viewName) {
+        console.error('View name is required');
+        return;
+    }
+    
+    console.log(`Loading sidebar view: ${viewName}`);
+    const sidebarContentArea = document.getElementById('sidebar-content-area');
+    
+    if (!sidebarContentArea) {
+        console.error('Sidebar content area not found');
+        return;
+    }
+    
+    try {
+        // First, remove the 'active' class from all sidebar buttons
+        const sidebarButtons = document.querySelectorAll('.sidebar-nav-button');
+        sidebarButtons.forEach(btn => btn.classList.remove('active'));
+        
+        // Add 'active' class to the current button
+        const activeButton = document.querySelector(`.sidebar-nav-button[data-view="${viewName}"]`);
+        if (activeButton) {
+            activeButton.classList.add('active');
+        }
+        
+        // Fetch the view content from the server
+        const response = await fetch(`/templates/_sidebar_${viewName}.html`);
+        
+        if (!response.ok) {
+            throw new Error(`Error loading view: ${response.status} ${response.statusText}`);
+        }
+        
+        const content = await response.text();
+        
+        // Update content area
+        sidebarContentArea.innerHTML = content;
+        
+        // Special cases for different views
+        if (viewName === 'chats') {
+            await loadUserContacts();
+            attachChatListListeners();
+        } else if (viewName === 'profile') {
+            loadUserProfile();
+            attachProfileListeners();
+        } else if (viewName === 'create_group') {
+            initializePotentialContacts();
+            attachCreateGroupListeners();
+        } else if (viewName === 'settings') {
+            attachSettingsListeners();
+        } else if (viewName === 'add_contact') {
+            initializePotentialContacts();
+            attachAddContactListeners();
+        }
+        
+        // Attach common sidebar view listeners
+        attachSidebarViewListeners(viewName);
+        
+        return content;
+    } catch (error) {
+        console.error(`Error loading sidebar view ${viewName}:`, error.message);
+        throw error;
+    }
 }

@@ -8,7 +8,430 @@
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Caveat:wght@400;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <link rel="stylesheet" href="/static/css/styles.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            font-family: Arial, sans-serif;
+            background-image: url('/static/images/background.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            min-height: 100vh;
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            margin: 0;
+            padding: 0;
+        }
+
+        body::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.4);
+            z-index: 0;
+        }
+
+        .container, .chat-container {
+            position: relative;
+            z-index: 1;
+        }
+
+        .chat-container {
+            background: rgba(255, 255, 255, 0.95);
+            border-radius: 15px;
+            overflow: hidden;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
+        }
+
+        .app {
+            background: transparent;
+        }
+
+        .sidebar {
+            background: rgba(255, 255, 255, 0.98);
+        }
+
+        .chat-messages {
+            background: rgba(255, 255, 255, 0.95);
+        }
+
+        .chat-footer {
+            background: rgba(255, 255, 255, 0.98);
+        }
+
+        /* Login/Register Styles */
+        .container {
+            width: 100%;
+            max-width: 400px;
+            padding: 20px;
+            text-align: center;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            overflow: hidden;
+            position: relative;
+            top: 0;
+            margin-top: 0;
+        }
+
+        .logo {
+            background: rgba(0, 0, 0, 0.7);
+            color: white;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 30px 100px;
+            border-radius: 50%;
+            width: 370px;
+            height: 170px;
+            text-align: center;
+            margin-bottom: 15px;
+            flex-shrink: 0;
+            position: relative;
+            z-index: 2;
+            transform: translateY(0);
+        }
+
+        .logo h1 {
+            font-family: 'Caveat', cursive;
+            font-size: 70px;
+            color: white;
+            font-weight: 700;
+            line-height: 1;
+            font-style: italic;
+            white-space: nowrap;
+        }
+
+        .logo h1 span {
+            color: #66D9E8;
+            font-family: 'Caveat', cursive;
+        }
+
+        .form-container {
+            padding: 1rem;
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .form-container.hidden {
+            display: none;
+        }
+
+        .input-group {
+            position: relative;
+            width: 100%;
+            margin-bottom: 15px;
+        }
+
+        /* Register form specific styles */
+        #register-form .input-group {
+            margin-bottom: 8px;
+        }
+
+        /* Login form specific styles */
+        #login-form .input-group {
+            margin-bottom: 15px;
+        }
+
+        #login-form .submit-btn {
+            margin-top: 15px;
+        }
+
+        .password-field {
+            position: relative;
+            width: 100%;
+            margin-bottom: 15px;
+        }
+
+        .input-wrapper {
+            position: relative;
+            width: 100%;
+        }
+
+        .toggle-password {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            z-index: 102;
+            padding: 5px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 30px;
+            height: 30px;
+        }
+
+        .toggle-password i {
+            color: #666;
+            font-size: 16px;
+            pointer-events: none;
+        }
+
+        .toggle-password:hover i {
+            color: #333;
+        }
+
+        input[type="text"],
+        input[type="email"],
+        input[type="password"] {
+            width: 100%;
+            padding: 8px 12px;
+            margin: 4px 0;
+            border: none;
+            border-radius: 25px;
+            font-size: 0.9rem;
+            background: rgba(255, 255, 255, 0.8);
+            color: #333;
+        }
+
+        .remember-me {
+            margin: 6px 0;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            color: white;
+        }
+
+        .remember-me label {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            cursor: pointer;
+        }
+
+        .remember-me input[type="checkbox"] {
+            appearance: none;
+            -webkit-appearance: none;
+            width: 50px;
+            height: 24px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 12px;
+            position: relative;
+            cursor: pointer;
+            transition: background 0.3s ease;
+        }
+
+        .remember-me input[type="checkbox"]::before {
+            content: '';
+            position: absolute;
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            background: white;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.3s ease;
+        }
+
+        .remember-me input[type="checkbox"]:checked {
+            background: #66D9E8;
+        }
+
+        .remember-me input[type="checkbox"]:checked::before {
+            transform: translateX(26px);
+        }
+
+        .forgot-password {
+            color: #66D9E8;
+            text-decoration: none;
+            font-size: 0.85rem;
+        }
+
+        .forgot-password:hover {
+            text-decoration: underline;
+        }
+
+        .submit-btn {
+            width: 100%;
+            padding: 10px;
+            border: none;
+            border-radius: 25px;
+            background: #66D9E8;
+            color: white;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.3s ease;
+            margin-top: 10px;
+        }
+
+        .submit-btn:hover {
+            background: #4ECDC4;
+        }
+
+        .switch-form {
+            margin-top: 15px;
+            color: white;
+            font-size: 0.9rem;
+        }
+
+        .switch-form a {
+            color: #66D9E8;
+            text-decoration: none;
+            font-weight: bold;
+        }
+
+        .switch-form a:hover {
+            text-decoration: underline;
+        }
+
+        /* Message validation styles */
+        .validation-indicator {
+            position: absolute;
+            right: -20px;
+            top: 50%;
+            transform: translateY(-50%);
+            cursor: pointer;
+            display: none;
+        }
+
+        .validation-indicator.valid {
+            display: block;
+            color: #4CAF50;
+        }
+
+        .validation-indicator.invalid {
+            display: block;
+            color: #f44336;
+        }
+
+        .validation-message {
+            display: none;
+            position: absolute;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 5px 10px;
+            border-radius: 5px;
+            font-size: 0.8rem;
+            z-index: 5;
+            right: -5px;
+            top: 0;
+            white-space: nowrap;
+        }
+
+        .password-requirements {
+            display: none;
+            position: absolute;
+            background: rgba(0, 0, 0, 0.8);
+            color: white;
+            padding: 10px 15px;
+            border-radius: 5px;
+            font-size: 0.8rem;
+            z-index: 5;
+            right: -220px;
+            top: 0;
+            width: 200px;
+        }
+
+        .password-requirements.show {
+            display: block;
+        }
+
+        .requirement {
+            margin: 5px 0;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .requirement i {
+            color: #f44336;
+        }
+
+        .requirement.valid i {
+            color: #4CAF50;
+        }
+
+        /* Modal styles */
+        .modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            display: none;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal[style*="flex"],
+        .modal.show {
+            display: flex !important;
+        }
+
+        .modal-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            width: 90%;
+            max-width: 500px;
+        }
+
+        .security-input-group {
+            margin-bottom: 15px;
+        }
+
+        .security-input-group label {
+            display: block;
+            margin-bottom: 5px;
+            text-align: left;
+        }
+
+        .modal-buttons {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+            margin-top: 20px;
+        }
+
+        .modal-btn {
+            padding: 8px 15px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+        }
+
+        .modal-btn.primary {
+            background-color: #66D9E8;
+            color: white;
+        }
+
+        .modal-btn.secondary {
+            background-color: #ddd;
+            color: #333;
+        }
+
+        /* Chat interface basic styles */
+        .app {
+            display: flex;
+            height: 100vh;
+            width: 100vw;
+        }
+    </style>
 </head>
 <body>
     <!-- Login/Register Container -->
@@ -119,92 +542,6 @@
         </div>
     </div>
 
-    <!-- Chat Container -->
-    <div class="chat-container" id="chat-container">
-        <div class="app">
-            <!-- Sidebar -->
-            <div class="sidebar">
-                <div class="sidebar-header">
-                    <div class="user-avatar">
-                        <div class="chat-avatar">U</div>
-                    </div>
-                    <div class="sidebar-header-right">
-                        <span class="icon">⟳</span>
-                        <span class="icon">✉</span>
-                        <span class="icon">⋮</span>
-                    </div>
-                </div>
-                
-                <div class="sidebar-search">
-                    <div class="search-container">
-                        <span>🔍</span>
-                        <input type="text" placeholder="Search or start new chat" />
-                    </div>
-                </div>
-                
-                <div class="sidebar-chats">
-                    <div class="chat active">
-                        <div class="chat-avatar">J</div>
-                        <div class="chat-info">
-                            <h2>John Smith</h2>
-                            <p>Hey, how are you?</p>
-                        </div>
-                        <span class="chat-timestamp">3:45 PM</span>
-                    </div>
-                    
-                    <div class="chat">
-                        <div class="chat-avatar">S</div>
-                        <div class="chat-info">
-                            <h2>Sarah Johnson</h2>
-                            <p>Did you get the files I sent?</p>
-                        </div>
-                        <span class="chat-timestamp">1:30 PM</span>
-                    </div>
-                </div>
-            </div>
-            
-            <!-- Chat -->
-            <div class="chat-body">
-                <div class="chat-header">
-                    <div class="chat-avatar">J</div>
-                    <div class="chat-header-info">
-                        <h3>John Smith</h3>
-                        <p>Last seen today at 3:55 PM</p>
-                    </div>
-                    <div class="chat-header-right">
-                        <span class="icon">🔍</span>
-                        <span class="icon">📎</span>
-                        <span class="icon">⋮</span>
-                    </div>
-                </div>
-                
-                <div class="chat-messages">
-                    <div class="chat-message">
-                        <span class="chat-name">John</span>
-                        Hey there! How's it going?
-                        <span class="chat-timestamp">3:30 PM</span>
-                    </div>
-                    
-                    <div class="chat-message chat-receiver">
-                        <span class="chat-name">You</span>
-                        Hi John! I'm doing well, thanks for asking. How about you?
-                        <span class="chat-timestamp">3:32 PM</span>
-                    </div>
-                </div>
-                
-                <div class="chat-footer">
-                    <div class="icon">😊</div>
-                    <div class="icon">📎</div>
-                    <form id="chat-form">
-                        <input type="text" placeholder="Type a message" />
-                        <button type="submit" class="send-button">➤</button>
-                    </form>
-                    <div class="icon">🎤</div>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <!-- Add Modal for Keyword -->
     <div class="modal" id="keyword-modal">
         <div class="modal-content">
@@ -218,8 +555,8 @@
     </div>
 
     <!-- Security Setup Modal -->
-    <div class="modal" id="security-setup-modal">
-        <div class="modal-content">
+    <div class="modal" id="security-setup-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background-color: rgba(0,0,0,0.5); z-index: 1000; justify-content: center; align-items: center;">
+        <div class="modal-content" style="background-color: white; padding: 20px; border-radius: 5px; width: 400px; max-width: 90%;">
             <h2>Коопсуздук суроосу</h2>
             <p>Сураныч, коопсуздук суроосун жана жашыруун сөздү киргизиңиз. Булар сизге сырсөздү калыбына келтирүүгө жардам берет.</p>
             
@@ -245,7 +582,7 @@
         <div class="modal-dialog" role="document">
             <div class="modal-content">
                 <div class="modal-body">
-                    <form id="forgot-password-form" method="POST" action="/reset-password">
+                    <form id="forgot-password-form" method="POST" action="/auth/reset-password">
                         <div class="form-group">
                             <label for="reset-email">Email</label>
                             <input type="email" class="form-control" id="reset-email" name="email" required>
@@ -289,6 +626,354 @@
         </div>
     </div>
 
-    <script src="/static/js/script.js"></script>
+    <script>
+        function togglePasswordVisibility(button) {
+            console.log('Toggle password visibility clicked');
+            
+            // Find the input field - it's within the same container as the button
+            let input;
+            
+            // Check if we're in the forgot password modal
+            if (button.closest('#forgot-password-modal')) {
+                input = button.closest('.input-wrapper').querySelector('input[type="password"], input[type="text"]');
+                if (!input) {
+                    // Fallback to password-field if input-wrapper doesn't contain the input
+                    input = button.closest('.password-field').querySelector('input[type="password"], input[type="text"]');
+                }
+            } else {
+                // For login and register forms
+                input = button.closest('.password-field').querySelector('input[type="password"], input[type="text"]');
+            }
+            
+            const icon = button.querySelector('i');
+            
+            console.log('Input found:', input);
+            console.log('Icon found:', icon);
+            
+            if (input && icon) {
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    icon.classList.remove('fa-eye');
+                    icon.classList.add('fa-eye-slash');
+                    console.log('Password now visible');
+                } else {
+                    input.type = 'password';
+                    icon.classList.remove('fa-eye-slash');
+                    icon.classList.add('fa-eye');
+                    console.log('Password now hidden');
+                }
+            } else {
+                console.error('Could not find input or icon');
+            }
+        }
+        
+        document.addEventListener('DOMContentLoaded', function() {
+            console.debug('DOM fully loaded - Registration page script running');
+            
+            // Translation system
+            const translations = {
+                passwordRequirements: "Сыр сөз минимум 8 символ, чоң, кичине тамга, сан жана атайын белги камтышы керек",
+                passwordMismatch: "Сыр сөздөр дал келбейт",
+                fillAllFields: "Сураныч, бардык талааларды толтуруңуз",
+                formNotFound: "Форма табылган жок",
+                processingRegistration: "Каттоо процесси башталды...",
+                registrationSuccess: "Каттоо ийгиликтүү аяктады! Кирүүгө өтүңүз.",
+                registrationFailed: "Каттоодо ката кетти. Сураныч, кайра аракет кылыңыз.",
+                userExists: "Бул колдонуучу аты же электрондук почта мурунтан эле катталган",
+                invalidData: "Туура эмес маалыматтар",
+                modalNotFound: "Коопсуздук модалдык терезе табылган жок",
+                loginFailed: "Кирүүда кетти. Сураныч, кайра аракет кылыңыз.",
+                loginError: "Кирүүда кетти. Сураныч, кайра аракет кылыңыз."
+            };
+            
+            // Helper function to get translation
+            function t(key) {
+                return translations[key] || key;
+            }
+            
+            // Get elements
+            const registerForm = document.getElementById('register-form');
+            const registerFormElement = document.getElementById('register-form-element');
+            const loginForm = document.getElementById('login-form');
+            const loginFormElement = document.getElementById('login-form-element');
+            const rememberCheckbox = document.getElementById('remember');
+            const securityModal = document.getElementById('security-setup-modal');
+            const saveSecurityBtn = document.getElementById('save-security');
+            const cancelSecurityBtn = document.getElementById('cancel-security');
+            const securityQuestion = document.getElementById('security-question');
+            const secretWord = document.getElementById('secret-word');
+            const passwordInput = document.getElementById('register-password');
+            const confirmPasswordInput = document.getElementById('register-confirm-password');
+            
+            console.debug('Elements found:', {
+                registerForm: !!registerForm,
+                registerFormElement: !!registerFormElement,
+                loginForm: !!loginForm,
+                loginFormElement: !!loginFormElement,
+                securityModal: !!securityModal,
+                saveSecurityBtn: !!saveSecurityBtn,
+                cancelSecurityBtn: !!cancelSecurityBtn,
+                securityQuestion: !!securityQuestion,
+                secretWord: !!secretWord
+            });
+            
+            // Form switching
+            const showRegisterLink = document.getElementById('show-register');
+            const showLoginLink = document.getElementById('show-login');
+
+            showRegisterLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                loginForm.classList.add('hidden');
+                registerForm.classList.remove('hidden');
+            });
+
+            showLoginLink.addEventListener('click', (e) => {
+                e.preventDefault();
+                registerForm.classList.add('hidden');
+                loginForm.classList.remove('hidden');
+            });
+            
+            // Login form submission
+            if (loginFormElement) {
+                loginFormElement.addEventListener('submit', async (e) => {
+                    e.preventDefault();
+                    console.debug('Login form submitted');
+                    
+                    const formData = new FormData(e.target);
+                    const loginData = {
+                        username: formData.get('username') || null,
+                        email: formData.get('email') || null,
+                        password: formData.get('password')
+                    };
+
+                    try {
+                        console.debug('Sending login data:', {
+                            username: loginData.username,
+                            passwordLength: loginData.password?.length
+                        });
+                        
+                        // Call the login endpoint
+                        const response = await fetch('/auth/login', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(loginData)
+                        });
+
+                        console.debug('Response status:', response.status);
+                        
+                        const data = await response.json();
+                        console.debug('Response data:', data);
+
+                        if (response.ok) {
+                            // Store credentials if remember me is checked
+                            if (rememberCheckbox.checked) {
+                                localStorage.setItem('username', loginData.username || loginData.email);
+                                localStorage.setItem('password', loginData.password);
+                            } else {
+                                localStorage.removeItem('username');
+                                localStorage.removeItem('password');
+                            }
+                            
+                            // Redirect to chat page
+                            window.location.href = '/chat';
+                        } else {
+                            alert(data.message || t('loginFailed'));
+                        }
+                    } catch (error) {
+                        console.error('Login error:', error);
+                        alert(error.message || t('loginError'));
+                    }
+                });
+                
+                // Check for remembered credentials
+                const rememberedUsername = localStorage.getItem('username');
+                const rememberedPassword = localStorage.getItem('password');
+                
+                if (rememberedUsername && rememberedPassword) {
+                    const usernameInput = loginFormElement.querySelector('input[name="username"]');
+                    const passwordInput = loginFormElement.querySelector('input[name="password"]');
+                    
+                    usernameInput.value = rememberedUsername;
+                    passwordInput.value = rememberedPassword;
+                    rememberCheckbox.checked = true;
+                }
+            }
+            
+            // Password validation
+            function validatePassword() {
+                // Temporarily accept any password
+                return true;
+                
+                /* Original validation logic
+                const password = passwordInput.value;
+                let isValid = true;
+                
+                // Check for length (8+), uppercase, lowercase, number, special character
+                isValid = password.length >= 8 && 
+                          /[A-Z]/.test(password) && 
+                          /[a-z]/.test(password) && 
+                          /[0-9]/.test(password) && 
+                          /[!@#$%^&*]/.test(password);
+                
+                return isValid;
+                */
+            }
+            
+            // Validate password match
+            function validatePasswordMatch() {
+                // Temporarily accept any password match
+                return true;
+                
+                // Original validation
+                // return passwordInput.value === confirmPasswordInput.value;
+            }
+            
+            // Register form submission
+            if (registerFormElement) {
+                registerFormElement.addEventListener('submit', function(e) {
+                    e.preventDefault();
+                    console.debug('Register form submitted');
+                    
+                    const isPasswordValid = validatePassword();
+                    const isPasswordMatch = validatePasswordMatch();
+                    
+                    console.debug('Password validation:', { isPasswordValid, isPasswordMatch });
+                    
+                    if (!isPasswordValid) {
+                        alert(t('passwordRequirements'));
+                        return;
+                    }
+                    
+                    if (!isPasswordMatch) {
+                        alert(t('passwordMismatch'));
+                        return;
+                    }
+                    
+                    // Show security modal
+                    if (securityModal) {
+                        securityModal.style.display = 'flex';
+                        console.debug('Security modal displayed');
+                    } else {
+                        console.error('Security modal not found');
+                        alert(t('modalNotFound'));
+                    }
+                });
+            }
+            
+            // Handle security setup save
+            if (saveSecurityBtn) {
+                saveSecurityBtn.addEventListener('click', async function() {
+                    console.debug('Save security button clicked');
+                    
+                    const question = securityQuestion.value.trim();
+                    const secret = secretWord.value.trim();
+                    
+                    console.debug('Security data:', { question, secretLength: secret.length });
+                    
+                    if (!question || !secret) {
+                        alert(t('fillAllFields'));
+                        return;
+                    }
+                    
+                    // Get form data
+                    const formData = new FormData(registerFormElement);
+                    if (!registerFormElement) {
+                        console.error('Register form element not found');
+                        alert(t('formNotFound'));
+                        return;
+                    }
+                    
+                    try {
+                        // Create registration data with security info
+                        const registerData = {
+                            username: formData.get('username'),
+                            email: formData.get('email'),
+                            password: formData.get('password'),
+                            security_question: question,
+                            secret_word: secret
+                        };
+                        
+                        console.debug('Sending registration data:', {
+                            username: registerData.username,
+                            email: registerData.email,
+                            passwordLength: registerData.password?.length,
+                            security_question: registerData.security_question,
+                            secret_wordLength: registerData.secret_word?.length
+                        });
+                        
+                        // Show processing message
+                        alert(t('processingRegistration'));
+                        
+                        // Call the register endpoint
+                        const response = await fetch('/auth/register', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify(registerData)
+                        });
+                        
+                        console.debug('Response status:', response.status);
+                        
+                        const data = await response.json();
+                        console.debug('Response data:', data);
+                        
+                        if (response.ok) {
+                            // Hide modal and show success
+                            securityModal.style.display = 'none';
+                            alert(t('registrationSuccess'));
+                            
+                            // Redirect directly to chat page instead of showing login form
+                            window.location.href = '/chat';
+                            
+                            // Reset forms (unnecessary now but kept for completeness)
+                            registerFormElement.reset();
+                            securityQuestion.value = '';
+                            secretWord.value = '';
+                        } else {
+                            if (data.message) {
+                                throw new Error(data.message);
+                            } else if (response.status === 409) {
+                                throw new Error(t('userExists'));
+                            } else if (response.status === 400) {
+                                throw new Error(t('invalidData'));
+                            } else {
+                                throw new Error(t('registrationFailed'));
+                            }
+                        }
+                    } catch (error) {
+                        console.error('Registration error:', error);
+                        alert(error.message || t('registrationFailed'));
+                    }
+                });
+            } else {
+                console.error('Save security button not found');
+            }
+            
+            // Handle security setup cancel
+            if (cancelSecurityBtn) {
+                cancelSecurityBtn.addEventListener('click', function() {
+                    console.debug('Cancel security button clicked');
+                    securityModal.style.display = 'none';
+                    securityQuestion.value = '';
+                    secretWord.value = '';
+                });
+            }
+            
+            // Close modal when clicking outside
+            if (securityModal) {
+                securityModal.addEventListener('click', function(e) {
+                    if (e.target === securityModal) {
+                        console.debug('Clicked outside modal content');
+                        securityModal.style.display = 'none';
+                        securityQuestion.value = '';
+                        secretWord.value = '';
+                    }
+                });
+            }
+        });
+    </script>
 </body>
 </html>
