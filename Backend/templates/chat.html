@@ -826,6 +826,13 @@
             
             console.log(`Loading chat with ${contactName}, ID: ${contactId}`);
             
+            // Set the current chat info for message sending
+            window.currentChat = {
+                id: contactId,
+                type: 'direct',
+                name: contactName
+            };
+            
             // Update the chat header with the selected contact's info
             document.querySelector('.chat-header-name').textContent = contactName;
             
@@ -966,6 +973,7 @@
                 // Send message based on chat type
                 if (window.currentChat.type === 'direct') {
                     // Direct message
+                    console.log('Sending direct message to:', window.currentChat);
                     socket.emit('send_message', {
                         receiver_id: window.currentChat.id,
                         receiver_username: window.currentChat.name,
@@ -975,6 +983,7 @@
                     });
                 } else {
                     // Group message - only use Socket.IO to avoid duplicate messages
+                    console.log('Sending group message to:', window.currentChat);
                     socket.emit('send_message', {
                         group_id: window.currentChat.id,
                         message: message,
@@ -983,6 +992,18 @@
                     });
                     
                     // Removed duplicate HTTP API call to prevent double-sending
+                }
+            } else {
+                console.error('Cannot send message:', { 
+                    message: message, 
+                    currentChat: window.currentChat,
+                    reason: !message ? 'Empty message' : 'No active chat'
+                });
+                
+                if (!window.currentChat) {
+                    showNotification('Please select a contact or group first', 'error');
+                } else if (!message) {
+                    showNotification('Please enter a message', 'error');
                 }
             }
         });
