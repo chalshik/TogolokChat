@@ -155,94 +155,120 @@ def create_group():
     auth = require_auth()
     if auth: return auth
     
-    # Handle multipart/form-data requests (for group image upload)
-    if request.content_type and 'multipart/form-data' in request.content_type:
-        group_name = request.form.get('group_name')
-        member_ids = request.form.getlist('member_ids')
-        group_description = request.form.get('description', '')
-        group_picture = None
-        
-        # Handle uploaded image
-        if 'group_picture' in request.files:
-            file = request.files['group_picture']
-            if file and file.filename:
-                # Generate a secure filename
-                filename = f"group_{int(time.time())}_{session['user_id']}_{file.filename}"
-                filepath = os.path.join('uploads/group_images', filename)
-                file.save(filepath)
-                group_picture = filename
-    else:
-        # Handle JSON requests
-        data = request.get_json()
-        group_name = data.get('group_name')
-        member_ids = data.get('member_ids', [])
-        group_description = data.get('description', '')
-        group_picture = None
-    
-    if not group_name:
-        return jsonify({"message": "Group name is required"}), 400
-        
-    conn = connect_db()
-    cursor = conn.cursor()
-    
     try:
-        # Start a transaction
-        conn.execute("BEGIN TRANSACTION")
+        # Handle multipart/form-data requests (for group image upload)
+        if request.content_type and 'multipart/form-data' in request.content_type:
+            group_name = request.form.get('group_name')
+            member_ids = request.form.getlist('member_ids')
+            group_description = request.form.get('description', '')
+            group_picture = None
+            
+            # Print received data for debugging
+            print(f"Received group creation request: name={group_name}, description={group_description}, members={member_ids}")
+            
+            # Handle uploaded image
+            if 'group_picture' in request.files:
+                file = request.files['group_picture']
+                if file and file.filename:
+                    # Ensure upload directory exists
+                    upload_dir = os.path.join(os.getcwd(), 'uploads/group_images')
+                    if not os.path.exists(upload_dir):
+                        os.makedirs(upload_dir)
+                    
+                    # Generate a secure filename
+                    filename = f"group_{int(time.time())}_{session['user_id']}_{file.filename}"
+                    filepath = os.path.join(upload_dir, filename)
+                    file.save(filepath)
+                    group_picture = filename
+        else:
+            # Handle JSON requests
+            data = request.get_json()
+            group_name = data.get('group_name')
+            member_ids = data.get('member_ids', [])
+            group_description = data.get('description', '')
+            group_picture = None
         
-        # Create the group
-        cursor.execute("""
-            INSERT INTO groups (group_name, admin_id, group_picture, description)
-            VALUES (?, ?, ?, ?)
-        """, (group_name, session['user_id'], group_picture, group_description))
+        if not group_name:
+            return jsonify({"message": "Group name is required"}), 400
+            
+        conn = connect_db()
+        cursor = conn.cursor()
         
-        group_id = cursor.lastrowid
-        
-        # Add the creator as a member
-        cursor.execute("""
-            INSERT INTO group_members (group_id, user_id)
-            VALUES (?, ?)
-        """, (group_id, session['user_id']))
-        
-        # Add all selected members
-        for member_id in member_ids:
-            if int(member_id) != session['user_id']:  # Skip if it's the creator (already added)
-                cursor.execute("""
-                    INSERT INTO group_members (group_id, user_id)
-                    VALUES (?, ?)
-                """, (group_id, member_id))
-        
-        # Get the creator's username for notifications
-        cursor.execute("SELECT username FROM users WHERE id = ?", (session['user_id'],))
-        creator_username = cursor.fetchone()[0]
-        
-        conn.commit()
-        
-        # Send notifications to all members
-        if socketio:
+        try:
+            # Start a transaction
+            conn.execute("BEGIN TRANSACTION")
+            
+            # Create the group
+            cursor.execute("""
+                INSERT INTO groups (group_name, admin_id, group_picture, description)
+                VALUES (?, ?, ?, ?)
+            """, (group_name, session['user_id'], group_picture, group_description))
+            
+            group_id = cursor.lastrowid
+            
+            # Add the creator as a member
+            cursor.execute("""
+                INSERT INTO group_members (group_id, user_id)
+                VALUES (?, ?)
+            """, (group_id, session['user_id']))
+            
+            # Add all selected members
             for member_id in member_ids:
-                if int(member_id) != session['user_id']:  # Don't notify yourself
-                    notification = {
-                        'type': 'added_to_group',
-                        'group_id': group_id,
-                        'group_name': group_name,
-                        'added_by': creator_username,
-                        'message': f"{creator_username} added you to the group '{group_name}'"
-                    }
-                    socketio.emit('notification', notification, room=str(member_id))
-        
-        return jsonify({
-            "group_id": group_id,
-            "message": "Group created successfully",
-            "member_count": len(member_ids) + 1  # +1 for the creator
-        }), 200
-        
+                try:
+                    member_id = int(member_id)
+                    if member_id != session['user_id']:  # Skip if it's the creator (already added)
+                        cursor.execute("""
+                            INSERT INTO group_members (group_id, user_id)
+                            VALUES (?, ?)
+                        """, (group_id, member_id))
+                except (ValueError, TypeError) as e:
+                    print(f"Error converting member_id {member_id}: {str(e)}")
+                    # Continue with other members instead of failing
+                    continue
+            
+            # Get the creator's username for notifications
+            cursor.execute("SELECT username FROM users WHERE id = ?", (session['user_id'],))
+            creator_username = cursor.fetchone()[0]
+            
+            conn.commit()
+            
+            # Send notifications to all members
+            if socketio:
+                for member_id in member_ids:
+                    try:
+                        member_id = int(member_id)
+                        if member_id != session['user_id']:  # Don't notify yourself
+                            notification = {
+                                'type': 'added_to_group',
+                                'group_id': group_id,
+                                'group_name': group_name,
+                                'added_by': creator_username,
+                                'message': f"{creator_username} added you to the group '{group_name}'"
+                            }
+                            socketio.emit('notification', notification, room=str(member_id))
+                    except (ValueError, TypeError):
+                        continue
+            
+            return jsonify({
+                "group_id": group_id,
+                "message": "Group created successfully",
+                "member_count": len(member_ids) + 1  # +1 for the creator
+            }), 200
+            
+        except Exception as e:
+            # Rollback in case of error
+            conn.rollback()
+            print(f"Database error creating group: {str(e)}")
+            return jsonify({"message": f"Failed to create group: {str(e)}"}), 500
+            
+        finally:
+            conn.close()
+    
     except Exception as e:
-        # Rollback in case of error
-        conn.rollback()
-        return jsonify({"message": f"Failed to create group: {str(e)}"}), 500
-        
-    finally:
-        conn.close()
+        import traceback
+        print(f"Unexpected error in create_group: {str(e)}")
+        print(traceback.format_exc())
+        return jsonify({"message": f"Server error: {str(e)}"}), 500
 
 @bp.route("/add_to_group", methods=["POST"])
 def add_to_group():
