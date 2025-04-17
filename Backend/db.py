@@ -7,7 +7,18 @@ def connect_db():
 def create_tables():
     db = connect_db()
     cursor = db.cursor()
-    
+    cursor.execute('''
+                   CREATE TABLE IF NOT EXISTS direct_photos (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sender_id INTEGER NOT NULL,
+    receiver_id INTEGER NOT NULL,
+    photo TEXT NOT NULL,
+    timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (sender_id) REFERENCES users(id),
+    FOREIGN KEY (receiver_id) REFERENCES users(id)
+    );
+    ''')
+
     # Users table
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS users (
@@ -59,9 +70,22 @@ def create_tables():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             group_name TEXT NOT NULL,
             admin_id INTEGER NOT NULL,
-            group_picture TEXT
+            group_picture TEXT,
+            description TEXT
         );
     ''')
+
+    # Check if description column exists in groups table, add it if not
+    cursor.execute("PRAGMA table_info(groups)")
+    columns = cursor.fetchall()
+    column_names = [column[1] for column in columns]
+    
+    if 'description' not in column_names:
+        try:
+            cursor.execute("ALTER TABLE groups ADD COLUMN description TEXT")
+            print("Added 'description' column to groups table")
+        except sqlite3.OperationalError:
+            print("'description' column already exists")
 
     cursor.execute('''
         CREATE TABLE IF NOT EXISTS group_members (
@@ -115,6 +139,7 @@ def create_tables():
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     user_id INTEGER NOT NULL,
     contact_id INTEGER NOT NULL,
+    display_name TEXT,
     UNIQUE (user_id, contact_id),  -- Prevent duplicate contacts
     CHECK (user_id <> contact_id), -- Prevent self-contact
     FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE,

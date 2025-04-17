@@ -1,0 +1,340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Authentication System</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            font-family: Arial, sans-serif;
+        }
+        body {
+            margin: 0;
+            padding: 0;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            background-color: #f0f2f5;
+        }
+        .container {
+            background-color: white;
+            border-radius: 10px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            width: 100%;
+            max-width: 400px;
+            padding: 20px;
+        }
+        .form-title {
+            font-size: 24px;
+            font-weight: bold;
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        .form-group {
+            margin-bottom: 15px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 5px;
+        }
+        button {
+            width: 100%;
+            padding: 10px;
+            background-color: #4267B2;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background-color: #365899;
+        }
+        .error-message {
+            color: red;
+            margin-top: 15px;
+            text-align: center;
+        }
+        .success-message {
+            color: green;
+            margin-top: 15px;
+            text-align: center;
+        }
+        .form {
+            display: none;
+        }
+        .form.active {
+            display: block;
+        }
+        .form-switch {
+            text-align: center;
+            margin-top: 15px;
+        }
+        .form-switch a {
+            color: #4267B2;
+            text-decoration: none;
+            cursor: pointer;
+        }
+        .form-switch a:hover {
+            text-decoration: underline;
+        }
+        
+        /* Modal styling */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            justify-content: center;
+            align-items: center;
+        }
+        .modal-content {
+            background-color: white;
+            padding: 20px;
+            border-radius: 10px;
+            width: 100%;
+            max-width: 400px;
+        }
+        .modal-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 15px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Login Form -->
+        <form class="form active" id="login-form">
+            <div class="form-title">Login</div>
+            <div class="form-group">
+                <label for="login-username">Username</label>
+                <input type="text" id="login-username" required>
+            </div>
+            <div class="form-group">
+                <label for="login-password">Password</label>
+                <input type="password" id="login-password" required>
+            </div>
+            <button type="submit">Login</button>
+            <div class="form-switch">
+                First time here? <a id="go-to-register">Register now</a>
+            </div>
+            <div class="error-message" id="login-error"></div>
+            <div class="success-message" id="login-success"></div>
+        </form>
+        
+        <!-- Register Form (Initial) -->
+        <form class="form" id="register-form">
+            <div class="form-title">Create Account</div>
+            <div class="form-group">
+                <label for="register-username">Username</label>
+                <input type="text" id="register-username" required>
+            </div>
+            <div class="form-group">
+                <label for="register-email">Email</label>
+                <input type="email" id="register-email" required>
+            </div>
+            <div class="form-group">
+                <label for="register-password">Password</label>
+                <input type="password" id="register-password" required>
+            </div>
+            <button type="submit">Continue Registration</button>
+            <div class="form-switch">
+                Already have an account? <a id="go-to-login">Login</a>
+            </div>
+            <div class="error-message" id="register-error"></div>
+            <div class="success-message" id="register-success"></div>
+        </form>
+    </div>
+    
+    <!-- Security Question Modal -->
+    <div class="modal" id="security-modal">
+        <div class="modal-content">
+            <div class="modal-title">Security Information</div>
+            <div class="form-group">
+                <label for="security-question">Security Question</label>
+                <input type="text" id="security-question" placeholder="E.g. What was your first pet's name?" required>
+            </div>
+            <div class="form-group">
+                <label for="secret-word">Secret Word Answer</label>
+                <input type="text" id="secret-word" required>
+            </div>
+            <button id="complete-registration">Complete Registration</button>
+            <div class="error-message" id="modal-error"></div>
+        </div>
+    </div>
+
+    <script>
+        // DOM elements
+        const loginForm = document.getElementById('login-form');
+        const registerForm = document.getElementById('register-form');
+        const securityModal = document.getElementById('security-modal');
+        const goToRegister = document.getElementById('go-to-register');
+        const goToLogin = document.getElementById('go-to-login');
+        
+        // Switch to register form
+        goToRegister.addEventListener('click', () => {
+            loginForm.classList.remove('active');
+            registerForm.classList.add('active');
+        });
+        
+        // Switch to login form
+        goToLogin.addEventListener('click', () => {
+            registerForm.classList.remove('active');
+            loginForm.classList.add('active');
+        });
+        
+        // Form data storage for registration
+        let registrationData = {};
+        
+        // Handle initial registration form submission
+        registerForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            // Clear previous error messages
+            document.getElementById('register-error').textContent = '';
+            
+            // Get form values
+            const username = document.getElementById('register-username').value;
+            const email = document.getElementById('register-email').value;
+            const password = document.getElementById('register-password').value;
+            
+            // Basic validation
+            if (!username || !email || !password) {
+                document.getElementById('register-error').textContent = 'All fields are required!';
+                return;
+            }
+            
+            // Store the initial registration data
+            registrationData = {
+                username,
+                email,
+                password
+            };
+            
+            // Show the security modal
+            securityModal.style.display = 'flex';
+        });
+        
+        // Handle the complete registration button in the modal
+        document.getElementById('complete-registration').addEventListener('click', function() {
+            const securityQuestion = document.getElementById('security-question').value;
+            const secretWord = document.getElementById('secret-word').value;
+            
+            // Clear previous error messages
+            document.getElementById('modal-error').textContent = '';
+            
+            // Validate security fields
+            if (!securityQuestion || !secretWord) {
+                document.getElementById('modal-error').textContent = 'Security information is required!';
+                return;
+            }
+            
+            // Add security information to registration data
+            registrationData.security_question = securityQuestion;
+            registrationData.secret_word = secretWord;
+            
+            // Send registration request to API
+            fetch('/auth/register', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify(registrationData)
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message === "User registered successfully") {
+                    // Hide modal
+                    securityModal.style.display = 'none';
+                    
+                    // Show success message
+                    document.getElementById('register-success').textContent = 'Registration successful! You can now log in.';
+                    
+                    // Reset forms
+                    registerForm.reset();
+                    document.getElementById('security-question').value = '';
+                    document.getElementById('secret-word').value = '';
+                    
+                    // Switch to login form
+                    setTimeout(() => {
+                        registerForm.classList.remove('active');
+                        loginForm.classList.add('active');
+                        document.getElementById('register-success').textContent = '';
+                    }, 2000);
+                } else {
+                    // Show error message
+                    document.getElementById('modal-error').textContent = data.message || 'Registration failed. Please try again.';
+                }
+            })
+            .catch(error => {
+                document.getElementById('modal-error').textContent = 'An error occurred. Please try again.';
+                console.error('Error:', error);
+            });
+        });
+        
+        // Close modal if clicked outside
+        securityModal.addEventListener('click', function(e) {
+            if (e.target === securityModal) {
+                securityModal.style.display = 'none';
+            }
+        });
+        
+        // Handle login form (placeholder - you'll need to implement the login API endpoint)
+        loginForm.addEventListener('submit', function(e) {
+            e.preventDefault();
+            document.getElementById('login-error').textContent = '';
+            document.getElementById('login-success').textContent = '';
+            
+            const username = document.getElementById('login-username').value;
+            const password = document.getElementById('login-password').value;
+            
+            // Basic validation
+            if (!username || !password) {
+                document.getElementById('login-error').textContent = 'Username and password are required!';
+                return;
+            }
+            
+            // Send login request to API
+            fetch('/auth/login', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ username, password })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.message === "Login successful") {
+                    // Show success message
+                    document.getElementById('login-success').textContent = 'Login successful! Redirecting...';
+                    
+                    // Redirect to chat
+                    setTimeout(() => {
+                        window.location.href = '/chat';
+                    }, 1000);
+                } else {
+                    // Show error message
+                    document.getElementById('login-error').textContent = data.message || 'Login failed. Please try again.';
+                }
+            })
+            .catch(error => {
+                document.getElementById('login-error').textContent = 'An error occurred. Please try again.';
+                console.error('Error:', error);
+            });
+        });
+    </script>
+</body>
+</html>
