@@ -282,3 +282,31 @@ def get_current_user():
     
     finally:
         conn.close()
+
+@bp.route('/check_admin_status', methods=['GET'])
+def check_admin_status():
+    if 'user_id' not in session:
+        return jsonify({"is_admin": False, "message": "Not logged in"}), 401
+
+    user_id = session['user_id']
+    
+    conn = connect_db()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute("SELECT is_admin FROM users WHERE id = ?", (user_id,))
+        result = cursor.fetchone()
+        
+        if result is None:
+            return jsonify({"is_admin": False, "message": "User not found"}), 404
+            
+        is_admin = bool(result[0])
+        return jsonify({"is_admin": is_admin}), 200
+        
+    except Exception as e:
+        print(f"Error checking admin status: {e}")
+        return jsonify({"is_admin": False, "message": "Error checking admin status"}), 500
+        
+    finally:
+        cursor.close()
+        conn.close()
