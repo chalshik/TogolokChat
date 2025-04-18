@@ -1037,6 +1037,9 @@
                 name: displayName
             };
             
+            // Store the last active chat
+            storeLastActiveChat(contactId, 'direct', displayName);
+            
             // Update chat header
             const chatHeader = document.querySelector('.chat-header-info');
             if (chatHeader) {
@@ -2292,6 +2295,9 @@
                     return response.json();
                 })
                 .then(group => {
+                    // Store the last active chat
+                    storeLastActiveChat(groupId, 'group', group.name);
+                    
                     // Update the chat header with group info
                     updateChatHeader(group, true);
                     
@@ -3807,6 +3813,43 @@
             } else {
                 console.log('Not authenticated, no room to join');
             }
+        });
+
+        // Function to store the last active chat
+        function storeLastActiveChat(chatId, chatType, chatName) {
+            localStorage.setItem('lastActiveChat', JSON.stringify({
+                id: chatId,
+                type: chatType,
+                name: chatName,
+                timestamp: new Date().getTime()
+            }));
+        }
+
+        // Function to retrieve the last active chat
+        function getLastActiveChat() {
+            const lastChat = localStorage.getItem('lastActiveChat');
+            if (lastChat) {
+                return JSON.parse(lastChat);
+            }
+            return null;
+        }
+
+        // Function to load the last active chat
+        function loadLastActiveChat() {
+            const lastChat = getLastActiveChat();
+            if (lastChat) {
+                if (lastChat.type === 'direct') {
+                    startChatWithContact(lastChat.id, lastChat.name);
+                } else if (lastChat.type === 'group') {
+                    loadGroupChat(lastChat.id);
+                }
+            }
+        }
+
+        // Initialize the chat system
+        document.addEventListener('DOMContentLoaded', function() {
+            // Load the last active chat
+            loadLastActiveChat();
         });
     </script>
 </body>
