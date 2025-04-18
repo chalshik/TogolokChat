@@ -228,8 +228,17 @@
         }
         
         .chat-header-status {
-            color: #8696a0;
             font-size: 13px;
+            color: #8696a0;
+            margin-top: 2px;
+        }
+        
+        .chat-header-status.online {
+            color: #00a884;
+        }
+        
+        .chat-header-status.offline {
+            color: #8696a0;
         }
         
         .chat-header-icons {
@@ -703,6 +712,7 @@
             socket.off('new_message');
             socket.off('message_sent');
             socket.off('notification');
+            socket.off('user_status');
         }
         
         // Setup socket event listeners
@@ -796,6 +806,17 @@
                 // We don't need to do anything here since we already show the message in the UI
                 // when the user sends it
             });
+
+            // Add user_status event listener
+            socket.on('user_status', function(data) {
+                console.log('User status update:', data);
+                if (data.status === 'online') {
+                    window.onlineUsers.add(data.user_id);
+                } else {
+                    window.onlineUsers.delete(data.user_id);
+                }
+                updateUserStatus(data.user_id, data.status === 'online');
+            });
         }
         
         // Socket connection events
@@ -809,6 +830,9 @@
                 const userId = htmlElement.getAttribute('data-user-id');
                 socket.emit('join', { room: userId });
                 console.log('Joined personal room:', userId);
+                
+                // Request current online users
+                socket.emit('request_online_users');
                 
                 // Setup socket listeners and load contacts
                 setupSocketListeners();
@@ -1018,7 +1042,7 @@
             if (chatHeader) {
                 chatHeader.innerHTML = `
                     <div class="chat-header-name">${displayName}</div>
-                    <div class="chat-header-status">online</div>
+                    <div class="chat-header-status ${isUserOnline(contactId) ? 'online' : 'offline'}">${isUserOnline(contactId) ? 'online' : 'offline'}</div>
                 `;
             }
             
@@ -2307,7 +2331,7 @@
                 </div>
                 <div class="chat-header-info" style="cursor: pointer;">
                     <div class="chat-header-name">${isGroup ? entity.name : entity.username}</div>
-                    <div class="chat-header-status">${isGroup ? `${entity.member_count} members` : 'online'}</div>
+                    <div class="chat-header-status ${isUserOnline(entity.id) ? 'online' : 'offline'}">${isUserOnline(entity.id) ? 'online' : 'offline'}</div>
                 </div>
                 <div class="chat-header-icons">
                     <svg viewBox="0 0 24 24" width="24" height="24" class="icon">
@@ -3721,6 +3745,91 @@
             } else {
                 // Show notification for messages from other chats
                 showNotification(`New message from ${data.sender_username}: ${data.message}`);
+            }
+        });
+
+        // Add a map to track online users
+        window.onlineUsers = new Set();
+        
+        // Function to update user status in chat header
+        function updateUserStatus(userId, isOnline) {
+            // Only update if we're in a direct chat with this user
+            if (window.currentChat && 
+                window.currentChat.type === 'direct' && 
+                window.currentChat.id == userId) {
+                
+                const statusElement = document.querySelector('.chat-header-status');
+                if (statusElement) {
+                    statusElement.textContent = isOnline ? 'online' : 'offline';
+                    statusElement.className = 'chat-header-status ' + (isOnline ? 'online' : 'offline');
+                }
+            }
+        }
+
+        // Modify setupSocketListeners to include status events
+        function setupSocketListeners() {
+            // Clean up existing listeners first
+            cleanupSocketListeners();
+            
+            // Add user_status event listener
+            socket.on('user_status', function(data) {
+                console.log('User status update:', data);
+                if (data.status === 'online') {
+                    window.onlineUsers.add(data.user_id);
+                } else {
+                    window.onlineUsers.delete(data.user_id);
+                }
+                updateUserStatus(data.user_id, data.status === 'online');
+            });
+
+            // ... existing socket listeners ...
+        }
+
+        // Modify cleanupSocketListeners to include new events
+        function cleanupSocketListeners() {
+            socket.off('new_message');
+            socket.off('message_sent');
+            socket.off('notification');
+            socket.off('user_status');
+        }
+
+        // Function to check if a user is online
+        function isUserOnline(userId) {
+            return window.onlineUsers.has(userId);
+        }
+
+        // Modify the function that displays chat header to include status
+        function updateChatHeader(contactId, contactName) {
+            const chatHeader = document.querySelector('.chat-header-info');
+            if (chatHeader) {
+                const isOnline = isUserOnline(contactId);
+                chatHeader.innerHTML = `
+                    <div class="chat-header-name">${contactName}</div>
+                    <div class="chat-header-status ${isOnline ? 'online' : 'offline'}">${isOnline ? 'online' : 'offline'}</div>
+                `;
+            }
+        }
+
+        // When connecting, request current online users
+        socket.on('connect', function() {
+            console.log('Connected to server');
+            
+            const htmlElement = document.documentElement;
+            const isAuthenticated = htmlElement.getAttribute('data-authenticated') === 'true';
+            
+            if (isAuthenticated) {
+                const userId = htmlElement.getAttribute('data-user-id');
+                socket.emit('join', { room: userId });
+                console.log('Joined personal room:', userId);
+                
+                // Request current online users
+                socket.emit('request_online_users');
+                
+                // Setup socket listeners and load contacts
+                setupSocketListeners();
+                loadContacts();
+            } else {
+                console.log('Not authenticated, no room to join');
             }
         });
     </script>

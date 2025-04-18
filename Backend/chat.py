@@ -4,11 +4,16 @@ from flask_socketio import emit, join_room, leave_room
 import time
 import os
 from flask import current_app
+from collections import defaultdict
+
 # Create blueprint
 bp = Blueprint("chat", __name__, url_prefix="/chat")
 
 # This will be set by the app when the blueprint is registered
 socketio = None
+
+# Track online users
+online_users = set()
 
 def init_socketio(socket_instance):
     """Initialize the socketio instance from the main app"""
@@ -457,14 +462,43 @@ def register_socket_events(socketio):
         if 'user_id' in session:
             user_id = session['user_id']
             print(f'User {user_id} connected')
+            # Add user to online users
+            online_users.add(user_id)
             # Join a room with the user's ID
             join_room(str(user_id))
+            # Broadcast user's online status to all users
+            emit('user_status', {
+                'user_id': user_id,
+                'status': 'online'
+            }, broadcast=True)
         else:
             print('Anonymous user connected')
 
     @socketio.on('disconnect')
     def handle_disconnect():
+        if 'user_id' in session:
+            user_id = session['user_id']
+            print(f'User {user_id} disconnected')
+            # Remove user from online users
+            online_users.discard(user_id)
+            # Broadcast user's offline status to all users
+            emit('user_status', {
+                'user_id': user_id,
+                'status': 'offline'
+            }, broadcast=True)
         print('Client disconnected')
+
+    @socketio.on('request_online_users')
+    def handle_online_users_request():
+        if 'user_id' not in session:
+            return
+        
+        # Send current online users to the requesting client
+        for user_id in online_users:
+            emit('user_status', {
+                'user_id': user_id,
+                'status': 'online'
+            })
 
     @socketio.on('join')
     def handle_join(data):
