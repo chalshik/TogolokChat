@@ -299,13 +299,52 @@ def get_contacts():
     
     current_app.logger.info(f"Fetching contacts for user_id: {session['user_id']}")
     
-    cursor = connect_db().cursor()
-    cursor.execute("""
-        SELECT contact_id, display_name FROM contacts WHERE user_id = ?
-    """, (session['user_id'],))
+    conn = connect_db()
+    cursor = conn.cursor()
     
-    contacts = cursor.fetchall()
+    # Get contacts with their last messages
+    cursor.execute("""
+        WITH LastMessages AS (
+            SELECT 
+                CASE 
+                    WHEN sender_id = ? THEN receiver_id
+                    WHEN receiver_id = ? THEN sender_id
+                END as contact_id,
+                message,
+                time,
+                ROW_NUMBER() OVER (PARTITION BY 
+                    CASE 
+                        WHEN sender_id = ? THEN receiver_id
+                        WHEN receiver_id = ? THEN sender_id
+                    END 
+                ORDER BY time DESC) as rn
+            FROM messages
+            WHERE sender_id = ? OR receiver_id = ?
+        )
+        SELECT 
+            c.contact_id,
+            u.username as display_name,
+            lm.message as last_message,
+            lm.time as last_message_time
+        FROM contacts c
+        JOIN users u ON c.contact_id = u.id
+        LEFT JOIN LastMessages lm ON c.contact_id = lm.contact_id AND lm.rn = 1
+        WHERE c.user_id = ?
+        ORDER BY lm.time DESC NULLS LAST
+    """, (session['user_id'], session['user_id'], 
+          session['user_id'], session['user_id'],
+          session['user_id'], session['user_id'],
+          session['user_id']))
+    
+    contacts = []
+    for row in cursor.fetchall():
+        contact = [row[0], row[1]]  # Keep the original format [id, username]
+        if row[2]:  # If there's a last message
+            contact.extend([row[2], row[3]])  # Add message and timestamp
+        contacts.append(contact)
+    
     current_app.logger.info(f"Found {len(contacts)} contacts: {contacts}")
+    conn.close()
     
     return jsonify(contacts), 200
 
@@ -716,3 +755,36 @@ def register_socket_events(socketio):
         except Exception as e:
             print(f"Error processing status update: {str(e)}")
             return {'status': 'error', 'message': str(e)}
+
+@bp.route('/chat/last_message/<int:contact_id>')
+def get_last_message(contact_id):
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({'error': 'Not authenticated'}), 401
+        
+    conn = connect_db()
+    cursor = conn.cursor()
+    
+    # Get the last message between the user and the contact
+    cursor.execute("""
+        SELECT message, time
+        FROM messages 
+        WHERE (sender_id = ? AND receiver_id = ?) 
+           OR (sender_id = ? AND receiver_id = ?)
+        ORDER BY time DESC 
+        LIMIT 1
+    """, (user_id, contact_id, contact_id, user_id))
+    
+    result = cursor.fetchone()
+    conn.close()
+    
+    if result:
+        return jsonify({
+            'message': result[0],
+            'timestamp': result[1].timestamp() * 1000 if result[1] else None
+        })
+    
+    return jsonify({
+        'message': '',
+        'timestamp': None
+    })

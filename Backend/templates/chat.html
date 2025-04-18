@@ -744,15 +744,15 @@
             
             const currentChatId = window.currentChat?.id;
             const currentChatType = window.currentChat?.type;
-                const isFromCurrentUser = data.sender_id == document.documentElement.getAttribute('data-user-id');
-                
-                // Don't show messages from ourselves (we already show them when sending)
-                if (isFromCurrentUser) {
-                    console.log('Ignoring new_message from self');
-                    return;
-                }
-                
-                // Handle group messages
+            const isFromCurrentUser = data.sender_id == document.documentElement.getAttribute('data-user-id');
+            const timestamp = data.timestamp || Date.now();
+            
+            // Update contact list for the sender
+            if (!isFromCurrentUser) {
+                updateContactLastMessage(data.sender_id, data.message, timestamp);
+            }
+            
+            // Handle message display in chat
             if (data.group_id) {
                 if (currentChatType === 'group' && currentChatId == data.group_id) {
                     const chatBody = document.querySelector('.chat-body');
@@ -764,7 +764,7 @@
                     messageElement.innerHTML = `
                         ${senderName}
                         <div class="message-content">${data.message}</div>
-                        <span class="message-timestamp">${data.timestamp || new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                        <span class="message-timestamp">${new Date(timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                     `;
                     
                     chatBody.appendChild(messageElement);
@@ -781,7 +781,7 @@
                     messageElement.className = 'message received';
                     messageElement.innerHTML = `
                         <div class="message-content">${data.message}</div>
-                        <span class="message-timestamp">${data.timestamp || new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                        <span class="message-timestamp">${new Date(timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                     `;
                     
                     chatBody.appendChild(messageElement);
@@ -802,9 +802,14 @@
 
             // Handle message sent confirmation
             socket.on('message_sent', function(data) {
-                console.log('Received message_sent confirmation:', data);
-                // We don't need to do anything here since we already show the message in the UI
-                // when the user sends it
+                console.log('Message sent confirmation:', data);
+                const timestamp = data.timestamp || Date.now();
+                
+                // Update contact list for the receiver
+                updateContactLastMessage(data.receiver_id, data.message, timestamp);
+                
+                // Store the last active chat
+                storeLastActiveChat(data.receiver_id, 'direct', data.receiver_username);
             });
 
             // Add user_status event listener
@@ -878,7 +883,6 @@
                 .then(response => {
                     console.log('Contacts API response status:', response.status);
                     if (!response.ok) {
-                        console.error('Failed to load contacts:', response.statusText);
                         throw new Error('Failed to load contacts');
                     }
                     return response.json();
@@ -888,7 +892,6 @@
                     const contactList = document.querySelector('.contact-list');
                     
                     if (!contacts || contacts.length === 0) {
-                        console.log('No contacts found');
                         contactList.innerHTML = `
                             <div class="no-contacts">
                                 <p>No contacts yet</p>
@@ -905,45 +908,42 @@
                     // Clear loading message
                     contactList.innerHTML = '';
 
-                    // Fetch user details for each contact
-                    const userDetailsPromises = contacts.map(contact => {
-                        console.log('Fetching details for contact:', contact[0]);
-                        return fetch('/chat/user_info/' + contact[0])
-                            .then(response => {
-                    if (!response.ok) {
-                                    throw new Error('Failed to fetch user details');
-                    }
-                    return response.json();
-                })
-                            .catch(error => {
-                                console.error('Error fetching user details:', error);
-                                // Return a basic user object if fetch fails
-                                return {
-                                    id: contact[0],
-                                    username: contact[1] || 'Unknown User',
-                                    profile_picture: null
-                                };
-                            });
+                    // Process and sort contacts
+                    const processedContacts = contacts.map(contact => {
+                        const [id, username, lastMessage, lastMessageTime] = contact;
+                        return {
+                            id,
+                            username,
+                            last_message: lastMessage || '',
+                            last_message_timestamp: lastMessageTime ? new Date(lastMessageTime).getTime() : 0,
+                            last_message_time: lastMessageTime ? 
+                                new Date(lastMessageTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''
+                        };
                     });
 
-                    // Once we have all user details, create contact items
-                    Promise.all(userDetailsPromises)
-                        .then(userDetails => {
-                            console.log('Received user details:', userDetails);
-                            contacts.forEach((contact, index) => {
-                                const userDetail = userDetails[index];
-                                const contactElement = createContactElement(contact, userDetail);
-                                contactList.appendChild(contactElement);
-                            });
-                        })
-                        .catch(error => {
-                            console.error('Error loading user details:', error);
-                            // Fallback to basic contact display if user details fail
-                            contacts.forEach(contact => {
-                                const contactElement = createContactElement(contact);
-                                contactList.appendChild(contactElement);
-                            });
+                    // Sort contacts by last message timestamp
+                    processedContacts.sort((a, b) => b.last_message_timestamp - a.last_message_timestamp);
+
+                    // Create contact elements
+                    processedContacts.forEach(contact => {
+                        const contactElement = createContactElement([contact.id, contact.username], {
+                            id: contact.id,
+                            username: contact.username,
+                            last_message: contact.last_message,
+                            last_message_time: contact.last_message_time,
+                            last_message_timestamp: contact.last_message_timestamp
                         });
+                        contactList.appendChild(contactElement);
+                    });
+
+                    // Load last active chat
+                    const lastChat = getLastActiveChat();
+                    if (lastChat) {
+                        const contact = processedContacts.find(c => c.id === lastChat.id);
+                        if (contact) {
+                            startChatWithContact(contact.id, contact.username);
+                        }
+                    }
                 })
                 .catch(error => {
                     console.error('Error loading contacts:', error);
@@ -958,58 +958,40 @@
         }
 
         function createContactElement(contact, userDetail = null) {
-                        const contactId = contact[0];
-            let displayName;
-            
-            if (userDetail && userDetail.username) {
-                displayName = userDetail.username;
-            } else {
-                // Fetch user details directly if not provided
-                fetch('/chat/user_info/' + contactId)
-                    .then(response => response.json())
-                    .then(data => {
-                        const nameElement = contactElement.querySelector('.contact-name');
-                        if (nameElement) {
-                            nameElement.textContent = data.username || 'Unknown User';
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error fetching user details:', error);
-                    });
-                displayName = 'Loading...';
-            }
-            
-                        const contactElement = document.createElement('div');
-            contactElement.className = 'contact-item';
+            const contactId = contact[0];
+            const contactElement = document.createElement('div');
+            contactElement.className = 'contact';
             contactElement.setAttribute('data-contact-id', contactId);
             
-            const profilePic = userDetail && userDetail.profile_picture 
-                ? `/uploads/profile_photos/${userDetail.profile_picture}` 
-                : '/api/placeholder/45/45';
-                        
-                        contactElement.innerHTML = `
-                <div class="contact-avatar">
-                                <img src="${profilePic}" alt="${displayName}">
-                            </div>
-                            <div class="contact-info">
-                                <div class="contact-name">${displayName}</div>
-                    <div class="contact-status">Click to chat</div>
-                            </div>
-                        `;
-                        
-            // Add click handler
-            contactElement.addEventListener('click', function() {
-                            // Remove active class from all contacts
-                document.querySelectorAll('.contact-item').forEach(c => 
-                    c.classList.remove('contact-active')
-                );
-                // Add active class to clicked contact
-                            this.classList.add('contact-active');
-                            
-                // Start chat with this contact
-                startChatWithContact(contactId, displayName);
-            });
+            let displayName = userDetail?.username || contact[1] || 'Unknown User';
+            let lastMessage = userDetail?.last_message || '';
+            let lastMessageTime = userDetail?.last_message_time || '';
             
+            // Use data URI for default avatar
+            const defaultAvatar = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2U5ZWRlZiI+PHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgM2MyLjY3IDAgNC44NCAyLjE3IDQuODQgNC44NFMxNC42NyAxNC42OCAxMiAxNC42OCA3LjE2IDEyLjUxIDcuMTYgOS44NCA5LjMzIDUgMTIgNXptMCAxM2MtMi4zMyAwLTQuMzEtLjgtNS45My0yLjQyLjg0LTEuNzEgMi41NS0yLjg4IDQuNTItMi44OCAxLjk3IDAgMy42OCAxLjE3IDQuNTIgMi44OEMxMy42OSAxNy4yIDExLjcgMTggOS4zNyAxOHoiLz48L3N2Zz4=';
+            
+            // Fix avatar path handling
+            let profilePic;
+            if (userDetail?.profile_picture) {
+                profilePic = `/uploads/profile_photos/${userDetail.profile_picture}`;
+            } else {
+                profilePic = defaultAvatar;
+            }
+
+            contactElement.innerHTML = `
+                <div class="profile-pic">
+                    <img src="${profilePic}" alt="${displayName}" onerror="this.src='${defaultAvatar}'">
+                </div>
+                <div class="contact-info">
+                    <div class="contact-name">${displayName}</div>
+                    <div class="contact-message">${lastMessage}</div>
+                </div>
+                <div class="contact-meta">
+                    <div class="message-time">${lastMessageTime}</div>
+                </div>
+            `;
+
+            contactElement.onclick = () => startChatWithContact(contactId, displayName);
             return contactElement;
         }
 
@@ -1150,7 +1132,7 @@
                             messageElement.className = isSent ? 'message sent' : 'message received';
                             messageElement.innerHTML = `
                                 <div class="message-content">${msgContent}</div>
-                                <span class="message-timestamp">${data.timestamp || new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                                <span class="message-timestamp">${new Date(timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                             `;
                             
                             chatBody.appendChild(messageElement);
@@ -1230,45 +1212,48 @@
 
             // Generate a unique message ID
             const messageId = Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-            const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+            const timestamp = Date.now();
+            const time = new Date(timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 
             // Add message to UI immediately
-                const chatBody = document.querySelector('.chat-body');
+            const chatBody = document.querySelector('.chat-body');
             if (!chatBody) {
                 console.error('Chat body not found');
                 return;
             }
 
-                const messageElement = document.createElement('div');
-                messageElement.className = 'message sent';
-                messageElement.innerHTML = `
-                    <div class="message-content">${message}</div>
-                    <span class="message-timestamp">${time}</span>
-                `;
-                chatBody.appendChild(messageElement);
+            const messageElement = document.createElement('div');
+            messageElement.className = 'message sent';
+            messageElement.innerHTML = `
+                <div class="message-content">${message}</div>
+                <span class="message-timestamp">${time}</span>
+            `;
+            chatBody.appendChild(messageElement);
             chatBody.scrollTop = chatBody.scrollHeight;
 
             // Clear input
-                messageInput.value = '';
-                
-            // Prepare message data
-            const messageData = {
-                message_id: messageId,
+            messageInput.value = '';
+
+            // Update contact's last message in the database
+            fetch('/chat/update_last_message', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    contact_id: window.currentChat.id,
+                    message: message,
+                    timestamp: timestamp
+                })
+            });
+
+            // Emit message through socket
+            socket.emit('send_message', {
+                receiver_id: window.currentChat.id,
                 message: message,
-                timestamp: time
-            };
-
-                if (window.currentChat.type === 'direct') {
-                    // Direct message
-                messageData.receiver_id = window.currentChat.id;
-                messageData.receiver_username = window.currentChat.name;
-                } else {
-                // Group message
-                messageData.group_id = window.currentChat.id;
-            }
-
-            // Send via WebSocket only
-            socket.emit('send_message', messageData);
+                timestamp: timestamp,
+                message_id: messageId
+            });
         }
 
         // Attach event listeners when DOM is loaded
@@ -3851,6 +3836,169 @@
             // Load the last active chat
             loadLastActiveChat();
         });
+
+        // ... existing code ...
+        // Function to sort contacts by last message timestamp
+        function sortContactsByTimestamp(contacts) {
+            return contacts.sort((a, b) => {
+                const timestampA = a.last_message_timestamp || 0;
+                const timestampB = b.last_message_timestamp || 0;
+                return timestampB - timestampA;
+            });
+        }
+
+        // Function to render contacts with sorting
+        function renderContacts(contacts) {
+            const contactList = document.querySelector('.contact-list');
+            if (!contactList) return;
+
+            // Sort contacts by last message timestamp
+            const sortedContacts = sortContactsByTimestamp(contacts);
+
+            contactList.innerHTML = sortedContacts.map(contact => `
+                <div class="contact" data-contact-id="${contact.id}" onclick="startChatWithContact(${contact.id}, '${contact.username}')">
+                    <div class="profile-pic">
+                        <img src="${contact.profile_pic || '/static/default_profile.png'}" alt="${contact.username}">
+                    </div>
+                    <div class="contact-info">
+                        <div class="contact-name">${contact.username}</div>
+                        <div class="contact-message">${contact.last_message || ''}</div>
+                    </div>
+                    <div class="contact-meta">
+                        <div class="message-time">${contact.last_message_time || ''}</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        // Function to update contact's last message timestamp
+        function updateContactTimestamp(contactId, timestamp) {
+            const contacts = window.contacts || [];
+            const contactIndex = contacts.findIndex(c => c.id === contactId);
+            
+            if (contactIndex !== -1) {
+                contacts[contactIndex].last_message_timestamp = timestamp;
+                contacts[contactIndex].last_message_time = new Date(timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                window.contacts = contacts;
+                renderContacts(contacts);
+            }
+        }
+
+        // ... existing code ...
+        // Function to update a contact's last message and timestamp
+        function updateContactLastMessage(contactId, message, timestamp) {
+            const contact = document.querySelector(`.contact[data-contact-id="${contactId}"]`);
+            if (contact) {
+                const messagePreview = contact.querySelector('.contact-message');
+                const timeElement = contact.querySelector('.message-time');
+                if (messagePreview) {
+                    messagePreview.textContent = message;
+                }
+                if (timeElement) {
+                    timeElement.textContent = new Date(timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                }
+
+                // Update the contact's timestamp in the global contacts array
+                if (window.userContacts) {
+                    const contactData = window.userContacts.find(c => c[0] == contactId);
+                    if (contactData) {
+                        contactData.last_message = message;
+                        contactData.last_message_timestamp = timestamp;
+                        contactData.last_message_time = new Date(timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                    }
+                }
+
+                // Move contact to top of list
+                const contactList = contact.parentElement;
+                contactList.insertBefore(contact, contactList.firstChild);
+            }
+        }
+
+        // Update WebSocket event handlers
+        socket.on('new_message', function(data) {
+            console.log('Received new_message:', data);
+            
+            const currentChatId = window.currentChat?.id;
+            const currentChatType = window.currentChat?.type;
+            const isFromCurrentUser = data.sender_id == document.documentElement.getAttribute('data-user-id');
+            const timestamp = data.timestamp || Date.now();
+            
+            // Update contact list for the sender
+            if (!isFromCurrentUser) {
+                updateContactLastMessage(data.sender_id, data.message, timestamp);
+            }
+            
+            // Handle message display in chat
+            if (data.group_id) {
+                // ... existing group message handling code ...
+            } else if (data.sender_id) {
+                if (currentChatType === 'direct' && currentChatId == data.sender_id) {
+                    const chatBody = document.querySelector('.chat-body');
+                    const messageElement = document.createElement('div');
+                    messageElement.className = 'message received';
+                    
+                    messageElement.innerHTML = `
+                        <div class="message-content">${data.message}</div>
+                        <span class="message-timestamp">${new Date(timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
+                    `;
+                    
+                    chatBody.appendChild(messageElement);
+                    chatBody.scrollTop = chatBody.scrollHeight;
+                } else {
+                    showNotification(`New message from ${data.sender_username}: ${data.message}`);
+                }
+            }
+        });
+
+        socket.on('message_sent', function(data) {
+            console.log('Message sent confirmation:', data);
+            const timestamp = data.timestamp || Date.now();
+            
+            // Update contact list for the receiver
+            updateContactLastMessage(data.receiver_id, data.message, timestamp);
+            
+            // Store the last active chat
+            storeLastActiveChat(data.receiver_id, 'direct', data.receiver_username);
+        });
+
+        // Function to create contact element (update the existing function)
+        function createContactElement(contact, userDetail = null) {
+            const contactId = contact[0];
+            const contactElement = document.createElement('div');
+            contactElement.className = 'contact';
+            contactElement.setAttribute('data-contact-id', contactId);
+            
+            let displayName = userDetail?.username || contact[1] || 'Unknown User';
+            let lastMessage = userDetail?.last_message || '';
+            let lastMessageTime = userDetail?.last_message_time || '';
+            
+            // Use data URI for default avatar
+            const defaultAvatar = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2U5ZWRlZiI+PHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgM2MyLjY3IDAgNC44NCAyLjE3IDQuODQgNC44NFMxNC42NyAxNC42OCAxMiAxNC42OCA3LjE2IDEyLjUxIDcuMTYgOS44NCA5LjMzIDUgMTIgNXptMCAxM2MtMi4zMyAwLTQuMzEtLjgtNS45My0yLjQyLjg0LTEuNzEgMi41NS0yLjg4IDQuNTItMi44OCAxLjk3IDAgMy42OCAxLjE3IDQuNTIgMi44OEMxMy42OSAxNy4yIDExLjcgMTggOS4zNyAxOHoiLz48L3N2Zz4=';
+            
+            // Fix avatar path handling
+            let profilePic;
+            if (userDetail?.profile_picture) {
+                profilePic = `/uploads/profile_photos/${userDetail.profile_picture}`;
+            } else {
+                profilePic = defaultAvatar;
+            }
+
+            contactElement.innerHTML = `
+                <div class="profile-pic">
+                    <img src="${profilePic}" alt="${displayName}" onerror="this.src='${defaultAvatar}'">
+                </div>
+                <div class="contact-info">
+                    <div class="contact-name">${displayName}</div>
+                    <div class="contact-message">${lastMessage}</div>
+                </div>
+                <div class="contact-meta">
+                    <div class="message-time">${lastMessageTime}</div>
+                </div>
+            `;
+
+            contactElement.onclick = () => startChatWithContact(contactId, displayName);
+            return contactElement;
+        }
     </script>
 </body>
 </html>
