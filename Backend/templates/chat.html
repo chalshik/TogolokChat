@@ -3766,32 +3766,8 @@
             }
         }
 
-        // Modify setupSocketListeners to include status events
-        function setupSocketListeners() {
-            // Clean up existing listeners first
-            cleanupSocketListeners();
-            
-            // Add user_status event listener
-            socket.on('user_status', function(data) {
-                console.log('User status update:', data);
-                if (data.status === 'online') {
-                    window.onlineUsers.add(data.user_id);
-                } else {
-                    window.onlineUsers.delete(data.user_id);
-                }
-                updateUserStatus(data.user_id, data.status === 'online');
-            });
-
-            // ... existing socket listeners ...
-        }
-
-        // Modify cleanupSocketListeners to include new events
-        function cleanupSocketListeners() {
-            socket.off('new_message');
-            socket.off('message_sent');
-            socket.off('notification');
-            socket.off('user_status');
-        }
+        
+        
 
         // Function to check if a user is online
         function isUserOnline(userId) {
@@ -3827,7 +3803,7 @@
                 
                 // Setup socket listeners and load contacts
                 setupSocketListeners();
-                loadContacts();
+                
             } else {
                 console.log('Not authenticated, no room to join');
             }
