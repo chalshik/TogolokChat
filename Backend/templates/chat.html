@@ -443,6 +443,35 @@
             color: #e9edef;
             font-size: 16px;
         }
+
+        /* Added for user selection */
+        .user-item.user-selected {
+            background-color: #2a3942 !important; /* Force selection background */
+        }
+
+        .add-contact-footer {
+            padding: 10px 15px;
+            background-color: #111b21;
+            border-top: 1px solid #222d34;
+            margin-top: auto; /* Push to bottom */
+        }
+
+        .add-contact-footer button {
+            width: 100%;
+            padding: 12px;
+            background-color: #00a884;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+
+        .add-contact-footer button:disabled {
+            background-color: #2a3942;
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
     </style>
 </head>
 <body>
@@ -1202,12 +1231,15 @@
                 return;
             }
             
-            // Make sure the sidebar content is visible
+            // Make sure the sidebar content is visible and flex column
             sidebarContent.style.display = 'flex';
             sidebarContent.style.flexDirection = 'column';
+            sidebarContent.style.height = '100%'; // Ensure full height
             
-            // Save the current sidebar content
-            const originalContent = sidebarContent.innerHTML;
+            // Save the current sidebar content (to restore on back button)
+            // We need to capture this *before* overwriting innerHTML
+            const originalContentState = sidebarContent.innerHTML;
+            window.originalSidebarState = originalContentState; // Store globally or pass if needed
             
             // Create and show the add contact interface in the sidebar
             sidebarContent.innerHTML = `
@@ -1222,113 +1254,224 @@
                     </div>
                 </div>
                 
-                <div style="padding: 15px; background-color: #111b21;">
-                    <div style="margin-bottom: 15px;">
-                        <label for="search-user" style="display: block; color: #e9edef; margin-bottom: 5px;">Find User by Username or Email</label>
-                        <div style="display: flex;">
-                            <input type="text" id="search-user" style="flex: 1; padding: 10px; background-color: #2a3942; border: none; color: #e9edef; border-radius: 5px 0 0 5px;" placeholder="Enter username or email">
-                            <button id="search-user-btn" style="padding: 10px; background-color: #00a884; color: white; border: none; border-radius: 0 5px 5px 0; cursor: pointer;">
-                                <svg viewBox="0 0 24 24" width="24" height="24">
-                                    <path fill="currentColor" d="M15.009 13.805h-.636l-.22-.219a5.184 5.184 0 0 0 1.256-3.386 5.207 5.207 0 1 0-5.207 5.208 5.183 5.183 0 0 0 3.385-1.255l.221.22v.635l4.004 3.999 1.194-1.195-3.997-4.007zm-4.808 0a3.605 3.605 0 1 1 0-7.21 3.605 3.605 0 0 1 0 7.21z"></path>
-                                </svg>
-                            </button>
-                        </div>
+                <div style="padding: 10px 15px; background-color: #111b21; border-bottom: 1px solid #222d34;">
+                    <div style="display: flex;">
+                        <input type="text" id="search-user" style="flex: 1; padding: 10px; background-color: #2a3942; border: none; color: #e9edef; border-radius: 5px 0 0 5px;" placeholder="Search by Username or Email">
+                        <button id="search-user-btn" style="padding: 0 15px; background-color: #2a3942; color: #8696a0; border: none; border-left: 1px solid #111b21; border-radius: 0 5px 5px 0; cursor: pointer;">
+                            <svg viewBox="0 0 24 24" width="20" height="20">
+                                <path fill="currentColor" d="M15.009 13.805h-.636l-.22-.219a5.184 5.184 0 0 0 1.256-3.386 5.207 5.207 0 1 0-5.207 5.208 5.183 5.183 0 0 0 3.385-1.255l.221.22v.635l4.004 3.999 1.194-1.195-3.997-4.007zm-4.808 0a3.605 3.605 0 1 1 0-7.21 3.605 3.605 0 0 1 0 7.21z"></path>
+                            </svg>
+                        </button>
                     </div>
                 </div>
                 
-                <div id="search-results" style="overflow-y: auto; flex: 1; background-color: #111b21;">
-                    <div style="text-align: center; color: #8696a0; padding: 20px;">
-                        Search for users to add as contacts
+                <div id="all-users-list" style="overflow-y: auto; flex: 1; background-color: #111b21;">
+                    <!-- User list will be loaded here -->
+                    <div class="loading-users" style="text-align: center; color: #8696a0; padding: 20px;">
+                        Loading users...
                     </div>
+                </div>
+
+                <div class="add-contact-footer">
+                    <button id="add-selected-contact-btn" disabled>Add Selected Contact</button>
                 </div>
             `;
             
             // Add event listeners
             document.getElementById('back-to-contacts').addEventListener('click', function() {
-                // Restore original sidebar content
-                sidebarContent.innerHTML = originalContent;
-                
-                // Reattach event listeners to contact elements
-                reattachContactEventListeners();
+                // Restore original sidebar content using the stored state
+                if (window.originalSidebarState) {
+                    sidebarContent.innerHTML = window.originalSidebarState;
+                    // Ensure display is correct after restoring
+                    sidebarContent.style.display = 'flex'; 
+                    sidebarContent.style.flexDirection = 'column';
+                    // Reattach necessary listeners for the main view
+                    reattachContactEventListeners(); // Make sure this function exists and works
+                    loadContacts(); // Reload contacts/chats
+                } else {
+                    // Fallback if state wasn't saved
+                    showMainSidebar(); 
+                }
                 
                 // Set contacts tab as active
                 document.querySelectorAll('.nav-icon').forEach(i => i.classList.remove('active'));
-                document.querySelector('.nav-icon[data-target="contacts"]').classList.add('active');
+                const contactsIcon = document.querySelector('.nav-icon[data-target="contacts"]');
+                if (contactsIcon) contactsIcon.classList.add('active');
             });
             
             document.getElementById('search-user-btn').addEventListener('click', function() {
                 const searchTerm = document.getElementById('search-user').value.trim();
-                if (searchTerm) {
-                    searchUsers(searchTerm);
-                }
+                // Trigger search even if empty to potentially show all users again
+                searchUsers(searchTerm);
             });
             
-            // Add keypress event to search input
             document.getElementById('search-user').addEventListener('keypress', function(e) {
                 if (e.key === 'Enter') {
                     document.getElementById('search-user-btn').click();
                 }
             });
+
+            // Add listener for the new bottom button
+            document.getElementById('add-selected-contact-btn').addEventListener('click', function() {
+                const usersListContainer = document.getElementById('all-users-list');
+                const selectedUserId = usersListContainer.getAttribute('data-selected-user-id');
+                
+                if (selectedUserId) {
+                    if (confirm('Add this user to your contacts?')) {
+                        addContact(selectedUserId); 
+                        // addContact handles success/error and navigation
+                    }
+                } else {
+                    showNotification('Please select a user from the list first.', 'warning');
+                }
+            });
+
+            // Load all users immediately
+            loadAllUsers(); 
         }
         
-        // Function to search for users
+        // Function to load all users (excluding self) into the add contact list
+        function loadAllUsers() {
+            const usersListContainer = document.getElementById('all-users-list');
+            if (!usersListContainer) return; // Exit if container not found
+            
+            usersListContainer.innerHTML = '<div class="loading-users" style="text-align: center; color: #e9edef; padding: 20px;">Loading users...</div>';
+            // Reset selection state
+            usersListContainer.removeAttribute('data-selected-user-id');
+            document.getElementById('add-selected-contact-btn').disabled = true;
+            
+            fetch('/chat/user_info') // Endpoint that gets all users except current
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+                    return response.json();
+                })
+                .then(users => {
+                    renderUserList(users, usersListContainer);
+                })
+                .catch(error => {
+                    console.error('Error loading all users:', error);
+                    usersListContainer.innerHTML = '<div style="text-align: center; color: #ff6b6b; padding: 20px;">Error loading users. Please try again.</div>';
+                });
+        }
+
+        // Function to render a list of users (used by loadAllUsers and searchUsers)
+        function renderUserList(users, container) {
+            container.innerHTML = ''; // Clear previous content or loading message
+            
+            if (!users || users.length === 0) {
+                container.innerHTML = '<div style="text-align: center; color: #8696a0; padding: 20px;">No users found.</div>';
+                // Ensure button is disabled if no users
+                container.removeAttribute('data-selected-user-id');
+                const addButton = document.getElementById('add-selected-contact-btn');
+                if (addButton) addButton.disabled = true;
+                return;
+            }
+            
+            users.forEach(user => {
+                // Skip if user object is somehow invalid
+                if (!user || !user.id || !user.username) return;
+
+                const userElement = document.createElement('div');
+                userElement.className = 'user-item'; // Add a class for styling and selection
+                userElement.setAttribute('data-user-id', user.id);
+                userElement.style.padding = '10px 15px';
+                userElement.style.display = 'flex';
+                userElement.style.alignItems = 'center';
+                userElement.style.justifyContent = 'space-between'; // Keep space for potential future icons
+                userElement.style.borderBottom = '1px solid #222d34';
+                userElement.style.cursor = 'pointer';
+                
+                // Highlight on hover
+                userElement.addEventListener('mouseover', function() {
+                    // Don't change background if it's selected
+                    if (!this.classList.contains('user-selected')) {
+                        this.style.backgroundColor = '#202c33';
+                    }
+                });
+                userElement.addEventListener('mouseout', function() {
+                     // Don't change background if it's selected
+                    if (!this.classList.contains('user-selected')) {
+                        this.style.backgroundColor = 'transparent';
+                    }
+                });
+                
+                const profilePic = user.profile_picture 
+                    ? `/uploads/profile_photos/${user.profile_picture}` 
+                    : '/api/placeholder/40/40'; // Use placeholder API
+                    
+                userElement.innerHTML = `
+                    <div style="display: flex; align-items: center;">
+                        <div style="width: 40px; height: 40px; border-radius: 50%; overflow: hidden; margin-right: 10px;">
+                            <img src="${profilePic}" alt="${user.username}" style="width: 100%; height: 100%; object-fit: cover;">
+                        </div>
+                        <div>
+                            <div style="color: #e9edef; font-weight: bold;">${user.username}</div>
+                            <div style="color: #8696a0; font-size: 12px;">${user.email || user.name || ''}</div>
+                        </div>
+                    </div>
+                    <!-- Removed individual add button -->
+                `;
+                
+                // Add click listener for selection
+                userElement.addEventListener('click', function() {
+                    const clickedUserId = this.getAttribute('data-user-id');
+                    const allUserItems = container.querySelectorAll('.user-item');
+                    const addButton = document.getElementById('add-selected-contact-btn');
+                    
+                    // Deselect if clicking the already selected user
+                    if (this.classList.contains('user-selected')) {
+                        this.classList.remove('user-selected');
+                        this.style.backgroundColor = 'transparent'; // Remove selected background
+                        container.removeAttribute('data-selected-user-id');
+                        if (addButton) addButton.disabled = true;
+                    } else {
+                        // Remove selection from others
+                        allUserItems.forEach(item => {
+                            item.classList.remove('user-selected');
+                            item.style.backgroundColor = 'transparent'; // Reset background for all
+                        });
+                        
+                        // Select the clicked one
+                        this.classList.add('user-selected');
+                        this.style.backgroundColor = '#2a3942'; // Set selected background
+                        container.setAttribute('data-selected-user-id', clickedUserId);
+                        if (addButton) addButton.disabled = false;
+                    }
+                });
+                
+                container.appendChild(userElement);
+            });
+        }
+
+        // Function to search for users (MODIFIED)
         function searchUsers(searchTerm) {
-            const resultsContainer = document.getElementById('search-results');
+            const resultsContainer = document.getElementById('all-users-list'); // Target the same list container
+            if (!resultsContainer) return;
+
+            // If search term is empty, load all users instead
+            if (!searchTerm || searchTerm.trim() === '') {
+                loadAllUsers();
+                return;
+            }
+
             resultsContainer.innerHTML = '<div style="text-align: center; color: #e9edef; padding: 20px;">Searching...</div>';
+            // Reset selection state during search
+            resultsContainer.removeAttribute('data-selected-user-id');
+            const addButton = document.getElementById('add-selected-contact-btn');
+             if (addButton) addButton.disabled = true;
             
             fetch(`/chat/search_users?term=${encodeURIComponent(searchTerm)}`)
-                .then(response => response.json())
-                .then(users => {
-                    resultsContainer.innerHTML = '';
-                    
-                    if (users.length === 0) {
-                        resultsContainer.innerHTML = '<div style="text-align: center; color: #e9edef; padding: 20px;">No users found</div>';
-                        return;
+                .then(response => {
+                     if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
                     }
-                    
-                    users.forEach(user => {
-                        const userElement = document.createElement('div');
-                        userElement.style.padding = '10px 15px';
-                        userElement.style.display = 'flex';
-                        userElement.style.alignItems = 'center';
-                        userElement.style.justifyContent = 'space-between';
-                        userElement.style.borderBottom = '1px solid #222d34';
-                        userElement.style.cursor = 'pointer';
-                        
-                        // Highlight on hover
-                        userElement.addEventListener('mouseover', function() {
-                            this.style.backgroundColor = '#202c33';
-                        });
-                        userElement.addEventListener('mouseout', function() {
-                            this.style.backgroundColor = 'transparent';
-                        });
-                        
-                        const profilePic = user.profile_picture 
-                            ? `/uploads/profile_photos/${user.profile_picture}` 
-                            : '/api/placeholder/40/40';
-                            
-                        userElement.innerHTML = `
-                            <div style="display: flex; align-items: center;">
-                                <div style="width: 40px; height: 40px; border-radius: 50%; overflow: hidden; margin-right: 10px;">
-                                    <img src="${profilePic}" alt="${user.username}" style="width: 100%; height: 100%; object-fit: cover;">
-                                </div>
-                                <div>
-                                    <div style="color: #e9edef; font-weight: bold;">${user.username}</div>
-                                    <div style="color: #8696a0; font-size: 12px;">${user.email || ''}</div>
-                                </div>
-                            </div>
-                            <button class="add-user-btn" data-user-id="${user.id}" style="padding: 5px 10px; background-color: #00a884; color: white; border: none; border-radius: 5px; cursor: pointer;">Add</button>
-                        `;
-                        
-                        resultsContainer.appendChild(userElement);
-                        
-                        // Add event listener to add button
-                        userElement.querySelector('.add-user-btn').addEventListener('click', function(e) {
-                            e.stopPropagation(); // Prevent triggering the parent click
-                            const userId = this.getAttribute('data-user-id');
-                            addContact(userId);
-                        });
-                    });
+                    return response.json()
+                })
+                .then(users => {
+                    // Use the common render function
+                    renderUserList(users, resultsContainer);
                 })
                 .catch(error => {
                     console.error('Error searching users:', error);
@@ -2329,7 +2472,7 @@
                                 <svg viewBox="0 0 24 24" width="40" height="40" style="color: #8696a0;">
                                     <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"></path>
                                 </svg>
-                            </div>
+                        </div>
                             <div style="flex: 1;">
                                 <input type="file" id="group-avatar-input" accept="image/*" style="display: none;">
                                 <button type="button" id="upload-avatar-btn" style="padding: 8px 15px; background-color: #2a3942; color: #e9edef; border: 1px solid #8696a0; border-radius: 5px; cursor: pointer; font-size: 14px;">
