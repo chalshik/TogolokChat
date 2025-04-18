@@ -3,6 +3,7 @@ from Backend.db import connect_db
 from flask_socketio import emit, join_room, leave_room
 import time
 import os
+from flask import current_app
 # Create blueprint
 bp = Blueprint("chat", __name__, url_prefix="/chat")
 
@@ -28,20 +29,21 @@ def chat_index():
     return render_template('chat.html')
 
 # --- Direct Messages --- 
-@bp.route("/send_message", methods=["POST"])
-def send_message():
-    auth = require_auth()
-    if auth: return auth
+# Removing HTTP route for send_message since we're using WebSocket
+# @bp.route("/send_message", methods=["POST"])
+# def send_message():
+#     auth = require_auth()
+#     if auth: return auth
     
-    data = request.get_json()
-    conn = connect_db()
-    cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO messages (sender_id, receiver_id, message, time)
-        VALUES (?, ?, ?, datetime('now'))
-    """, (session['user_id'], data['receiver_id'], data['message']))
-    conn.commit()
-    return jsonify({"message": "Message sent"}), 200
+#     data = request.get_json()
+#     conn = connect_db()
+#     cursor = conn.cursor()
+#     cursor.execute("""
+#         INSERT INTO messages (sender_id, receiver_id, message, time)
+#         VALUES (?, ?, ?, datetime('now'))
+#     """, (session['user_id'], data['receiver_id'], data['message']))
+#     conn.commit()
+#     return jsonify({"message": "Message sent"}), 200
 
 @bp.route("/get_messages/<int:receiver_id>", methods=["GET"])
 def get_messages(receiver_id):
@@ -290,11 +292,17 @@ def get_contacts():
     auth = require_auth()
     if auth: return auth
     
+    current_app.logger.info(f"Fetching contacts for user_id: {session['user_id']}")
+    
     cursor = connect_db().cursor()
     cursor.execute("""
         SELECT contact_id, display_name FROM contacts WHERE user_id = ?
     """, (session['user_id'],))
-    return jsonify(cursor.fetchall()), 200
+    
+    contacts = cursor.fetchall()
+    current_app.logger.info(f"Found {len(contacts)} contacts: {contacts}")
+    
+    return jsonify(contacts), 200
 
 @bp.route("/add_contact", methods=["POST"])
 def add_contact():
@@ -343,6 +351,8 @@ def add_contact():
     except Exception as e:
         # Rollback in case of error
         conn.rollback()
+        # Log the detailed error
+        current_app.logger.error(f"Error in add_contact: {e}", exc_info=True) 
         return jsonify({"message": f"Failed to add contact: {str(e)}"}), 500
         
     finally:
@@ -374,6 +384,38 @@ def get_user_info():
     
     conn.close()
     return jsonify(users), 200
+
+@bp.route("/user_info/<int:user_id>", methods=["GET"])
+def get_user_info_by_id(user_id):
+    auth = require_auth()
+    if auth: return auth
+    
+    conn = connect_db()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute("""
+            SELECT id, username, profile_picture, name 
+            FROM users WHERE id = ?
+        """, (user_id,))
+        
+        user = cursor.fetchone()
+        if not user:
+            return jsonify({"error": "User not found"}), 404
+            
+        return jsonify({
+            'id': user[0],
+            'username': user[1],
+            'profile_picture': user[2],
+            'name': user[3]
+        }), 200
+        
+    except Exception as e:
+        current_app.logger.error(f"Error fetching user info: {e}", exc_info=True)
+        return jsonify({"error": "Failed to fetch user info"}), 500
+        
+    finally:
+        conn.close()
 
 # --- User Search ---
 @bp.route("/search_users", methods=["GET"])

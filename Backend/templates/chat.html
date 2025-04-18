@@ -472,6 +472,75 @@
             opacity: 0.5;
             cursor: not-allowed;
         }
+
+        /* ... existing styles ... */
+
+        .contacts-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            background-color: #111b21;
+        }
+
+        .contact-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 0;
+        }
+
+        .contact-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 15px;
+            cursor: pointer;
+            border-bottom: 1px solid #222d34;
+            transition: background-color 0.2s;
+        }
+
+        .contact-item:hover {
+            background-color: #202c33;
+        }
+
+        .contact-avatar {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            margin-right: 15px;
+            overflow: hidden;
+        }
+
+        .contact-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .contact-info {
+            flex: 1;
+        }
+
+        .contact-name {
+            color: #e9edef;
+            font-size: 16px;
+            margin-bottom: 4px;
+        }
+
+        .contact-status {
+            color: #8696a0;
+            font-size: 13px;
+        }
+
+        .loading-contacts {
+            text-align: center;
+            padding: 20px;
+            color: #8696a0;
+        }
+
+        .no-contacts {
+            text-align: center;
+            padding: 20px;
+            color: #8696a0;
+        }
     </style>
 </head>
 <body>
@@ -577,8 +646,7 @@
                     <img src="/api/placeholder/49/49" alt="Profile">
                 </div>
                 <div class="chat-header-info">
-                    <div class="chat-header-name">Umar1</div>
-                    <div class="chat-header-status">online</div>
+                    <!-- there should be name and status of the user -->
                 </div>
                 <div class="chat-header-icons">
                     <svg viewBox="0 0 24 24" width="24" height="24" class="icon">
@@ -592,50 +660,8 @@
             
             <!-- Chat Body -->
             <div class="chat-body">
-                <div class="message received">
-                    <div class="message-content">Umar d</div>
-                    <span class="message-timestamp">22:00</span>
-                </div>
-                
-                <div class="message sent">
-                    <div class="message-content">hello</div>
-                    <span class="message-timestamp">22:00</span>
-                </div>
-                
-                <div class="message sent">
-                    <div class="message-content">no its sno</div>
-                    <span class="message-timestamp">22:00</span>
-                </div>
-                
-                <div class="message sent">
-                    <div class="message-content">aaw</div>
-                    <span class="message-timestamp">22:00</span>
-                </div>
-                
-                <div class="message sent">
-                    <div class="message-content">wdwdwd</div>
-                    <span class="message-timestamp">22:00</span>
-                </div>
-                
-                <div class="message received">
-                    <div class="message-content">chachacha</div>
-                    <span class="message-timestamp">22:00</span>
-                </div>
-                
-                <div class="message sent">
-                    <div class="message-content">kkk</div>
-                    <span class="message-timestamp">22:00</span>
-                </div>
-                
-                <div class="message received">
-                    <div class="message-content">I am at the shit</div>
-                    <span class="message-timestamp">22:00</span>
-                </div>
-                
-                <div class="message sent">
-                    <div class="message-content">efef</div>
-                    <span class="message-timestamp">22:00</span>
-                </div>
+                <!-- there should be messages between users   -->
+                 
             </div>
             
             <!-- Chat Footer -->
@@ -661,88 +687,69 @@
     </div>
 
     <script>
-        // Initialize Socket.IO connection
-        const socket = io();
+        // Initialize Socket.IO connection with reconnection options
+        const socket = io({
+            reconnection: true,
+            reconnectionDelay: 1000,
+            reconnectionDelayMax: 5000,
+            reconnectionAttempts: 5
+        });
         
         // Initialize current chat variable
         window.currentChat = null;
         
-        // Socket connection events
-        socket.on('connect', function() {
-            console.log('Connected to server');
-            
-            // Get user information from HTML data attributes
-            const htmlElement = document.documentElement;
-            const isAuthenticated = htmlElement.getAttribute('data-authenticated') === 'true';
-            
-            // Join user's personal room for direct messages if authenticated
-            if (isAuthenticated) {
-                const userId = htmlElement.getAttribute('data-user-id');
-                socket.emit('join', { room: userId });
-                console.log('Joined personal room:', userId);
-                
-                // Load contacts for the authenticated user
-                loadContacts();
-            } else {
-                console.log('Not authenticated, no room to join');
-            }
-        });
+        // Clean up existing socket listeners
+        function cleanupSocketListeners() {
+            socket.off('new_message');
+            socket.off('message_sent');
+            socket.off('notification');
+        }
         
-        socket.on('disconnect', function() {
-            console.log('Disconnected from server');
-        });
+        // Setup socket event listeners
+        function setupSocketListeners() {
+            // Clean up existing listeners first
+            cleanupSocketListeners();
         
         // Handle notifications
         socket.on('notification', function(data) {
             console.log('Received notification:', data);
             
             if (data.type === 'contact_added') {
-                // Show a notification toast
                 showNotification(data.message, 'success');
-                
-                // Reload contacts to show the new contact
                 loadContacts();
             }
             else if (data.type === 'added_to_group') {
-                // Show a notification toast
                 showNotification(data.message, 'success');
-                
-                // Reload contacts list to show the new group 
                 loadContacts();
                 
-                // If currently in groups view, reload the groups
                 if (document.querySelector('.nav-icon[data-target="groups"]').classList.contains('active')) {
                     loadGroups();
                 }
             }
         });
         
-        // Handle new message event from Socket.IO for both direct and group messages
+            // Handle new message event
         socket.on('new_message', function(data) {
-            console.log('Received message:', data);
+                console.log('Received new_message:', data);
             
-            // Check if this is for the currently open chat
             const currentChatId = window.currentChat?.id;
             const currentChatType = window.currentChat?.type;
-            
-            // If message is for a group
+                const isFromCurrentUser = data.sender_id == document.documentElement.getAttribute('data-user-id');
+                
+                // Don't show messages from ourselves (we already show them when sending)
+                if (isFromCurrentUser) {
+                    console.log('Ignoring new_message from self');
+                    return;
+                }
+                
+                // Handle group messages
             if (data.group_id) {
                 if (currentChatType === 'group' && currentChatId == data.group_id) {
-                    // This message is for the current group chat
                     const chatBody = document.querySelector('.chat-body');
-                    
-                    // Create message element - show sender name if it's not from the current user
                     const messageElement = document.createElement('div');
-                    
-                    // Check if this is from the current user
-                    const isFromCurrentUser = data.sender_id == document.documentElement.getAttribute('data-user-id');
-                    messageElement.className = isFromCurrentUser ? 'message sent' : 'message received';
-                    
-                    // For received messages in groups, we show sender name
-                    let senderName = '';
-                    if (!isFromCurrentUser) {
-                        senderName = `<div class="message-sender" style="font-size: 12px; color: #00a884; margin-bottom: 2px;">${data.sender_username}</div>`;
-                    }
+                        messageElement.className = 'message received';
+                        
+                        const senderName = `<div class="message-sender" style="font-size: 12px; color: #00a884; margin-bottom: 2px;">${data.sender_username}</div>`;
                     
                     messageElement.innerHTML = `
                         ${senderName}
@@ -753,16 +760,13 @@
                     chatBody.appendChild(messageElement);
                     chatBody.scrollTop = chatBody.scrollHeight;
                 } else {
-                    // This message is for another group - show notification
                     showNotification(`New message in group: ${data.message}`);
                 }
-            } else {
-                // This is a direct message
-                if (currentChatType === 'direct' && currentChatId == data.sender_id) {
-                    // Message is for the current chat
+                } 
+                // Handle direct messages
+                else {
+                    if (currentChatType === 'direct' && (currentChatId == data.sender_id || currentChatId == data.receiver_id)) {
                     const chatBody = document.querySelector('.chat-body');
-                    
-                    // Create message element
                     const messageElement = document.createElement('div');
                     messageElement.className = 'message received';
                     messageElement.innerHTML = `
@@ -773,7 +777,7 @@
                     chatBody.appendChild(messageElement);
                     chatBody.scrollTop = chatBody.scrollHeight;
                     
-                    // Update message status
+                        // Send read receipt
                     socket.emit('update_message_status', {
                         message_id: data.message_id,
                         status: 'read',
@@ -781,144 +785,277 @@
                         chat_type: 'direct'
                     });
                 } else {
-                    // Message is from someone else - show notification
                     showNotification(`${data.sender_username}: ${data.message}`);
                 }
             }
+            });
+
+            // Handle message sent confirmation
+            socket.on('message_sent', function(data) {
+                console.log('Received message_sent confirmation:', data);
+                // We don't need to do anything here since we already show the message in the UI
+                // when the user sends it
+            });
+        }
+        
+        // Socket connection events
+        socket.on('connect', function() {
+            console.log('Connected to server');
+            
+            const htmlElement = document.documentElement;
+            const isAuthenticated = htmlElement.getAttribute('data-authenticated') === 'true';
+            
+            if (isAuthenticated) {
+                const userId = htmlElement.getAttribute('data-user-id');
+                socket.emit('join', { room: userId });
+                console.log('Joined personal room:', userId);
+                
+                // Setup socket listeners and load contacts
+                setupSocketListeners();
+                loadContacts();
+            } else {
+                console.log('Not authenticated, no room to join');
+            }
+        });
+        
+        socket.on('disconnect', function() {
+            console.log('Disconnected from server');
+            cleanupSocketListeners();
         });
         
         // Function to load contacts and groups from the backend
         function loadContacts() {
-            const contactList = document.getElementById('contact-list');
-            contactList.innerHTML = '<div class="loading-contacts" style="color: #8696a0; text-align: center; padding: 20px;">Loading chats...</div>';
-            
-            // Create a promise array to load both contacts and groups
-            const promises = [
-                fetch('/chat/contacts').then(response => {
+            const sidebarContent = document.querySelector('.sidebar-content');
+            if (!sidebarContent) return;
+
+            // Set up the contacts container structure
+            sidebarContent.innerHTML = `
+                <div class="contacts-container">
+                    <div class="sidebar-header">
+                        <div class="app-name">Contacts</div>
+                    </div>
+                    <div class="search-container">
+                        <div class="search-bar">
+                            <svg viewBox="0 0 24 24" width="24" height="24" class="search-icon">
+                                <path fill="currentColor" d="M15.009 13.805h-.636l-.22-.219a5.184 5.184 0 0 0 1.256-3.386 5.207 5.207 0 1 0-5.207 5.208 5.183 5.183 0 0 0 3.385-1.255l.221.22v.635l4.004 3.999 1.194-1.195-3.997-4.007zm-4.808 0a3.605 3.605 0 1 1 0-7.21 3.605 3.605 0 0 1 0 7.21z"></path>
+                            </svg>
+                            <input type="text" id="contact-search" placeholder="Search contacts" onkeyup="filterContacts()">
+                        </div>
+                    </div>
+                    <div class="contact-list">
+                        <div class="loading-contacts">Loading contacts...</div>
+                    </div>
+                </div>
+            `;
+
+            // Fetch contacts from server
+            console.log('Fetching contacts from server...');
+            fetch('/chat/contacts')
+                .then(response => {
+                    console.log('Contacts API response status:', response.status);
                     if (!response.ok) {
+                        console.error('Failed to load contacts:', response.statusText);
                         throw new Error('Failed to load contacts');
                     }
                     return response.json();
-                }),
-                fetch('/chat/groups').then(response => {
-                    if (!response.ok) {
-                        throw new Error('Failed to load groups');
+                })
+                .then(contacts => {
+                    console.log('Received contacts:', contacts);
+                    const contactList = document.querySelector('.contact-list');
+                    
+                    if (!contacts || contacts.length === 0) {
+                        console.log('No contacts found');
+                        contactList.innerHTML = `
+                            <div class="no-contacts">
+                                <p>No contacts yet</p>
+                                <p>Click the "+" button below to add contacts</p>
+                            </div>
+                        `;
+                        return;
                     }
-                    return response.json();
-                }),
-                fetch('/chat/user_info').then(response => {
+
+                    // Store contacts globally for search functionality
+                    window.userContacts = contacts;
+                    console.log('Stored contacts in window.userContacts:', window.userContacts);
+
+                    // Clear loading message
+                    contactList.innerHTML = '';
+
+                    // Fetch user details for each contact
+                    const userDetailsPromises = contacts.map(contact => {
+                        console.log('Fetching details for contact:', contact[0]);
+                        return fetch('/chat/user_info/' + contact[0])
+                            .then(response => {
                     if (!response.ok) {
-                        throw new Error('Failed to load user info');
+                                    throw new Error('Failed to fetch user details');
                     }
                     return response.json();
                 })
-            ];
-            
-            // Wait for all data to load
-            Promise.all(promises)
-                .then(([contacts, groups, users]) => {
-                    contactList.innerHTML = ''; // Clear loading message
-                    
-                    // Create a map of user IDs to user details
-                    const userMap = {};
-                    users.forEach(user => {
-                        userMap[user.id] = user;
+                            .catch(error => {
+                                console.error('Error fetching user details:', error);
+                                // Return a basic user object if fetch fails
+                                return {
+                                    id: contact[0],
+                                    username: contact[1] || 'Unknown User',
+                                    profile_picture: null
+                                };
+                            });
                     });
-                    
-                    // If no contacts and no groups, show message
-                    if (contacts.length === 0 && groups.length === 0) {
-                        contactList.innerHTML = '<div class="no-contacts" style="color: #8696a0; text-align: center; padding: 20px;">No chats found. Add contacts or create a group to start chatting.</div>';
-                        return;
-                    }
-                    
-                    // Create contact elements (direct chats)
-                    contacts.forEach((contact) => {
+
+                    // Once we have all user details, create contact items
+                    Promise.all(userDetailsPromises)
+                        .then(userDetails => {
+                            console.log('Received user details:', userDetails);
+                            contacts.forEach((contact, index) => {
+                                const userDetail = userDetails[index];
+                                const contactElement = createContactElement(contact, userDetail);
+                                contactList.appendChild(contactElement);
+                            });
+                        })
+                        .catch(error => {
+                            console.error('Error loading user details:', error);
+                            // Fallback to basic contact display if user details fail
+                            contacts.forEach(contact => {
+                                const contactElement = createContactElement(contact);
+                                contactList.appendChild(contactElement);
+                            });
+                        });
+                })
+                .catch(error => {
+                    console.error('Error loading contacts:', error);
+                    const contactList = document.querySelector('.contact-list');
+                    contactList.innerHTML = `
+                        <div class="no-contacts">
+                            <p>Error loading contacts</p>
+                            <p>Please try again later</p>
+                        </div>
+                    `;
+                });
+        }
+
+        function createContactElement(contact, userDetail = null) {
                         const contactId = contact[0];
-                        const displayName = contact[1] || (userMap[contactId] ? userMap[contactId].username : 'Unknown User');
-                        
-                        // Create contact element
+            let displayName;
+            
+            if (userDetail && userDetail.username) {
+                displayName = userDetail.username;
+            } else {
+                // Fetch user details directly if not provided
+                fetch('/chat/user_info/' + contactId)
+                    .then(response => response.json())
+                    .then(data => {
+                        const nameElement = contactElement.querySelector('.contact-name');
+                        if (nameElement) {
+                            nameElement.textContent = data.username || 'Unknown User';
+                        }
+                    })
+                    .catch(error => {
+                        console.error('Error fetching user details:', error);
+                    });
+                displayName = 'Loading...';
+            }
+            
                         const contactElement = document.createElement('div');
-                        contactElement.className = 'contact';
-                        contactElement.setAttribute('data-user-id', contactId);
-                        contactElement.setAttribute('data-chat-type', 'direct');
-                        
-                        // Get user profile picture if available
-                        const profilePic = userMap[contactId] && userMap[contactId].profile_picture 
-                            ? `/uploads/profile_photos/${userMap[contactId].profile_picture}` 
-                            : '/api/placeholder/49/49';
+            contactElement.className = 'contact-item';
+            contactElement.setAttribute('data-contact-id', contactId);
+            
+            const profilePic = userDetail && userDetail.profile_picture 
+                ? `/uploads/profile_photos/${userDetail.profile_picture}` 
+                : '/api/placeholder/45/45';
                         
                         contactElement.innerHTML = `
-                            <div class="profile-pic">
+                <div class="contact-avatar">
                                 <img src="${profilePic}" alt="${displayName}">
                             </div>
                             <div class="contact-info">
                                 <div class="contact-name">${displayName}</div>
-                                <div class="contact-message">Direct message</div>
-                            </div>
-                            <div class="contact-meta">
-                                <div class="message-time"></div>
+                    <div class="contact-status">Click to chat</div>
                             </div>
                         `;
                         
-                        // Add click event listener for direct chats
-                        contactElement.addEventListener('click', handleContactClick);
-                        
-                        // Add to contact list
-                        contactList.appendChild(contactElement);
-                    });
-                    
-                    // Create group elements (group chats)
-                    groups.forEach((group) => {
-                        const groupElement = document.createElement('div');
-                        groupElement.className = 'contact';
-                        groupElement.setAttribute('data-group-id', group.id);
-                        groupElement.setAttribute('data-chat-type', 'group');
-                        
-                        // Get group profile picture if available
-                        const profilePic = group.picture 
-                            ? `/uploads/group_images/${group.picture}` 
-                            : '/api/placeholder/49/49';
-                        
-                        groupElement.innerHTML = `
-                            <div class="profile-pic">
-                                <img src="${profilePic}" alt="${group.name}">
-                            </div>
-                            <div class="contact-info">
-                                <div class="contact-name">${group.name}</div>
-                                <div class="contact-message">Group · ${group.member_count} members</div>
-                            </div>
-                            <div class="contact-meta">
-                                ${group.is_admin ? '<div class="admin-badge" style="color: #00a884; font-size: 12px;">Admin</div>' : ''}
-                            </div>
-                        `;
-                        
-                        // Add click event listener for group chats
-                        groupElement.addEventListener('click', function() {
+            // Add click handler
+            contactElement.addEventListener('click', function() {
                             // Remove active class from all contacts
-                            document.querySelectorAll('.contact').forEach(c => c.classList.remove('contact-active'));
-                            // Add active class to clicked group
+                document.querySelectorAll('.contact-item').forEach(c => 
+                    c.classList.remove('contact-active')
+                );
+                // Add active class to clicked contact
                             this.classList.add('contact-active');
                             
-                            // Load the group chat
-                            loadGroupChat(group.id);
-                        });
-                        
-                        // Add to contact list
-                        contactList.appendChild(groupElement);
-                    });
-                    
-                    // If we have contacts or groups, make the first one active
-                    if (contacts.length > 0 || groups.length > 0) {
-                        const firstChat = document.querySelector('.contact');
-                        if (firstChat) {
-                            firstChat.click();
-                        }
-                    }
-                })
-                .catch(error => {
-                    console.error('Error loading chats:', error);
-                    contactList.innerHTML = '<div class="error-message" style="color: #ff6b6b; text-align: center; padding: 20px;">Failed to load chats. Please refresh and try again.</div>';
-                });
+                // Start chat with this contact
+                startChatWithContact(contactId, displayName);
+            });
+            
+            return contactElement;
+        }
+
+        function filterContacts() {
+            const searchInput = document.getElementById('contact-search');
+            const filter = searchInput.value.toLowerCase();
+            const contactItems = document.querySelectorAll('.contact-item');
+            
+            contactItems.forEach(item => {
+                const name = item.querySelector('.contact-name').textContent.toLowerCase();
+                if (name.includes(filter)) {
+                    item.style.display = '';
+                } else {
+                    item.style.display = 'none';
+                }
+            });
+        }
+
+        // Modify the startChatWithContact function to include event listeners
+        function startChatWithContact(contactId, displayName) {
+            // Update current chat info
+            window.currentChat = {
+                id: contactId,
+                type: 'direct',
+                name: displayName
+            };
+            
+            // Update chat header
+            const chatHeader = document.querySelector('.chat-header-info');
+            if (chatHeader) {
+                chatHeader.innerHTML = `
+                    <div class="chat-header-name">${displayName}</div>
+                    <div class="chat-header-status">online</div>
+                `;
+            }
+            
+            // Load chat messages
+            loadChatMessages(contactId);
+            
+            // Show chat interface
+            const chatInterface = document.querySelector('.chat-interface');
+            if (chatInterface) {
+                chatInterface.style.display = 'flex';
+            }
+
+            // Set up message input event listeners
+            const messageInput = document.getElementById('message-input');
+            const sendButton = document.getElementById('send-message');
+
+            if (messageInput) {
+                // Remove existing listeners first to avoid duplicates
+                messageInput.removeEventListener('keypress', handleEnterPress);
+                // Add new listener
+                messageInput.addEventListener('keypress', handleEnterPress);
+            }
+
+            if (sendButton) {
+                // Remove existing listener first to avoid duplicates
+                sendButton.removeEventListener('click', sendMessage);
+                // Add new listener
+                sendButton.addEventListener('click', sendMessage);
+            }
+        }
+
+        // Helper function for Enter key press
+        function handleEnterPress(e) {
+            if (e.key === 'Enter' && !e.shiftKey) {
+                e.preventDefault();
+                sendMessage();
+            }
         }
         
         // Function to handle contact click
@@ -986,7 +1123,7 @@
                             messageElement.className = isSent ? 'message sent' : 'message received';
                             messageElement.innerHTML = `
                                 <div class="message-content">${msgContent}</div>
-                                <span class="message-timestamp">${timestamp}</span>
+                                <span class="message-timestamp">${data.timestamp || new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                             `;
                             
                             chatBody.appendChild(messageElement);
@@ -1047,79 +1184,83 @@
             }
         }
         
-        // Basic functionality for sending messages
-        document.querySelector('.send-button').addEventListener('click', function() {
+        // Function to send a message
+        function sendMessage() {
             const messageInput = document.querySelector('.message-input');
+            if (!messageInput) {
+                console.error('Message input not found');
+                return;
+            }
+
             const message = messageInput.value.trim();
             
-            if (message && window.currentChat) {
-                // Format timestamp
-                const now = new Date();
-                const hours = now.getHours().toString().padStart(2, '0');
-                const minutes = now.getMinutes().toString().padStart(2, '0');
-                const time = `${hours}:${minutes}`;
-                
-                // Create a message id for tracking
-                const messageId = Date.now().toString();
-                
-                // Add message to UI
+            if (!message || !window.currentChat) {
+                if (!window.currentChat) {
+                    showNotification('Please select a contact or group first', 'error');
+                }
+                return;
+            }
+
+            // Generate a unique message ID
+            const messageId = Date.now() + '_' + Math.random().toString(36).substr(2, 9);
+            const time = new Date().toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+
+            // Add message to UI immediately
                 const chatBody = document.querySelector('.chat-body');
+            if (!chatBody) {
+                console.error('Chat body not found');
+                return;
+            }
+
                 const messageElement = document.createElement('div');
                 messageElement.className = 'message sent';
-                messageElement.setAttribute('data-message-id', messageId);
                 messageElement.innerHTML = `
                     <div class="message-content">${message}</div>
                     <span class="message-timestamp">${time}</span>
                 `;
-                
                 chatBody.appendChild(messageElement);
+            chatBody.scrollTop = chatBody.scrollHeight;
+
+            // Clear input
                 messageInput.value = '';
                 
-                // Scroll to bottom
-                chatBody.scrollTop = chatBody.scrollHeight;
-                
-                // Send message based on chat type
+            // Prepare message data
+            const messageData = {
+                message_id: messageId,
+                message: message,
+                timestamp: time
+            };
+
                 if (window.currentChat.type === 'direct') {
                     // Direct message
-                    console.log('Sending direct message to:', window.currentChat);
-                    socket.emit('send_message', {
-                        receiver_id: window.currentChat.id,
-                        receiver_username: window.currentChat.name,
-                        message: message,
-                        timestamp: time,
-                        message_id: messageId
-                    });
+                messageData.receiver_id = window.currentChat.id;
+                messageData.receiver_username = window.currentChat.name;
                 } else {
-                    // Group message - only use Socket.IO to avoid duplicate messages
-                    console.log('Sending group message to:', window.currentChat);
-                    socket.emit('send_message', {
-                        group_id: window.currentChat.id,
-                        message: message,
-                        timestamp: time,
-                        message_id: messageId
-                    });
-                    
-                    // Removed duplicate HTTP API call to prevent double-sending
-                }
-            } else {
-                console.error('Cannot send message:', { 
-                    message: message, 
-                    currentChat: window.currentChat,
-                    reason: !message ? 'Empty message' : 'No active chat'
-                });
-                
-                if (!window.currentChat) {
-                    showNotification('Please select a contact or group first', 'error');
-                } else if (!message) {
-                    showNotification('Please enter a message', 'error');
-                }
+                // Group message
+                messageData.group_id = window.currentChat.id;
             }
-        });
-        
-        // Send message on Enter key
-        document.querySelector('.message-input').addEventListener('keypress', function(e) {
-            if (e.key === 'Enter') {
-                document.querySelector('.send-button').click();
+
+            // Send via WebSocket only
+            socket.emit('send_message', messageData);
+        }
+
+        // Attach event listeners when DOM is loaded
+        document.addEventListener('DOMContentLoaded', function() {
+            // Send message on Enter key
+            const messageInput = document.querySelector('.message-input');
+            if (messageInput) {
+                messageInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                        e.preventDefault(); // Prevent default to avoid newline
+                        sendMessage();
+                    }
+                });
+            }
+
+            // Send message on button click
+            const sendButton = document.querySelector('.send-button');
+            if (sendButton) {
+                sendButton.addEventListener('click', sendMessage);
             }
         });
         
@@ -1255,13 +1396,13 @@
                 </div>
                 
                 <div style="padding: 10px 15px; background-color: #111b21; border-bottom: 1px solid #222d34;">
-                    <div style="display: flex;">
+                        <div style="display: flex;">
                         <input type="text" id="search-user" style="flex: 1; padding: 10px; background-color: #2a3942; border: none; color: #e9edef; border-radius: 5px 0 0 5px;" placeholder="Search by Username or Email">
                         <button id="search-user-btn" style="padding: 0 15px; background-color: #2a3942; color: #8696a0; border: none; border-left: 1px solid #111b21; border-radius: 0 5px 5px 0; cursor: pointer;">
                             <svg viewBox="0 0 24 24" width="20" height="20">
-                                <path fill="currentColor" d="M15.009 13.805h-.636l-.22-.219a5.184 5.184 0 0 0 1.256-3.386 5.207 5.207 0 1 0-5.207 5.208 5.183 5.183 0 0 0 3.385-1.255l.221.22v.635l4.004 3.999 1.194-1.195-3.997-4.007zm-4.808 0a3.605 3.605 0 1 1 0-7.21 3.605 3.605 0 0 1 0 7.21z"></path>
-                            </svg>
-                        </button>
+                                    <path fill="currentColor" d="M15.009 13.805h-.636l-.22-.219a5.184 5.184 0 0 0 1.256-3.386 5.207 5.207 0 1 0-5.207 5.208 5.183 5.183 0 0 0 3.385-1.255l.221.22v.635l4.004 3.999 1.194-1.195-3.997-4.007zm-4.808 0a3.605 3.605 0 1 1 0-7.21 3.605 3.605 0 0 1 0 7.21z"></path>
+                                </svg>
+                            </button>
                     </div>
                 </div>
                 
@@ -1302,7 +1443,7 @@
             document.getElementById('search-user-btn').addEventListener('click', function() {
                 const searchTerm = document.getElementById('search-user').value.trim();
                 // Trigger search even if empty to potentially show all users again
-                searchUsers(searchTerm);
+                    searchUsers(searchTerm);
             });
             
             document.getElementById('search-user').addEventListener('keypress', function(e) {
@@ -1317,6 +1458,22 @@
                 const selectedUserId = usersListContainer.getAttribute('data-selected-user-id');
                 
                 if (selectedUserId) {
+                    // --- Check if contact already exists --- 
+                    let contactExists = false;
+                    if (window.userContacts && Array.isArray(window.userContacts)) {
+                        // Assuming window.userContacts is an array of arrays like [[id, name], ...]
+                        // Or it might be an array of objects {id: ..., name: ...} - check loadContacts implementation
+                        // Let's check based on the structure from loadContacts: [[id, name], ...]
+                         contactExists = window.userContacts.some(contact => contact[0] == selectedUserId);
+                         // If structure is {id: ..., ...}, use: window.userContacts.some(contact => contact.id == selectedUserId);
+                    }
+                    
+                    if (contactExists) {
+                        showNotification('This user is already in your contacts.', 'warning');
+                        return; // Stop execution
+                    }
+                    // --- End check --- 
+
                     if (confirm('Add this user to your contacts?')) {
                         addContact(selectedUserId); 
                         // addContact handles success/error and navigation
@@ -1366,51 +1523,51 @@
                 container.removeAttribute('data-selected-user-id');
                 const addButton = document.getElementById('add-selected-contact-btn');
                 if (addButton) addButton.disabled = true;
-                return;
-            }
-            
-            users.forEach(user => {
+                        return;
+                    }
+                    
+                    users.forEach(user => {
                 // Skip if user object is somehow invalid
                 if (!user || !user.id || !user.username) return;
 
-                const userElement = document.createElement('div');
+                        const userElement = document.createElement('div');
                 userElement.className = 'user-item'; // Add a class for styling and selection
                 userElement.setAttribute('data-user-id', user.id);
-                userElement.style.padding = '10px 15px';
-                userElement.style.display = 'flex';
-                userElement.style.alignItems = 'center';
+                        userElement.style.padding = '10px 15px';
+                        userElement.style.display = 'flex';
+                        userElement.style.alignItems = 'center';
                 userElement.style.justifyContent = 'space-between'; // Keep space for potential future icons
-                userElement.style.borderBottom = '1px solid #222d34';
-                userElement.style.cursor = 'pointer';
-                
-                // Highlight on hover
-                userElement.addEventListener('mouseover', function() {
+                        userElement.style.borderBottom = '1px solid #222d34';
+                        userElement.style.cursor = 'pointer';
+                        
+                        // Highlight on hover
+                        userElement.addEventListener('mouseover', function() {
                     // Don't change background if it's selected
                     if (!this.classList.contains('user-selected')) {
-                        this.style.backgroundColor = '#202c33';
+                            this.style.backgroundColor = '#202c33';
                     }
-                });
-                userElement.addEventListener('mouseout', function() {
+                        });
+                        userElement.addEventListener('mouseout', function() {
                      // Don't change background if it's selected
                     if (!this.classList.contains('user-selected')) {
-                        this.style.backgroundColor = 'transparent';
+                            this.style.backgroundColor = 'transparent';
                     }
-                });
-                
-                const profilePic = user.profile_picture 
-                    ? `/uploads/profile_photos/${user.profile_picture}` 
+                        });
+                        
+                        const profilePic = user.profile_picture 
+                            ? `/uploads/profile_photos/${user.profile_picture}` 
                     : '/api/placeholder/40/40'; // Use placeholder API
-                    
-                userElement.innerHTML = `
-                    <div style="display: flex; align-items: center;">
-                        <div style="width: 40px; height: 40px; border-radius: 50%; overflow: hidden; margin-right: 10px;">
-                            <img src="${profilePic}" alt="${user.username}" style="width: 100%; height: 100%; object-fit: cover;">
-                        </div>
-                        <div>
-                            <div style="color: #e9edef; font-weight: bold;">${user.username}</div>
+                            
+                        userElement.innerHTML = `
+                            <div style="display: flex; align-items: center;">
+                                <div style="width: 40px; height: 40px; border-radius: 50%; overflow: hidden; margin-right: 10px;">
+                                    <img src="${profilePic}" alt="${user.username}" style="width: 100%; height: 100%; object-fit: cover;">
+                                </div>
+                                <div>
+                                    <div style="color: #e9edef; font-weight: bold;">${user.username}</div>
                             <div style="color: #8696a0; font-size: 12px;">${user.email || user.name || ''}</div>
-                        </div>
-                    </div>
+                                </div>
+                            </div>
                     <!-- Removed individual add button -->
                 `;
                 
@@ -3491,6 +3648,81 @@
                 });
             });
         }
+
+        // Add this after the existing socket connection code but before other functions
+
+        // Function to load chat messages for a contact
+        function loadChatMessages(contactId) {
+            const chatBody = document.querySelector('.chat-body');
+            if (!chatBody) return;
+            
+            chatBody.innerHTML = '<div class="loading-messages">Loading messages...</div>';
+            
+            // Load existing messages
+            fetch(`/chat/get_messages/${contactId}`)
+                .then(response => response.json())
+                .then(messages => {
+                    chatBody.innerHTML = ''; // Clear loading message
+                    
+                    // Display each message
+                    messages.forEach(msg => {
+                        const [senderId, receiverId, messageText, timestamp] = msg;
+                        const isSent = senderId == document.documentElement.getAttribute('data-user-id');
+                        
+                        const messageElement = document.createElement('div');
+                        messageElement.className = `message ${isSent ? 'sent' : 'received'}`;
+                        messageElement.innerHTML = `
+                            <div class="message-content">${messageText}</div>
+                            <span class="message-timestamp">${formatTimestamp(timestamp)}</span>
+                        `;
+                        
+                        chatBody.appendChild(messageElement);
+                    });
+                    
+                    // Scroll to bottom
+                    chatBody.scrollTop = chatBody.scrollHeight;
+                })
+                .catch(error => {
+                    console.error('Error loading messages:', error);
+                    chatBody.innerHTML = '<div class="error-message">Failed to load messages</div>';
+                });
+        }
+
+        // Function to format timestamp
+        function formatTimestamp(timestamp) {
+            const date = new Date(timestamp);
+            return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+        }
+
+        // Handle receiving messages
+        socket.on('new_message', function(data) {
+            // Only show message if we're in the correct chat
+            if (window.currentChat && (
+                (data.sender_id == window.currentChat.id) || 
+                (data.receiver_id == window.currentChat.id)
+            )) {
+                const chatBody = document.querySelector('.chat-body');
+                const messageElement = document.createElement('div');
+                messageElement.className = `message ${data.sender_id == document.documentElement.getAttribute('data-user-id') ? 'sent' : 'received'}`;
+                messageElement.innerHTML = `
+                    <div class="message-content">${data.message}</div>
+                    <span class="message-timestamp">${formatTimestamp(new Date(data.timestamp))}</span>
+                `;
+                chatBody.appendChild(messageElement);
+                chatBody.scrollTop = chatBody.scrollHeight;
+                
+                // Send read receipt
+                socket.emit('update_message_status', {
+                    message_id: data.message_id,
+                    status: 'read',
+                    chat_id: data.sender_id,
+                    chat_type: 'direct'
+                });
+            } else {
+                // Show notification for messages from other chats
+                showNotification(`New message from ${data.sender_username}: ${data.message}`);
+            }
+        });
     </script>
 </body>
 </html>
