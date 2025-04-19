@@ -284,12 +284,31 @@ def get_group_messages(group_id):
     auth = require_auth()
     if auth: return auth
     
-    cursor = connect_db().cursor()
+    conn = connect_db()
+    cursor = conn.cursor()
+    
+    # Check if user is a member of the group
     cursor.execute("""
-        SELECT sender_id, message, time FROM group_messages 
-        WHERE group_id = ? ORDER BY time ASC
+        SELECT 1 FROM group_members 
+        WHERE group_id = ? AND user_id = ?
+    """, (group_id, session['user_id']))
+    
+    if not cursor.fetchone():
+        return jsonify({"message": "Not a member of this group"}), 403
+    
+    # Get messages with sender username
+    cursor.execute("""
+        SELECT gm.sender_id, u.username, gm.message, gm.time 
+        FROM group_messages gm
+        JOIN users u ON gm.sender_id = u.id
+        WHERE gm.group_id = ? 
+        ORDER BY gm.time ASC
     """, (group_id,))
-    return jsonify(cursor.fetchall()), 200
+    
+    messages = cursor.fetchall()
+    conn.close()
+    
+    return jsonify(messages), 200
 
 # --- Contacts --- 
 @bp.route("/contacts", methods=["GET"])

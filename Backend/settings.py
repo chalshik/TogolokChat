@@ -334,9 +334,11 @@ def get_user_details(user_id):
     try:
         # Get user details
         cursor.execute("""
-            SELECT id, username, email, name, profile_picture, info
-            FROM users
-            WHERE id = ?
+            SELECT u.id, u.username, u.email, u.name, u.profile_picture, u.info,
+                   datetime(u.rowid * 86400 / 86400, 'unixepoch') as registration_date,
+                   (SELECT COUNT(*) FROM group_members WHERE user_id = u.id) as group_count
+            FROM users u
+            WHERE u.id = ?
         """, (user_id,))
         user = cursor.fetchone()
 
@@ -365,8 +367,8 @@ def get_user_details(user_id):
             "name": user[3] if user[3] else user[1],  # Use username if name is not set
             "bio": user[5] if user[5] else "",  # info field is bio
             "profile_picture": photo_url,
-            "registration_date": "",  # Not implemented yet
-            "group_count": 0,  # Not implemented yet
+            "registration_date": user[6],  # Now using actual registration date
+            "group_count": user[7],  # Now using actual group count
             "complaint_count": 0  # Placeholder for future complaint system
         }), 200
 
