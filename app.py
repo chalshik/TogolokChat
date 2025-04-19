@@ -7,6 +7,7 @@ from flask_socketio import SocketIO
 from Backend.auth import bp as auth_bp, is_authenticated
 from Backend.chat import bp as chat_bp
 from Backend.settings import bp as settings_bp
+from Backend.user import bp as user_bp
 
 # Initialize database
 from Backend.db import create_tables, connect_db
@@ -34,6 +35,7 @@ register_socket_events(socketio)
 app.register_blueprint(auth_bp)
 app.register_blueprint(chat_bp)  # No url_prefix as it's already defined in the blueprint
 app.register_blueprint(settings_bp, url_prefix='/api')
+app.register_blueprint(user_bp)  # Register the user blueprint
 
 # Create required directories if they don't exist
 os.makedirs('uploads/profile_photos', exist_ok=True)
