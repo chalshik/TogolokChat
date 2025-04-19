@@ -321,3 +321,97 @@ def check_admin_status():
     finally:
         cursor.close()
         conn.close()
+
+@bp.route('/users/<int:user_id>/details', methods=['GET'])
+def get_user_details(user_id):
+    # Check if user is authenticated
+    if 'user_id' not in session:
+        return jsonify({"message": "Not authenticated"}), 401
+
+    conn = connect_db()
+    cursor = conn.cursor()
+
+    try:
+        # Get user details
+        cursor.execute("""
+            SELECT id, username, email, name, profile_picture, info
+            FROM users
+            WHERE id = ?
+        """, (user_id,))
+        user = cursor.fetchone()
+
+        if not user:
+            return jsonify({"message": "User not found"}), 404
+
+        # Get profile photo if available
+        photo_url = None
+        if user[4]:  # if profile_picture is not None
+            photo_url = f"/uploads/profile_photos/{user[4]}"
+        else:
+            # Check if there's an entry in the profile_photos table
+            cursor.execute("SELECT photo FROM profile_photos WHERE user_id = ?", (user_id,))
+            photo_result = cursor.fetchone()
+            if photo_result:
+                photo_url = f"/uploads/profile_photos/{photo_result[0]}"
+
+        # Default to placeholder avatar if no photo is found
+        if not photo_url:
+            photo_url = "/static/images/contact_logo.png"
+
+        return jsonify({
+            "id": user[0],
+            "username": user[1],
+            "email": user[2],
+            "name": user[3] if user[3] else user[1],  # Use username if name is not set
+            "bio": user[5] if user[5] else "",  # info field is bio
+            "profile_picture": photo_url,
+            "registration_date": "",  # Not implemented yet
+            "group_count": 0,  # Not implemented yet
+            "complaint_count": 0  # Placeholder for future complaint system
+        }), 200
+
+    except Exception as e:
+        import traceback
+        print(f"Error in get_user_details: {str(e)}")
+        print("Traceback:", traceback.format_exc())
+        return jsonify({"message": f"Error fetching user details: {str(e)}"}), 500
+
+    finally:
+        cursor.close()
+        conn.close()
+
+@bp.route('/users/<int:user_id>', methods=['DELETE'])
+def delete_user(user_id):
+    # Check if user is authenticated
+    if 'user_id' not in session:
+        return jsonify({"message": "Not authenticated"}), 401
+
+    conn = connect_db()
+    cursor = conn.cursor()
+
+    try:
+        # Delete user's profile picture if exists
+        cursor.execute("SELECT profile_picture FROM users WHERE id = ?", (user_id,))
+        profile_pic = cursor.fetchone()
+        if profile_pic and profile_pic[0]:
+            pic_path = os.path.join(UPLOAD_FOLDER, profile_pic[0])
+            if os.path.exists(pic_path):
+                os.remove(pic_path)
+
+        # Delete from profile_photos if exists
+        cursor.execute("DELETE FROM profile_photos WHERE user_id = ?", (user_id,))
+
+        # Delete user from database
+        cursor.execute("DELETE FROM users WHERE id = ?", (user_id,))
+        conn.commit()
+
+        return jsonify({"message": "User deleted successfully"}), 200
+
+    except Exception as e:
+        conn.rollback()
+        print(f"Error deleting user: {str(e)}")
+        return jsonify({"message": f"Error deleting user: {str(e)}"}), 500
+
+    finally:
+        cursor.close()
+        conn.close()
