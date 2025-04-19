@@ -3760,12 +3760,9 @@
                     return;
                 }
 
-                // Get current username from the page (you might need to add this attribute if it's not there)
-                // For now, assuming it exists. If not, we need to fetch user info first.
-                const username = document.documentElement.getAttribute('data-username') || document.documentElement.getAttribute('data-user-id'); // Fallback to ID if username isn't directly available
-                if (!username) {
-                     showNotification('Could not identify user. Please log in again.', 'error');
-                     return;
+                if (newPassword.length < 6) {
+                    showNotification('New password must be at least 6 characters long', 'error');
+                    return;
                 }
 
                 // Make API call to change password
@@ -3775,23 +3772,25 @@
                         'Content-Type': 'application/json',
                     },
                     body: JSON.stringify({
-                        username: username, // The API expects username, adjust if needed
                         old_password: currentPassword,
                         new_password: newPassword
                     })
                 })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.message === "Password changed successfully!") {
-                        showNotification('Password changed successfully!', 'success');
-                        document.body.removeChild(modal);
-                    } else {
-                        showNotification(data.message || 'Error changing password', 'error');
+                .then(response => {
+                    if (!response.ok) {
+                        return response.json().then(data => {
+                            throw new Error(data.message || 'Failed to change password');
+                        });
                     }
+                    return response.json();
+                })
+                .then(data => {
+                    showNotification('Password changed successfully!', 'success');
+                    document.body.removeChild(modal);
                 })
                 .catch(error => {
                     console.error('Error changing password:', error);
-                    showNotification('Error changing password', 'error');
+                    showNotification(error.message || 'Error changing password', 'error');
                 });
             });
         }

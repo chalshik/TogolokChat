@@ -16,35 +16,46 @@ def allowed_file(filename):
 
 @bp.route('/change_password', methods=['POST'])
 def change_password():
+    # Check if user is authenticated
+    if 'user_id' not in session:
+        return jsonify({"message": "Not authenticated"}), 401
+
     data = request.get_json()
-    username = data.get("username")
     old_password = data.get("old_password")
     new_password = data.get("new_password")
 
-    if not username or not old_password or not new_password:
-        return jsonify({"message": "All fields (username, old_password, new_password) are required!"}), 400
+    if not old_password or not new_password:
+        return jsonify({"message": "Both old and new passwords are required"}), 400
 
     conn = connect_db()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT password FROM users WHERE username = ?", (username,))
-    user = cursor.fetchone()
-    
-    if not user:
-        return jsonify({"message": "User not found"}), 404
+    try:
+        # Get user's current password
+        cursor.execute("SELECT password FROM users WHERE id = ?", (session['user_id'],))
+        user = cursor.fetchone()
+        
+        if not user:
+            return jsonify({"message": "User not found"}), 404
 
-    stored_password = user[0]
+        stored_password = user[0]
 
-    if stored_password != old_password:
-        return jsonify({"message": "Incorrect old password"}), 400
+        if stored_password != old_password:
+            return jsonify({"message": "Current password is incorrect"}), 400
 
-    cursor.execute("UPDATE users SET password = ? WHERE username = ?", (new_password, username))
-    conn.commit()
+        # Update password
+        cursor.execute("UPDATE users SET password = ? WHERE id = ?", (new_password, session['user_id']))
+        conn.commit()
 
-    cursor.close()
-    conn.close()
+        return jsonify({"message": "Password changed successfully!"}), 200
 
-    return jsonify({"message": "Password changed successfully!"}), 200
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"message": f"Failed to change password: {str(e)}"}), 500
+
+    finally:
+        cursor.close()
+        conn.close()
 
 @bp.route('/users', methods=['GET'])
 def get_all_users():
