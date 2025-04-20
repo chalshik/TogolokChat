@@ -3342,6 +3342,17 @@
 
         // Function to show actual admin panel
         function showActualAdminPanel() {
+            // Check if user has admin access
+            if (!hasAdminAccess()) {
+                return; // Just return if no admin access, since loadAdminPanel already shows the prompt
+            }
+
+            // Remove any existing modals first
+            const existingModals = document.querySelectorAll('.modal');
+            existingModals.forEach(modal => {
+                document.body.removeChild(modal);
+            });
+
             const modal = document.createElement('div');
             modal.className = 'modal';
             modal.style.position = 'fixed';
@@ -3425,50 +3436,56 @@
         }
 
         function showUserDetailsModal(userId) {
+            // Check if user has admin access
+            if (!hasAdminAccess()) {
+                showAdminPasswordPrompt();
+                return;
+            }
+
             fetch(`/api/users/${userId}/details`)
                 .then(response => response.json())
                 .then(user => {
-            const modal = document.createElement('div');
-            modal.className = 'modal';
-            modal.style.position = 'fixed';
-            modal.style.top = '0';
-            modal.style.left = '0';
-            modal.style.width = '100%';
-            modal.style.height = '100%';
-            modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+                    const modal = document.createElement('div');
+                    modal.className = 'modal';
+                    modal.style.position = 'fixed';
+                    modal.style.top = '0';
+                    modal.style.left = '0';
+                    modal.style.width = '100%';
+                    modal.style.height = '100%';
+                    modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
                     modal.style.zIndex = '1001';
-            modal.style.display = 'flex';
-            modal.style.justifyContent = 'center';
-            modal.style.alignItems = 'center';
-            
-            const panel = document.createElement('div');
-            panel.style.backgroundColor = '#1f2c33';
+                    modal.style.display = 'flex';
+                    modal.style.justifyContent = 'center';
+                    modal.style.alignItems = 'center';
+
+                    const panel = document.createElement('div');
+                    panel.style.backgroundColor = '#1f2c33';
                     panel.style.padding = '20px';
                     panel.style.borderRadius = '8px';
                     panel.style.width = '400px';
-            panel.style.maxWidth = '90%';
-            
-            panel.innerHTML = `
+                    panel.style.maxWidth = '90%';
+
+                    panel.innerHTML = `
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
                             <h2 style="color: #e9edef; margin: 0;">User Details</h2>
                             <div class="close-button" style="cursor: pointer;">
-                            <svg viewBox="0 0 24 24" width="24" height="24">
-                                <path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path>
-                            </svg>
+                                <svg viewBox="0 0 24 24" width="24" height="24">
+                                    <path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path>
+                                </svg>
+                            </div>
                         </div>
-                    </div>
                         <div style="text-align: center; margin-bottom: 20px;">
                             <div style="width: 120px; height: 120px; border-radius: 50%; overflow: hidden; margin: 0 auto 15px;">
                                 <img src="${user.profile_picture || '/api/placeholder/120/120'}" alt="${user.username}" 
                                      style="width: 100%; height: 100%; object-fit: cover;">
-                </div>
+                            </div>
                             <div style="color: #e9edef; font-size: 20px; font-weight: bold;">${user.username}</div>
                             <div style="color: #8696a0;">${user.name || 'No name set'}</div>
-                    </div>
+                        </div>
                         <div style="background-color: #2a3942; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
                             <div style="color: #8696a0; margin-bottom: 5px;">Bio</div>
                             <div style="color: #e9edef;">${user.bio || 'No bio set'}</div>
-                </div>
+                        </div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
                             <div style="background-color: #2a3942; padding: 15px; border-radius: 8px; text-align: center;">
                                 <div style="color: #8696a0;">Groups</div>
@@ -3488,16 +3505,23 @@
                                        border-radius: 8px; cursor: pointer; font-size: 16px;">
                             Delete Account
                         </button>
-            `;
-            
-            modal.appendChild(panel);
-            document.body.appendChild(modal);
-            
+                    `;
+
+                    modal.appendChild(panel);
+                    document.body.appendChild(modal);
+
                     // Add close button event listener
                     const closeButton = panel.querySelector('.close-button');
                     closeButton.addEventListener('click', () => {
-                document.body.removeChild(modal);
-            });
+                        document.body.removeChild(modal);
+                    });
+
+                    // Close when clicking outside
+                    modal.addEventListener('click', (e) => {
+                        if (e.target === modal) {
+                            document.body.removeChild(modal);
+                        }
+                    });
                 })
                 .catch(error => {
                     console.error('Error loading user details:', error);
@@ -3589,6 +3613,12 @@
 
         // Function to show admin password prompt
         function showAdminPasswordPrompt() {
+            // Remove any existing modals first
+            const existingModals = document.querySelectorAll('.modal');
+            existingModals.forEach(modal => {
+                document.body.removeChild(modal);
+            });
+
             const modal = document.createElement('div');
             modal.className = 'modal';
             modal.style.position = 'fixed';
@@ -3672,9 +3702,14 @@
         function showActualAdminPanel() {
             // Check if user has admin access
             if (!hasAdminAccess()) {
-                showAdminPasswordPrompt();
-                return;
+                return; // Just return if no admin access, since loadAdminPanel already shows the prompt
             }
+
+            // Remove any existing modals first
+            const existingModals = document.querySelectorAll('.modal');
+            existingModals.forEach(modal => {
+                document.body.removeChild(modal);
+            });
 
             const modal = document.createElement('div');
             modal.className = 'modal';
@@ -4669,7 +4704,27 @@
                     // Handle report contact action
                     document.getElementById('report-contact-btn').addEventListener('click', function() {
                         if (confirm('Are you sure you want to report this contact?')) {
-                            showNotification('Report feature is not yet implemented', 'warning');
+                            fetch(`/api/users/${contact.id}/report`, {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                }
+                            })
+                            .then(response => response.json())
+                            .then(data => {
+                                if (data.message) {
+                                    showNotification(data.message, data.message.includes('already') ? 'warning' : 'success');
+                                    // Close the contact info panel
+                                    panel.style.transform = 'translateX(100%)';
+                                    setTimeout(() => {
+                                        document.body.removeChild(modal);
+                                    }, 300);
+                                }
+                            })
+                            .catch(error => {
+                                console.error('Error reporting user:', error);
+                                showNotification('Error reporting user', 'error');
+                            });
                         }
                     });
                 })

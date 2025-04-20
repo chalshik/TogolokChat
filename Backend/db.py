@@ -187,5 +187,18 @@ def create_tables():
         );
     ''')
 
+    # Complaints table
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS complaints (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            reporter_id INTEGER NOT NULL,
+            reported_user_id INTEGER NOT NULL,
+            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE (reporter_id, reported_user_id),  -- Prevent duplicate reports
+            FOREIGN KEY (reporter_id) REFERENCES users(id) ON DELETE CASCADE,
+            FOREIGN KEY (reported_user_id) REFERENCES users(id) ON DELETE CASCADE
+        );
+    ''')
+
     db.commit()
     db.close()

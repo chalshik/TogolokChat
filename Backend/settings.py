@@ -322,6 +322,44 @@ def check_admin_status():
         cursor.close()
         conn.close()
 
+@bp.route('/users/<int:user_id>/report', methods=['POST'])
+def report_user(user_id):
+    # Check if user is authenticated
+    if 'user_id' not in session:
+        return jsonify({"message": "Not authenticated"}), 401
+
+    reporter_id = session['user_id']
+    
+    # Prevent self-reporting
+    if reporter_id == user_id:
+        return jsonify({"message": "You cannot report yourself"}), 400
+
+    conn = connect_db()
+    cursor = conn.cursor()
+
+    try:
+        # Check if user has already reported this user
+        cursor.execute("SELECT 1 FROM complaints WHERE reporter_id = ? AND reported_user_id = ?", 
+                      (reporter_id, user_id))
+        if cursor.fetchone():
+            return jsonify({"message": "You have already reported this user"}), 400
+
+        # Add the complaint
+        cursor.execute("""
+            INSERT INTO complaints (reporter_id, reported_user_id)
+            VALUES (?, ?)
+        """, (reporter_id, user_id))
+        
+        conn.commit()
+        return jsonify({"message": "User reported successfully"}), 200
+
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"message": f"Error reporting user: {str(e)}"}), 500
+
+    finally:
+        conn.close()
+
 @bp.route('/users/<int:user_id>/details', methods=['GET'])
 def get_user_details(user_id):
     # Check if user is authenticated
@@ -336,7 +374,8 @@ def get_user_details(user_id):
         cursor.execute("""
             SELECT u.id, u.username, u.email, u.name, u.profile_picture, u.info,
                    datetime(u.rowid * 86400 / 86400, 'unixepoch') as registration_date,
-                   (SELECT COUNT(*) FROM group_members WHERE user_id = u.id) as group_count
+                   (SELECT COUNT(*) FROM group_members WHERE user_id = u.id) as group_count,
+                   (SELECT COUNT(*) FROM complaints WHERE reported_user_id = u.id) as complaint_count
             FROM users u
             WHERE u.id = ?
         """, (user_id,))
@@ -369,17 +408,13 @@ def get_user_details(user_id):
             "profile_picture": photo_url,
             "registration_date": user[6],  # Now using actual registration date
             "group_count": user[7],  # Now using actual group count
-            "complaint_count": 0  # Placeholder for future complaint system
+            "complaint_count": user[8]  # Now using actual complaint count
         }), 200
 
     except Exception as e:
-        import traceback
-        print(f"Error in get_user_details: {str(e)}")
-        print("Traceback:", traceback.format_exc())
-        return jsonify({"message": f"Error fetching user details: {str(e)}"}), 500
+        return jsonify({"message": f"Error getting user details: {str(e)}"}), 500
 
     finally:
-        cursor.close()
         conn.close()
 
 @bp.route('/users/<int:user_id>', methods=['DELETE'])
