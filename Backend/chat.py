@@ -808,3 +808,88 @@ def get_last_message(contact_id):
         'message': '',
         'timestamp': None
     })
+
+@bp.route("/leave_group", methods=["POST"])
+def leave_group():
+    auth = require_auth()
+    if auth: return auth
+    
+    data = request.get_json()
+    group_id = data.get('group_id')
+    
+    if not group_id:
+        return jsonify({"message": "Group ID is required"}), 400
+    
+    conn = connect_db()
+    cursor = conn.cursor()
+    
+    # Check if user is a member of the group
+    cursor.execute("""
+        SELECT 1 FROM group_members 
+        WHERE group_id = ? AND user_id = ?
+    """, (group_id, session['user_id']))
+    
+    if not cursor.fetchone():
+        conn.close()
+        return jsonify({"message": "Not a member of this group"}), 403
+    
+    # Check if user is the admin
+    cursor.execute("""
+        SELECT admin_id FROM groups 
+        WHERE id = ?
+    """, (group_id,))
+    
+    admin_id = cursor.fetchone()[0]
+    if admin_id == session['user_id']:
+        conn.close()
+        return jsonify({"message": "Admin cannot leave the group. Please delete the group instead."}), 403
+    
+    # Remove user from group
+    cursor.execute("""
+        DELETE FROM group_members 
+        WHERE group_id = ? AND user_id = ?
+    """, (group_id, session['user_id']))
+    
+    conn.commit()
+    conn.close()
+    
+    return jsonify({"message": "Successfully left the group"}), 200
+
+@bp.route("/delete_group", methods=["POST"])
+def delete_group():
+    auth = require_auth()
+    if auth: return auth
+    
+    data = request.get_json()
+    group_id = data.get('group_id')
+    
+    if not group_id:
+        return jsonify({"message": "Group ID is required"}), 400
+    
+    conn = connect_db()
+    cursor = conn.cursor()
+    
+    # Check if user is the admin
+    cursor.execute("""
+        SELECT admin_id FROM groups 
+        WHERE id = ?
+    """, (group_id,))
+    
+    result = cursor.fetchone()
+    if not result:
+        conn.close()
+        return jsonify({"message": "Group not found"}), 404
+    
+    if result[0] != session['user_id']:
+        conn.close()
+        return jsonify({"message": "Only group admin can delete the group"}), 403
+    
+    # Delete group and all related data
+    cursor.execute("DELETE FROM group_members WHERE group_id = ?", (group_id,))
+    cursor.execute("DELETE FROM group_messages WHERE group_id = ?", (group_id,))
+    cursor.execute("DELETE FROM groups WHERE id = ?", (group_id,))
+    
+    conn.commit()
+    conn.close()
+    
+    return jsonify({"message": "Group deleted successfully"}), 200

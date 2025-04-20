@@ -2156,11 +2156,6 @@
                     </div>
                     
                     <div class="form-group" style="margin-bottom: 15px;">
-                        <label for="group-description" style="display: block; color: #e9edef; margin-bottom: 5px;">Group Description (Optional)</label>
-                        <textarea id="group-description" style="width: 100%; height: 80px; padding: 10px; background-color: #2a3942; border: none; color: #e9edef; border-radius: 5px; resize: none;" placeholder="Enter group description"></textarea>
-                    </div>
-                    
-                    <div class="form-group" style="margin-bottom: 15px;">
                         <label style="display: block; color: #e9edef; margin-bottom: 5px;">Select Members</label>
                         <div style="display: flex;">
                             <input type="text" id="search-members" style="flex: 1; padding: 10px; background-color: #2a3942; border: none; color: #e9edef; border-radius: 5px;" placeholder="Search contacts">
@@ -2387,7 +2382,6 @@
         // Function to create a new group
         function createNewGroup() {
             const groupName = document.getElementById('group-name').value.trim();
-            const groupDescription = document.getElementById('group-description').value.trim();
             const avatarFile = document.getElementById('group-avatar-input').files[0];
             
             // Validate inputs
@@ -2413,7 +2407,6 @@
             // Create FormData for file upload
             const formData = new FormData();
             formData.append('group_name', groupName);
-            formData.append('description', groupDescription);
             
             // Add each member ID separately instead of as JSON string
             memberIds.forEach(id => {
@@ -2964,8 +2957,35 @@
             // Handle leave group action
             document.getElementById('leave-group-btn').addEventListener('click', function() {
                 if (confirm('Are you sure you want to leave this group?')) {
-                    // You would implement the actual leave group functionality here
-                    showNotification('This feature is not yet implemented', 'warning');
+                    fetch('/chat/leave_group', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            group_id: group.id
+                        })
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        return response.json();
+                    })
+                    .then(data => {
+                        showNotification(data.message, 'success');
+                        // Close the group info panel
+                        panel.style.transform = 'translateX(100%)';
+                        setTimeout(() => {
+                            document.body.removeChild(modal);
+                            // Refresh the groups list
+                            loadGroups();
+                        }, 300);
+                    })
+                    .catch(error => {
+                        showNotification('Error leaving group: ' + error.message, 'error');
+                        console.error('Error:', error);
+                    });
                 }
             });
             
@@ -2977,21 +2997,67 @@
                     panel.style.transform = 'translateX(100%)';
                     setTimeout(() => {
                         document.body.removeChild(modal);
-                        // You would implement the add members functionality here
                         showAddGroupMembersView(group.id);
                     }, 300);
+                });
+            }
+
+            // Add delete group button for admins
+            if (isAdmin) {
+                const deleteGroupBtn = document.createElement('button');
+                deleteGroupBtn.id = 'delete-group-btn';
+                deleteGroupBtn.className = 'action-button';
+                deleteGroupBtn.style.width = '100%';
+                deleteGroupBtn.style.padding = '12px';
+                deleteGroupBtn.style.backgroundColor = '#f15c6d';
+                deleteGroupBtn.style.color = 'white';
+                deleteGroupBtn.style.border = 'none';
+                deleteGroupBtn.style.borderRadius = '5px';
+                deleteGroupBtn.style.cursor = 'pointer';
+                deleteGroupBtn.style.fontSize = '16px';
+                deleteGroupBtn.style.marginTop = '10px';
+                deleteGroupBtn.textContent = 'Delete Group';
+                
+                panel.querySelector('div:last-child').appendChild(deleteGroupBtn);
+                
+                deleteGroupBtn.addEventListener('click', function() {
+                    if (confirm('Are you sure you want to delete this group? This action cannot be undone.')) {
+                        fetch('/chat/delete_group', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                group_id: group.id
+                            })
+                        })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Network response was not ok');
+                            }
+                            return response.json();
+                        })
+                        .then(data => {
+                            showNotification(data.message, 'success');
+                            // Close the group info panel
+                            panel.style.transform = 'translateX(100%)';
+                            setTimeout(() => {
+                                document.body.removeChild(modal);
+                                // Refresh the groups list
+                                loadGroups();
+                            }, 300);
+                        })
+                        .catch(error => {
+                            showNotification('Error deleting group: ' + error.message, 'error');
+                            console.error('Error:', error);
+                        });
+                    }
                 });
             }
         }
 
         // Function to show add members to group view
         function showAddGroupMembersView(groupId) {
-            // This function would be similar to the contact selection in showCreateGroupView
-            showNotification('Add members functionality is not yet implemented', 'warning');
-        }
-
-        // Function to show create group view - Step 1: Select contacts
-        function showCreateGroupView() {
             // Get the sidebar content
             const sidebarContent = document.querySelector('.sidebar-content');
             
@@ -3002,16 +3068,16 @@
             // Clear selected members for a fresh start
             selectedMembers.clear();
             
-            // Create and show the contact selection interface (Step 1)
+            // Create and show the contact selection interface
             sidebarContent.innerHTML = `
                 <div class="sidebar-header">
                     <div style="display: flex; align-items: center;">
-                        <div id="back-to-groups" style="margin-right: 15px; cursor: pointer;">
+                        <div id="back-to-group-info" style="margin-right: 15px; cursor: pointer;">
                             <svg viewBox="0 0 24 24" width="24" height="24">
                                 <path fill="currentColor" d="M19 11H7.83l4.88-4.88c.39-.39.39-1.03 0-1.42-.39-.39-1.02-.39-1.41 0l-6.59 6.59c-.39.39-.39 1.02 0 1.41l6.59 6.59c.39.39 1.02.39 1.41 0 .39-.39.39-1.02 0-1.41L7.83 13H19c.55 0 1-.45 1-1s-.45-1-1-1z"></path>
                             </svg>
                         </div>
-                        <div class="app-name">Select Group Members</div>
+                        <div class="app-name">Add Members</div>
                     </div>
                 </div>
                 
@@ -3019,24 +3085,24 @@
                     <div class="search-bar">
                         <svg viewBox="0 0 24 24" width="24" height="24" class="search-icon">
                             <path fill="currentColor" d="M15.009 13.805h-.636l-.22-.219a5.184 5.184 0 0 0 1.256-3.386 5.207 5.207 0 1 0-5.207 5.208 5.183 5.183 0 0 0 3.385-1.255l.221.22v.635l4.004 3.999 1.194-1.195-3.997-4.007zm-4.808 0a3.605 3.605 0 1 1 0-7.21 3.605 3.605 0 0 1 0 7.21z"></path>
-                                </svg>
-                        <input type="text" id="contact-selection-search" placeholder="Search contacts" onkeyup="filterContactsForGroupCreation(this.value.toLowerCase())">
-                        </div>
-                        </div>
+                        </svg>
+                        <input type="text" id="add-members-search" placeholder="Search contacts" onkeyup="filterContactsForGroupCreation(this.value.toLowerCase())">
+                    </div>
+                </div>
                 
-                <div id="contact-selection-list" class="contact-list" style="overflow-y: auto; flex: 1;">
+                <div id="add-members-list" class="contact-list" style="overflow-y: auto; flex: 1;">
                     <div class="loading-contacts" style="color: #8696a0; text-align: center; padding: 20px;">
                         Loading contacts...
+                    </div>
                 </div>
-                        </div>
                 
                 <div class="add-contact-footer">
-                    <button id="next-to-group-details" disabled>Next</button>
-                    </div>
+                    <button id="add-selected-members" disabled>Add Selected Members</button>
+                </div>
             `;
             
             // Add event listener for back button
-            document.getElementById('back-to-groups').addEventListener('click', function() {
+            document.getElementById('back-to-group-info').addEventListener('click', function() {
                 if (window.originalSidebarState) {
                     sidebarContent.innerHTML = window.originalSidebarState;
                 } else {
@@ -3044,508 +3110,156 @@
                 }
             });
             
-            // Add event listener for next button
-            document.getElementById('next-to-group-details').addEventListener('click', function() {
-                if (selectedMembers.size >= 2) {
-                    showGroupDetailsView();
+            // Add event listener for add members button
+            document.getElementById('add-selected-members').addEventListener('click', function() {
+                if (selectedMembers.size > 0) {
+                    const memberIds = Array.from(selectedMembers.keys());
+                    
+                    // Send request to add members
+                    Promise.all(memberIds.map(userId => 
+                        fetch('/chat/add_to_group', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                group_id: groupId,
+                                user_id: userId
+                            })
+                        })
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Network response was not ok');
+                            }
+                            return response.json();
+                        })
+                    ))
+                    .then(() => {
+                        showNotification('Members added successfully', 'success');
+                        // Close the add members view
+                        if (window.originalSidebarState) {
+                            sidebarContent.innerHTML = window.originalSidebarState;
+                        } else {
+                            showGroupsView();
+                        }
+                        // Refresh the group info
+                        loadGroupChat(groupId);
+                    })
+                    .catch(error => {
+                        showNotification('Error adding members: ' + error.message, 'error');
+                        console.error('Error:', error);
+                    });
                 } else {
-                    showNotification('Please select at least 2 contacts', 'warning');
+                    showNotification('Please select at least one contact', 'warning');
                 }
             });
             
             // Load contacts for selection
-            loadContactsForGroupCreation();
+            loadContactsForGroupCreation(groupId);
         }
-        
-        // Function to show group details view - Step 2: Set group name and avatar
-        function showGroupDetailsView() {
-            // Get the sidebar content
-            const sidebarContent = document.querySelector('.sidebar-content');
-            
-            // Create and show the group details interface (Step 2)
-            sidebarContent.innerHTML = `
-                <div class="sidebar-header">
-                    <div style="display: flex; align-items: center;">
-                        <div id="back-to-contact-selection" style="margin-right: 15px; cursor: pointer;">
-                            <svg viewBox="0 0 24 24" width="24" height="24">
-                                <path fill="currentColor" d="M19 11H7.83l4.88-4.88c.39-.39.39-1.03 0-1.42-.39-.39-1.02-.39-1.41 0l-6.59 6.59c-.39.39-.39 1.02 0 1.41l6.59 6.59c.39.39 1.02.39 1.41 0 .39-.39.39-1.02 0-1.41L7.83 13H19c.55 0 1-.45 1-1s-.45-1-1-1z"></path>
-                            </svg>
-                        </div>
-                        <div class="app-name">Create New Group</div>
-                    </div>
-                </div>
-                
-                <div style="padding: 20px; overflow-y: auto; flex: 1;">
-                    <div style="background-color: #202c33; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
-                        <div style="display: flex; flex-direction: column; align-items: center; margin-bottom: 20px;">
-                            <div style="position: relative; width: 100px; height: 100px; margin-bottom: 10px;">
-                                <img id="group-avatar-preview" src="/api/placeholder/100/100" alt="Group" style="width: 100%; height: 100%; object-fit: cover; border-radius: 50%;">
-                                <div style="position: absolute; bottom: 0; right: 0; background-color: #00a884; width: 30px; height: 30px; border-radius: 50%; display: flex; justify-content: center; align-items: center; cursor: pointer;">
-                                    <svg viewBox="0 0 24 24" width="20" height="20">
-                                        <path fill="white" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"></path>
-                                    </svg>
-                        </div>
-                                <input type="file" id="group-avatar-input" style="display: none;" accept="image/*">
-                        </div>
-                            <div style="font-size: 14px; color: #8696a0; margin-bottom: 5px;">Click to upload group avatar</div>
-                    </div>
+
+        // Function to load contacts for group creation/member addition
+        function loadContactsForGroupCreation(groupId) {
+            // First get the current group members
+            fetch(`/chat/group/${groupId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(groupInfo => {
+                    // Get all users
+                    return fetch('/chat/user_info')
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Network response was not ok');
+                            }
+                            return response.json();
+                        })
+                        .then(users => {
+                            // Filter out existing members
+                            const existingMemberIds = new Set(groupInfo.members.map(member => member.id));
+                            return users.filter(user => !existingMemberIds.has(user.id));
+                        });
+                })
+                .then(filteredUsers => {
+                    const contactsList = document.getElementById('add-members-list') || document.getElementById('contact-selection-list');
+                    contactsList.innerHTML = '';
                     
-                        <div style="margin-bottom: 15px;">
-                            <div style="font-size: 14px; color: #8696a0; margin-bottom: 5px;">Group Name (required)</div>
-                            <input type="text" id="group-name" style="width: 100%; padding: 8px 12px; background-color: #2a3942; border: none; border-radius: 5px; color: #e9edef;" placeholder="Enter group name">
-                    </div>
-                    
-                        <div style="margin-bottom: 15px;">
-                            <div style="font-size: 14px; color: #8696a0; margin-bottom: 5px;">Group Description (optional)</div>
-                            <textarea id="group-description" style="width: 100%; height: 80px; padding: 8px 12px; background-color: #2a3942; border: none; border-radius: 5px; color: #e9edef; resize: none;" placeholder="Enter group description"></textarea>
-                        </div>
-                    </div>
-                    
-                    <div style="background-color: #202c33; padding: 15px; border-radius: 8px;">
-                        <div style="font-size: 14px; color: #8696a0; margin-bottom: 10px;">Selected Members (${selectedMembers.size})</div>
-                        <div id="selected-members-list" style="display: flex; flex-wrap: wrap; gap: 10px;">
-                        </div>
-                    </div>
-                </div>
-                
-                <div class="add-contact-footer">
-                    <button id="create-group-btn" disabled>Create Group</button>
-                </div>
-            `;
-            
-            // Add event listener for back button
-            document.getElementById('back-to-contact-selection').addEventListener('click', function() {
-                showCreateGroupView();
-            });
-            
-            // Add event listener for create group button
-            document.getElementById('create-group-btn').addEventListener('click', createNewGroup);
-            
-            // Add event listener for group name input
-            document.getElementById('group-name').addEventListener('input', updateCreateGroupButton);
-            
-            // Add event listener for avatar upload
-            const avatarPreview = document.getElementById('group-avatar-preview');
-            const avatarInput = document.getElementById('group-avatar-input');
-            
-            avatarPreview.addEventListener('click', function() {
-                avatarInput.click();
-            });
-            
-            avatarInput.addEventListener('change', function() {
-                if (this.files && this.files[0]) {
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        avatarPreview.src = e.target.result;
-                    };
-                    reader.readAsDataURL(this.files[0]);
-                }
-            });
-            
-            // Display selected members
-            const selectedMembersList = document.getElementById('selected-members-list');
-            selectedMembers.forEach((member, id) => {
-                const memberElement = document.createElement('div');
-                memberElement.style.display = 'flex';
-                memberElement.style.alignItems = 'center';
-                memberElement.style.backgroundColor = '#111b21';
-                memberElement.style.padding = '5px 10px';
-                memberElement.style.borderRadius = '16px';
-                
-                memberElement.innerHTML = `
-                    <img src="${member.profilePic}" alt="${member.name}" style="width: 24px; height: 24px; border-radius: 50%; margin-right: 5px;">
-                    <span style="color: #e9edef; font-size: 13px;">${member.name}</span>
-                `;
-                
-                selectedMembersList.appendChild(memberElement);
-            });
-        }
-        
-        // Function to update create group button state
-        function updateCreateGroupButton() {
-            const createButton = document.getElementById('create-group-btn');
-            const groupName = document.getElementById('group-name').value.trim();
-            
-            // Enable button if there's a group name and at least 2 members selected
-            if (groupName && selectedMembers.size >= 2) {
-                createButton.style.opacity = '1';
-                createButton.disabled = false;
-            } else {
-                createButton.style.opacity = '0.5';
-                createButton.disabled = true;
-            }
-        }
-        
-        // Function to update next button state in contact selection view
-        function updateNextButton() {
-            const nextButton = document.getElementById('next-to-group-details');
-            if (!nextButton) return;
-            
-            // Enable button if at least 2 members selected
-            if (selectedMembers.size >= 2) {
-                nextButton.style.opacity = '1';
-                nextButton.disabled = false;
-            } else {
-                nextButton.style.opacity = '0.5';
-                nextButton.disabled = true;
-            }
-        }
-        
-        // Function to show member selection for new group
-        function showGroupMemberSelection(groupName, groupDescription) {
-            // Get the sidebar
-            const sidebar = document.querySelector('.sidebar');
-            
-            // Create member selection view
-            sidebar.innerHTML = `
-                <div class="sidebar-header">
-                    <div style="display: flex; align-items: center;">
-                        <div id="back-to-group-info" style="margin-right: 15px; cursor: pointer;">
-                            <svg viewBox="0 0 24 24" width="24" height="24">
-                                <path fill="currentColor" d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 15.5c-3.58 0-6.5-2.92-6.5-6.5S8.42 5.5 12 5.5s6.5 2.92 6.5 6.5-2.92 6.5-6.5 6.5zm0-12c-3.03 0-5.5 2.47-5.5 5.5s2.47 5.5 5.5 5.5 5.5-2.47 5.5-5.5-2.47-5.5-5.5-5.5z"></path>
-                                <path fill="currentColor" d="M12 18.5c3.03 0 5.5-2.47 5.5-5.5S15.03 7.5 12 7.5 6.5 9.97 6.5 13s2.47 5.5 5.5 5.5zm0-10c2.48 0 4.5 2.02 4.5 4.5S14.48 17.5 12 17.5 7.5 15.48 7.5 13 9.52 8.5 12 8.5z"></path>
-                            </svg>
-                        </div>
-                        <div id="close-auth-panel" style="cursor: pointer;">
-                            <svg viewBox="0 0 24 24" width="24" height="24">
-                                <path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path>
-                            </svg>
-                        </div>
-                    </div>
-                </div>
-                
-                <div style="padding: 20px;">
-                    <div style="margin-bottom: 20px;">
-                        <h3 style="color: #e9edef; margin-bottom: 10px;">User Management</h3>
-                        <button id="load-users-btn" style="padding: 10px; background-color: #00a884; color: white; border: none; border-radius: 5px; cursor: pointer; margin-bottom: 15px;">Load All Users</button>
-                        <div id="users-container" style="max-height: 300px; overflow-y: auto;">
-                            <div style="text-align: center; color: #8696a0; padding: 20px;">
-                                Click "Load All Users" to view all registered users
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div style="margin-bottom: 20px;">
-                        <h3 style="color: #e9edef; margin-bottom: 10px;">System Statistics</h3>
-                        <div style="display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 15px;">
-                            <div style="background-color: #2a3942; padding: 15px; border-radius: 8px; text-align: center;">
-                                <div style="color: #00a884; font-size: 24px; font-weight: bold;">12</div>
-                                <div style="color: #e9edef;">Total Users</div>
-                            </div>
-                            
-                            <div style="background-color: #2a3942; padding: 15px; border-radius: 8px; text-align: center;">
-                                <div style="color: #00a884; font-size: 24px; font-weight: bold;">42</div>
-                                <div style="color: #e9edef;">Messages Today</div>
-                            </div>
-                            
-                            <div style="background-color: #2a3942; padding: 15px; border-radius: 8px; text-align: center;">
-                                <div style="color: #00a884; font-size: 24px; font-weight: bold;">3</div>
-                                <div style="color: #e9edef;">Groups Created</div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            authModal.appendChild(authPanel);
-            document.body.appendChild(authModal);
-            
-            // Add event listener to close button
-            document.getElementById('close-auth-panel').addEventListener('click', function() {
-                document.body.removeChild(authModal);
-            });
-            
-            // Add event listener to return to contacts button
-            document.getElementById('return-to-contacts-from-auth').addEventListener('click', function() {
-                document.body.removeChild(authModal);
-                
-                // Hide settings sidebar
-                document.querySelector('.settings-sidebar').style.display = 'none';
-                
-                // Show main sidebar
-                document.querySelector('.sidebar').style.display = 'flex';
-                
-                // Set contacts tab as active
-                document.querySelectorAll('.nav-icon').forEach(i => i.classList.remove('active'));
-                document.querySelector('.nav-icon[data-target="contacts"]').classList.add('active');
-            });
-            
-            // Add event listener to load users button
-            document.getElementById('load-users-btn').addEventListener('click', function() {
-                const usersContainer = document.getElementById('users-container');
-                usersContainer.innerHTML = '<div style="text-align: center; color: #e9edef; padding: 20px;">Loading users...</div>';
-                
-                // Fetch all users
-                fetch('/api/users')
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.users && data.users.length > 0) {
-                            usersContainer.innerHTML = `
-                                <table style="width: 100%; border-collapse: collapse; color: #e9edef;">
-                                    <thead>
-                                        <tr>
-                                            <th style="text-align: left; padding: 8px; border-bottom: 1px solid #2a3942;">ID</th>
-                                            <th style="text-align: left; padding: 8px; border-bottom: 1px solid #2a3942;">Username</th>
-                                            <th style="text-align: left; padding: 8px; border-bottom: 1px solid #2a3942;">Email</th>
-                                            <th style="text-align: left; padding: 8px; border-bottom: 1px solid #2a3942;">Actions</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody>
-                                        ${data.users.map(user => `
-                                            <tr>
-                                                <td style="padding: 8px; border-bottom: 1px solid #2a3942;">${user.id}</td>
-                                                <td style="padding: 8px; border-bottom: 1px solid #2a3942;">${user.username}</td>
-                                                <td style="padding: 8px; border-bottom: 1px solid #2a3942;">${user.email || 'N/A'}</td>
-                                                <td style="padding: 8px; border-bottom: 1px solid #2a3942;">
-                                                    <button class="edit-user-btn" data-user-id="${user.id}" style="background-color: #00a884; color: white; border: none; border-radius: 3px; padding: 3px 8px; cursor: pointer; margin-right: 5px;">Edit</button>
-                                                    <button class="delete-user-btn" data-user-id="${user.id}" style="background-color: #f15c6d; color: white; border: none; border-radius: 3px; padding: 3px 8px; cursor: pointer;">Delete</button>
-                                                </td>
-                                            </tr>
-                                        `).join('')}
-                                    </tbody>
-                                </table>
-                            `;
-                            
-                            // Add event listeners to action buttons
-                            document.querySelectorAll('.edit-user-btn').forEach(btn => {
-                                btn.addEventListener('click', function() {
-                                    const userId = this.getAttribute('data-user-id');
-                                    showNotification(`Edit user functionality for user ${userId} is not implemented yet`, 'warning');
-                                });
-                            });
-                            
-                            document.querySelectorAll('.delete-user-btn').forEach(btn => {
-                                btn.addEventListener('click', function() {
-                                    const userId = this.getAttribute('data-user-id');
-                                    if (confirm(`Are you sure you want to delete user with ID ${userId}?`)) {
-                                        showNotification(`Delete user functionality for user ${userId} is not implemented yet`, 'warning');
-                                    }
-                                });
-                            });
-                        } else {
-                            usersContainer.innerHTML = '<div style="text-align: center; color: #e9edef; padding: 20px;">No users found</div>';
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error loading users:', error);
-                        usersContainer.innerHTML = '<div style="text-align: center; color: #ff6b6b; padding: 20px;">Error loading users</div>';
-                    });
-            });
-            
-            // Close when clicked outside
-            authModal.addEventListener('click', function(e) {
-                if (e.target === authModal) {
-                    document.body.removeChild(authModal);
-                }
-            });
-        }
-
-        // Function to show actual admin panel
-        function showActualAdminPanel() {
-            // Check if user has admin access
-            if (!hasAdminAccess()) {
-                return; // Just return if no admin access, since loadAdminPanel already shows the prompt
-            }
-
-            // Remove any existing modals first
-            const existingModals = document.querySelectorAll('.modal');
-            existingModals.forEach(modal => {
-                document.body.removeChild(modal);
-            });
-
-            const modal = document.createElement('div');
-            modal.className = 'modal';
-            modal.style.position = 'fixed';
-            modal.style.top = '0';
-            modal.style.left = '0';
-            modal.style.width = '100%';
-            modal.style.height = '100%';
-            modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-            modal.style.zIndex = '1000';
-            modal.style.display = 'flex';
-            modal.style.justifyContent = 'center';
-            modal.style.alignItems = 'center';
-            
-            const panel = document.createElement('div');
-            panel.style.backgroundColor = '#1f2c33';
-            panel.style.padding = '20px';
-            panel.style.borderRadius = '8px';
-            panel.style.width = '600px';
-            panel.style.maxWidth = '90%';
-            panel.style.maxHeight = '80vh';
-            panel.style.overflowY = 'auto';
-            
-            panel.innerHTML = `
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h2 style="color: #e9edef; margin: 0;">Admin Panel - Users</h2>
-                    <div class="close-button" style="cursor: pointer;">
-                            <svg viewBox="0 0 24 24" width="24" height="24">
-                                <path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path>
-                            </svg>
-                        </div>
-                    </div>
-                <div class="user-list" style="display: flex; flex-direction: column; gap: 10px;">
-                    Loading users...
-                </div>
-            `;
-            
-            modal.appendChild(panel);
-            document.body.appendChild(modal);
-            
-            // Add close button event listener
-            const closeButton = panel.querySelector('.close-button');
-            closeButton.addEventListener('click', () => {
-                document.body.removeChild(modal);
-            });
-            
-            // Load users
-                fetch('/api/users')
-                    .then(response => response.json())
-                    .then(data => {
-                    const userList = panel.querySelector('.user-list');
-                    userList.innerHTML = '';
-
-                    data.users.forEach(user => {
-                        const userCard = document.createElement('div');
-                        userCard.style.backgroundColor = '#2a3942';
-                        userCard.style.padding = '15px';
-                        userCard.style.borderRadius = '8px';
-                        userCard.style.cursor = 'pointer';
-                        userCard.style.display = 'flex';
-                        userCard.style.alignItems = 'center';
-                        userCard.style.gap = '15px';
-
-                        userCard.innerHTML = `
-                            <div class="user-avatar" style="width: 50px; height: 50px; border-radius: 50%; overflow: hidden; background-color: #374045;">
-                                <img src="/api/placeholder/50/50" alt="${user.username}" style="width: 100%; height: 100%; object-fit: cover;">
-                            </div>
-                            <div style="flex: 1;">
-                                <div style="color: #e9edef; font-weight: bold;">${user.username}</div>
-                                <div style="color: #8696a0; font-size: 14px;">${user.email}</div>
+                    if (filteredUsers.length === 0) {
+                        contactsList.innerHTML = `
+                            <div style="color: #8696a0; text-align: center; padding: 20px;">
+                                No contacts available to add
                             </div>
                         `;
-
-                        userCard.addEventListener('click', () => showUserDetailsModal(user.id));
-                        userList.appendChild(userCard);
+                        return;
+                    }
+                    
+                    filteredUsers.forEach(user => {
+                        const contactElement = document.createElement('div');
+                        contactElement.className = 'contact-selection-item';
+                        contactElement.setAttribute('data-contact-id', user.id);
+                        contactElement.setAttribute('data-contact-name', user.username);
+                        
+                        const profilePic = user.profile_picture ? 
+                            `/uploads/profile_photos/${user.profile_picture}` : 
+                            '/api/placeholder/49/49';
+                        
+                        contactElement.innerHTML = `
+                            <div style="display: flex; align-items: center; padding: 10px; cursor: pointer;">
+                                <div style="width: 40px; height: 40px; border-radius: 20px; overflow: hidden; margin-right: 15px;">
+                                    <img src="${profilePic}" alt="${user.username}" style="width: 100%; height: 100%; object-fit: cover;">
+                                </div>
+                                <div style="flex: 1;">
+                                    <div style="color: #e9edef;">${user.username}</div>
+                                    <div style="color: #8696a0; font-size: 13px;">${user.name || ''}</div>
+                                </div>
+                                <div class="contact-checkbox" style="width: 20px; height: 20px; border: 2px solid #8696a0; border-radius: 3px;"></div>
+                            </div>
+                        `;
+                        
+                        contactElement.addEventListener('click', function() {
+                            const checkbox = this.querySelector('.contact-checkbox');
+                            const userId = parseInt(this.getAttribute('data-contact-id'));
+                            
+                            if (selectedMembers.has(userId)) {
+                                selectedMembers.delete(userId);
+                                checkbox.style.backgroundColor = '';
+                                checkbox.innerHTML = '';
+                            } else {
+                                selectedMembers.set(userId, {
+                                    name: this.getAttribute('data-contact-name'),
+                                    profilePic: profilePic
+                                });
+                                checkbox.style.backgroundColor = '#00a884';
+                                checkbox.innerHTML = `
+                                    <svg viewBox="0 0 24 24" width="16" height="16" style="fill: white; margin: 0 auto;">
+                                        <path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"></path>
+                                    </svg>
+                                `;
+                            }
+                            
+                            // Update add members button state
+                            const addButton = document.getElementById('add-selected-members');
+                            if (addButton) {
+                                addButton.disabled = selectedMembers.size === 0;
+                                addButton.style.opacity = selectedMembers.size === 0 ? '0.5' : '1';
+                            }
+                        });
+                        
+                        contactsList.appendChild(contactElement);
                     });
-                    })
-                    .catch(error => {
-                        console.error('Error loading users:', error);
-                    panel.querySelector('.user-list').innerHTML = 'Error loading users';
-                });
-        }
-
-        function showUserDetailsModal(userId) {
-            // Check if user has admin access
-            if (!hasAdminAccess()) {
-                showAdminPasswordPrompt();
-                return;
-            }
-
-            fetch(`/api/users/${userId}/details`)
-                .then(response => response.json())
-                .then(user => {
-                    const modal = document.createElement('div');
-                    modal.className = 'modal';
-                    modal.style.position = 'fixed';
-                    modal.style.top = '0';
-                    modal.style.left = '0';
-                    modal.style.width = '100%';
-                    modal.style.height = '100%';
-                    modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-                    modal.style.zIndex = '1001';
-                    modal.style.display = 'flex';
-                    modal.style.justifyContent = 'center';
-                    modal.style.alignItems = 'center';
-
-                    const panel = document.createElement('div');
-                    panel.style.backgroundColor = '#1f2c33';
-                    panel.style.padding = '20px';
-                    panel.style.borderRadius = '8px';
-                    panel.style.width = '400px';
-                    panel.style.maxWidth = '90%';
-
-                    panel.innerHTML = `
-                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                            <h2 style="color: #e9edef; margin: 0;">User Details</h2>
-                            <div class="close-button" style="cursor: pointer;">
-                                <svg viewBox="0 0 24 24" width="24" height="24">
-                                    <path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path>
-                                </svg>
-                            </div>
+                })
+                .catch(error => {
+                    console.error('Error loading contacts:', error);
+                    const contactsList = document.getElementById('add-members-list') || document.getElementById('contact-selection-list');
+                    contactsList.innerHTML = `
+                        <div style="color: #ff6b6b; text-align: center; padding: 20px;">
+                            Error loading contacts. Please try again.
                         </div>
-                        <div style="text-align: center; margin-bottom: 20px;">
-                            <div style="width: 120px; height: 120px; border-radius: 50%; overflow: hidden; margin: 0 auto 15px;">
-                                <img src="${user.profile_picture || '/api/placeholder/120/120'}" alt="${user.username}" 
-                                     style="width: 100%; height: 100%; object-fit: cover;">
-                            </div>
-                            <div style="color: #e9edef; font-size: 20px; font-weight: bold;">${user.username}</div>
-                            <div style="color: #8696a0;">${user.name || 'No name set'}</div>
-                        </div>
-                        <div style="background-color: #2a3942; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                            <div style="color: #8696a0; margin-bottom: 5px;">Bio</div>
-                            <div style="color: #e9edef;">${user.bio || 'No bio set'}</div>
-                        </div>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
-                            <div style="background-color: #2a3942; padding: 15px; border-radius: 8px; text-align: center;">
-                                <div style="color: #8696a0;">Groups</div>
-                                <div style="color: #e9edef; font-size: 18px;">${user.group_count || 0}</div>
-                </div>
-                            <div style="background-color: #2a3942; padding: 15px; border-radius: 8px; text-align: center;">
-                                <div style="color: #8696a0;">Complaints</div>
-                                <div style="color: #e9edef; font-size: 18px;">${user.complaint_count || 0}</div>
-                    </div>
-                </div>
-                        <div style="background-color: #2a3942; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                            <div style="color: #8696a0;">Registration Date</div>
-                            <div style="color: #e9edef;">${new Date(user.registration_date).toLocaleDateString()}</div>
-                        </div>
-                        <button onclick="deleteUser(${user.id})" 
-                                style="width: 100%; padding: 12px; background-color: #dc3545; color: white; border: none; 
-                                       border-radius: 8px; cursor: pointer; font-size: 16px;">
-                            Delete Account
-                        </button>
                     `;
-
-                    modal.appendChild(panel);
-                    document.body.appendChild(modal);
-
-                    // Add close button event listener
-                    const closeButton = panel.querySelector('.close-button');
-                    closeButton.addEventListener('click', () => {
-                        document.body.removeChild(modal);
-                    });
-
-                    // Close when clicking outside
-                    modal.addEventListener('click', (e) => {
-                        if (e.target === modal) {
-                            document.body.removeChild(modal);
-                        }
-                    });
-                })
-                .catch(error => {
-                    console.error('Error loading user details:', error);
-                    showNotification('Error loading user details', 'error');
                 });
-        }
-
-        function deleteUser(userId) {
-            if (confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
-                fetch(`/api/users/${userId}`, {
-                    method: 'DELETE'
-                })
-                .then(response => response.json())
-                .then(data => {
-                    showNotification('User deleted successfully', 'success');
-                    // Refresh admin panel
-                    document.body.removeChild(document.querySelector('.modal'));
-                    showActualAdminPanel();
-                })
-                .catch(error => {
-                    console.error('Error deleting user:', error);
-                    showNotification('Error deleting user', 'error');
-                });
-            }
         }
 
         // Function to show language settings
@@ -3895,12 +3609,12 @@
                             <div style="background-color: #2a3942; padding: 15px; border-radius: 8px; text-align: center;">
                                 <div style="color: #8696a0;">Groups</div>
                                 <div style="color: #e9edef; font-size: 18px;">${user.group_count || 0}</div>
-                            </div>
+                </div>
                             <div style="background-color: #2a3942; padding: 15px; border-radius: 8px; text-align: center;">
                                 <div style="color: #8696a0;">Complaints</div>
                                 <div style="color: #e9edef; font-size: 18px;">${user.complaint_count || 0}</div>
-                            </div>
-                        </div>
+                    </div>
+                </div>
                         <div style="background-color: #2a3942; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
                             <div style="color: #8696a0;">Registration Date</div>
                             <div style="color: #e9edef;">${new Date(user.registration_date).toLocaleDateString()}</div>
@@ -3932,6 +3646,25 @@
                     console.error('Error loading user details:', error);
                     showNotification('Error loading user details', 'error');
                 });
+        }
+
+        function deleteUser(userId) {
+            if (confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+                fetch(`/api/users/${userId}`, {
+                    method: 'DELETE'
+                })
+                .then(response => response.json())
+                .then(data => {
+                    showNotification('User deleted successfully', 'success');
+                    // Refresh admin panel
+                    document.body.removeChild(document.querySelector('.modal'));
+                    showActualAdminPanel();
+                })
+                .catch(error => {
+                    console.error('Error deleting user:', error);
+                    showNotification('Error deleting user', 'error');
+                });
+            }
         }
 
         // Function to show language settings modal
@@ -4731,6 +4464,183 @@
                 .catch(error => {
                     console.error('Error fetching contact info:', error);
                     showNotification('Error loading contact information', 'error');
+                });
+        }
+
+        // ... existing code ...
+
+        // Update the delete group functionality to properly handle cleanup
+        function deleteGroup(groupId) {
+            if (confirm('Are you sure you want to delete this group? This action cannot be undone.')) {
+                fetch('/chat/delete_group', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        group_id: groupId
+                    })
+                })
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(data => {
+                    showNotification(data.message, 'success');
+                    
+                    // Close the group info panel if it's open
+                    const modal = document.querySelector('.modal');
+                    if (modal) {
+                        modal.remove();
+                    }
+                    
+                    // Clear the chat area
+                    const chatBody = document.querySelector('.chat-body');
+                    if (chatBody) {
+                        chatBody.innerHTML = `
+                            <div style="display: flex; justify-content: center; align-items: center; height: 100%; color: #8696a0;">
+                                Select a chat to start messaging
+                            </div>
+                        `;
+                    }
+                    
+                    // Clear the chat header
+                    const chatHeader = document.querySelector('.chat-header');
+                    if (chatHeader) {
+                        chatHeader.innerHTML = '';
+                    }
+                    
+                    // Clear any stored active chat info
+                    currentChat = null;
+                    
+                    // Refresh the groups list and switch to groups view
+                    loadGroups();
+                    showGroupsView();
+                })
+                .catch(error => {
+                    showNotification('Error deleting group: ' + error.message, 'error');
+                    console.error('Error:', error);
+                });
+            }
+        }
+
+        // Update the loadContactsForGroupCreation function to handle errors better
+        function loadContactsForGroupCreation(groupId) {
+            const contactsList = document.getElementById('add-members-list') || document.getElementById('contact-selection-list');
+            
+            // Show loading state
+            contactsList.innerHTML = `
+                <div class="loading-contacts" style="color: #8696a0; text-align: center; padding: 20px;">
+                    Loading contacts...
+                </div>
+            `;
+
+            // Get all users first
+            fetch('/chat/user_info')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Network response was not ok');
+                    }
+                    return response.json();
+                })
+                .then(users => {
+                    if (groupId) {
+                        // If we have a groupId, get group members to filter them out
+                        return fetch(`/chat/group/${groupId}`)
+                            .then(response => {
+                                if (!response.ok) {
+                                    throw new Error('Network response was not ok');
+                                }
+                                return response.json();
+                            })
+                            .then(groupInfo => {
+                                const existingMemberIds = new Set(groupInfo.members.map(member => member.id));
+                                return users.filter(user => !existingMemberIds.has(user.id));
+                            })
+                            .catch(error => {
+                                console.error('Error fetching group info:', error);
+                                return users;
+                            });
+                    } else {
+                        return users;
+                    }
+                })
+                .then(filteredUsers => {
+                    contactsList.innerHTML = '';
+                    
+                    if (filteredUsers.length === 0) {
+                        contactsList.innerHTML = `
+                            <div style="color: #8696a0; text-align: center; padding: 20px;">
+                                No contacts available to add
+                            </div>
+                        `;
+                        return;
+                    }
+                    
+                    filteredUsers.forEach(user => {
+                        const contactElement = document.createElement('div');
+                        contactElement.className = 'contact-selection-item';
+                        contactElement.setAttribute('data-contact-id', user.id);
+                        contactElement.setAttribute('data-contact-name', user.username);
+                        
+                        const profilePic = user.profile_picture ? 
+                            `/uploads/profile_photos/${user.profile_picture}` : 
+                            '/api/placeholder/49/49';
+                        
+                        contactElement.innerHTML = `
+                            <div style="display: flex; align-items: center; padding: 10px; cursor: pointer;">
+                                <div style="width: 40px; height: 40px; border-radius: 20px; overflow: hidden; margin-right: 15px;">
+                                    <img src="${profilePic}" alt="${user.username}" style="width: 100%; height: 100%; object-fit: cover;">
+                                </div>
+                                <div style="flex: 1;">
+                                    <div style="color: #e9edef;">${user.username}</div>
+                                    <div style="color: #8696a0; font-size: 13px;">${user.name || ''}</div>
+                                </div>
+                                <div class="contact-checkbox" style="width: 20px; height: 20px; border: 2px solid #8696a0; border-radius: 3px;"></div>
+                            </div>
+                        `;
+                        
+                        contactElement.addEventListener('click', function() {
+                            const checkbox = this.querySelector('.contact-checkbox');
+                            const userId = parseInt(this.getAttribute('data-contact-id'));
+                            
+                            if (selectedMembers.has(userId)) {
+                                selectedMembers.delete(userId);
+                                checkbox.style.backgroundColor = '';
+                                checkbox.innerHTML = '';
+                            } else {
+                                selectedMembers.set(userId, {
+                                    name: this.getAttribute('data-contact-name'),
+                                    profilePic: profilePic
+                                });
+                                checkbox.style.backgroundColor = '#00a884';
+                                checkbox.innerHTML = `
+                                    <svg viewBox="0 0 24 24" width="16" height="16" style="fill: white; margin: 0 auto;">
+                                        <path d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"></path>
+                                    </svg>
+                                `;
+                            }
+                            
+                            // Update add members button state
+                            const addButton = document.getElementById('add-selected-members');
+                            if (addButton) {
+                                addButton.disabled = selectedMembers.size === 0;
+                                addButton.style.opacity = selectedMembers.size === 0 ? '0.5' : '1';
+                            }
+                        });
+                        
+                        contactsList.appendChild(contactElement);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error loading contacts:', error);
+                    contactsList.innerHTML = `
+                        <div style="color: #ff6b6b; text-align: center; padding: 20px;">
+                            Error loading contacts. Please try again.
+                        </div>
+                    `;
                 });
         }
 
