@@ -458,7 +458,7 @@ def get_user_info_by_id(user_id):
     
     try:
         cursor.execute("""
-            SELECT id, username, profile_picture, name 
+            SELECT id, username, profile_picture, name, info 
             FROM users WHERE id = ?
         """, (user_id,))
         
@@ -470,7 +470,8 @@ def get_user_info_by_id(user_id):
             'id': user[0],
             'username': user[1],
             'profile_picture': user[2],
-            'name': user[3]
+            'name': user[3],
+            'bio': user[4]
         }), 200
         
     except Exception as e:
