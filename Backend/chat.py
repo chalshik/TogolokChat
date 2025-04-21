@@ -5,6 +5,8 @@ import time
 import os
 from flask import current_app
 from collections import defaultdict
+import datetime
+import pytz
 
 # Create blueprint
 bp = Blueprint("chat", __name__, url_prefix="/chat")
@@ -57,10 +59,12 @@ def get_messages(receiver_id):
     
     cursor = connect_db().cursor()
     cursor.execute("""
-        SELECT sender_id, receiver_id, message, time FROM messages 
+        SELECT sender_id, receiver_id, message, time 
+        FROM messages 
         WHERE (sender_id=? AND receiver_id=?) OR (sender_id=? AND receiver_id=?)
         ORDER BY time ASC
     """, (session['user_id'], receiver_id, receiver_id, session['user_id']))
+    
     return jsonify(cursor.fetchall()), 200
 
 # --- Groups --- 
@@ -72,13 +76,15 @@ def get_groups():
     conn = connect_db()
     cursor = conn.cursor()
     
-    # Get groups that the user is a member of
+    # Get groups that the user is a member of with their last message timestamp
     cursor.execute("""
         SELECT g.id, g.group_name, g.admin_id, g.group_picture, 
-               (SELECT COUNT(*) FROM group_members WHERE group_id = g.id) as member_count 
+               (SELECT COUNT(*) FROM group_members WHERE group_id = g.id) as member_count,
+               (SELECT MAX(time) FROM group_messages WHERE group_id = g.id) as last_message_time
         FROM groups g
         JOIN group_members gm ON g.id = gm.group_id
         WHERE gm.user_id = ?
+        ORDER BY last_message_time DESC NULLS LAST
     """, (session['user_id'],))
     
     groups = []
@@ -89,7 +95,8 @@ def get_groups():
             'admin_id': row[2],
             'picture': row[3],
             'member_count': row[4],
-            'is_admin': row[2] == session['user_id']
+            'is_admin': row[2] == session['user_id'],
+            'last_message_time': row[5]
         })
     
     conn.close()
@@ -613,10 +620,7 @@ def register_socket_events(socketio):
         receiver_id = data.get('receiver_id')
         message = data.get('message')
         group_id = data.get('group_id')
-        timestamp = data.get('timestamp', '')
         message_id = data.get('message_id', str(int(time.time())) + str(sender_id))
-        
-        print(f"Message from {sender_username}({sender_id}) to {receiver_username if receiver_username else 'Group '+str(group_id)}): {message}")
         
         if not sender_id:
             return {'status': 'error', 'message': 'Not authenticated'}
@@ -624,20 +628,23 @@ def register_socket_events(socketio):
         if not message:
             return {'status': 'error', 'message': 'No message provided'}
         
+        # Get current time in Kyrgyzstan timezone
+        kyrgyzstan_tz = pytz.timezone('Asia/Bishkek')
+        current_time = datetime.datetime.now(kyrgyzstan_tz)
+        
         try:
-            # Handle different types of messages
             if group_id:
                 # Group message
                 room = f'group_{group_id}'
                 
-                # Store the message in the database
+                # Store the message in the database with Kyrgyzstan time
                 conn = connect_db()
                 cursor = conn.cursor()
                 
                 cursor.execute("""
                     INSERT INTO group_messages (group_id, sender_id, message, time)
-                    VALUES (?, ?, ?, datetime('now'))
-                """, (group_id, sender_id, message))
+                    VALUES (?, ?, ?, ?)
+                """, (group_id, sender_id, message, current_time))
                 
                 conn.commit()
                 conn.close()
@@ -648,7 +655,7 @@ def register_socket_events(socketio):
                     'sender_username': sender_username,
                     'message': message,
                     'group_id': group_id,
-                    'timestamp': timestamp,
+                    'timestamp': current_time.isoformat(),
                     'message_id': message_id
                 }, room=room)
                 
@@ -679,48 +686,36 @@ def register_socket_events(socketio):
                 if not target_room:
                     return {'status': 'error', 'message': 'Could not determine recipient'}
                 
-                # Store the message in the database
+                # Store the message in the database with Kyrgyzstan time
                 conn = connect_db()
                 cursor = conn.cursor()
                 
                 cursor.execute("""
                     INSERT INTO messages (sender_id, receiver_id, message, time)
-                    VALUES (?, ?, ?, datetime('now'))
-                """, (sender_id, receiver_id, message))
+                    VALUES (?, ?, ?, ?)
+                """, (sender_id, receiver_id, message, current_time))
                 
                 conn.commit()
                 conn.close()
                 
-                # Send to the recipient
+                # Send to the recipient with Kyrgyzstan time
                 message_data = {
                     'sender_id': sender_id,
                     'sender_username': sender_username,
                     'receiver_id': receiver_id,
                     'message': message,
-                    'timestamp': timestamp,
+                    'timestamp': current_time.isoformat(),
                     'message_id': message_id
                 }
                 
-                print(f"Emitting to room: {target_room}")
                 emit('new_message', message_data, room=target_room)
-                
-                # Also notify the sender for UI update confirmation
-                emit('message_sent', {
-                    'receiver_id': receiver_id,
-                    'receiver_username': receiver_username,
-                    'message': message,
-                    'timestamp': timestamp,
-                    'message_id': message_id
-                }, room=str(sender_id))
-                
-                return {'status': 'success', 'message': 'Direct message sent', 'message_id': message_id}
+                return {'status': 'success', 'message': 'Message sent'}
             
-            else:
-                return {'status': 'error', 'message': 'No receiver specified'}
-        
+            return {'status': 'error', 'message': 'Invalid message type'}
+            
         except Exception as e:
-            print(f'Error sending message: {str(e)}')
-            return {'status': 'error', 'message': str(e)}
+            print(f"Error sending message: {str(e)}")
+            return {'status': 'error', 'message': 'Failed to send message'}
 
     @socketio.on('update_message_status')
     def handle_status_update(data):
@@ -801,7 +796,7 @@ def get_last_message(contact_id):
     if result:
         return jsonify({
             'message': result[0],
-            'timestamp': result[1].timestamp() * 1000 if result[1] else None
+            'timestamp': result[1].isoformat() if result[1] else None
         })
     
     return jsonify({

@@ -53,12 +53,11 @@ def create_tables():
             sender_id INTEGER NOT NULL,
             receiver_id INTEGER NOT NULL,
             message TEXT NOT NULL,
-            time TEXT NOT NULL,
+            time DATETIME DEFAULT CURRENT_TIMESTAMP,
             status TEXT DEFAULT 'sent',
             is_edited INTEGER DEFAULT 0,
-            delivered_at TEXT,
-            read_at TEXT,
-            timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
+            delivered_at DATETIME,
+            read_at DATETIME,
             FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
             FOREIGN KEY (receiver_id) REFERENCES users(id) ON DELETE CASCADE
         );
