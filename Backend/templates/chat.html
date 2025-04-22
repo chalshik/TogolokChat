@@ -2103,10 +2103,12 @@
             // Get the sidebar content
             const sidebarContent = document.querySelector('.sidebar-content');
             
-            // Save the current sidebar content
-            const originalContent = sidebarContent.innerHTML;
+            // Save the current sidebar content if it's not already saved
+            if (!window.originalSidebarState) {
+                window.originalSidebarState = sidebarContent.innerHTML;
+            }
             
-            // Create and show the create group interface in the sidebar
+            // Create and show the first step (contact selection) interface
             sidebarContent.innerHTML = `
                 <div class="sidebar-header">
                     <div style="display: flex; align-items: center;">
@@ -2115,7 +2117,86 @@
                                 <path fill="currentColor" d="M19 11H7.83l4.88-4.88c.39-.39.39-1.03 0-1.42-.39-.39-1.02-.39-1.41 0l-6.59 6.59c-.39.39-.39 1.02 0 1.41l6.59 6.59c.39.39 1.02.39 1.41 0 .39-.39.39-1.02 0-1.41L7.83 13H19c.55 0 1-.45 1-1s-.45-1-1-1z"></path>
                             </svg>
                         </div>
-                        <div class="app-name">Create New Group</div>
+                        <div class="app-name">Select Contacts</div>
+                    </div>
+                </div>
+                
+                <div style="padding: 15px; background-color: #111b21;">
+                    <div class="form-group" style="margin-bottom: 15px;">
+                        <label style="display: block; color: #e9edef; margin-bottom: 5px;">Select Members</label>
+                        <div style="display: flex;">
+                            <input type="text" id="search-members" style="flex: 1; padding: 10px; background-color: #2a3942; border: none; color: #e9edef; border-radius: 5px;" placeholder="Search contacts">
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="padding: 10px 15px; background-color: #111b21; border-bottom: 1px solid #222d34;">
+                    <div style="color: #e9edef; font-size: 14px; margin-bottom: 5px;">Selected Contacts (<span id="selected-count">0</span>)</div>
+                    <div id="selected-members" style="display: flex; flex-wrap: wrap; gap: 5px;"></div>
+                </div>
+                
+                <div id="contact-selection-list" style="overflow-y: auto; flex: 1; background-color: #111b21;">
+                    <div style="text-align: center; color: #8696a0; padding: 20px;">
+                        Loading contacts...
+                    </div>
+                </div>
+                
+                <div style="padding: 15px; background-color: #111b21; border-top: 1px solid #222d34;">
+                    <button id="next-step-btn" style="width: 100%; padding: 12px; background-color: #00a884; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px; opacity: 0.5;" disabled>
+                        Next
+                    </button>
+                </div>
+            `;
+            
+            // Add event listener to back button
+            const backButton = document.getElementById('back-to-groups');
+            if (backButton) {
+                backButton.addEventListener('click', function() {
+                    // Clear selected members when going back to groups list
+                    selectedMembers.clear();
+                    
+                    // Restore original sidebar content
+                    if (window.originalSidebarState) {
+                        sidebarContent.innerHTML = window.originalSidebarState;
+                        window.originalSidebarState = null; // Clear the saved state
+                    }
+                    
+                    // Reattach event listener to create group button
+                    const createGroupButton = document.getElementById('create-group-button');
+                    if (createGroupButton) {
+                        createGroupButton.addEventListener('click', showCreateGroupView);
+                    }
+                    
+                    // Load the groups
+                    loadGroups();
+                });
+            }
+            
+            // Add event listener for next step button
+            const nextStepBtn = document.getElementById('next-step-btn');
+            if (nextStepBtn) {
+                nextStepBtn.addEventListener('click', function() {
+                    showGroupDetailsStep();
+                });
+            }
+            
+            // Load contacts for selection
+            loadContactsForGroupCreation();
+        }
+        
+        // Function to show the second step (group details)
+        function showGroupDetailsStep() {
+            const sidebarContent = document.querySelector('.sidebar-content');
+            
+            sidebarContent.innerHTML = `
+                <div class="sidebar-header">
+                    <div style="display: flex; align-items: center;">
+                        <div id="back-to-contact-selection" style="margin-right: 15px; cursor: pointer;">
+                            <svg viewBox="0 0 24 24" width="24" height="24">
+                                <path fill="currentColor" d="M19 11H7.83l4.88-4.88c.39-.39.39-1.03 0-1.42-.39-.39-1.02-.39-1.41 0l-6.59 6.59c-.39.39-.39 1.02 0 1.41l6.59 6.59c.39.39 1.02.39 1.41 0 .39-.39.39-1.02 0-1.41L7.83 13H19c.55 0 1-.45 1-1s-.45-1-1-1z"></path>
+                            </svg>
+                        </div>
+                        <div class="app-name">Group Details</div>
                     </div>
                 </div>
                 
@@ -2145,22 +2226,16 @@
                         </div>
                     </div>
                     
-                    <div class="form-group" style="margin-bottom: 15px;">
-                        <label style="display: block; color: #e9edef; margin-bottom: 5px;">Select Members</label>
-                        <div style="display: flex;">
-                            <input type="text" id="search-members" style="flex: 1; padding: 10px; background-color: #2a3942; border: none; color: #e9edef; border-radius: 5px;" placeholder="Search contacts">
+                    <div style="background-color: #202c33; padding: 15px; border-radius: 8px;">
+                        <div style="font-size: 14px; color: #8696a0; margin-bottom: 10px;">Selected Members (${selectedMembers.size})</div>
+                        <div id="selected-members-list" style="display: flex; flex-wrap: wrap; gap: 10px;">
+                            ${Array.from(selectedMembers.values()).map(member => `
+                                <div style="display: flex; align-items: center; background-color: #2a3942; padding: 5px 10px; border-radius: 15px;">
+                                    <img src="${member.profilePic}" alt="${member.name}" style="width: 20px; height: 20px; border-radius: 50%; margin-right: 5px;">
+                                    <span style="color: #e9edef; font-size: 14px;">${member.name}</span>
+                                </div>
+                            `).join('')}
                         </div>
-                    </div>
-                </div>
-                
-                <div style="padding: 10px 15px; background-color: #111b21; border-bottom: 1px solid #222d34;">
-                    <div style="color: #e9edef; font-size: 14px; margin-bottom: 5px;">Selected Contacts (<span id="selected-count">0</span>)</div>
-                    <div id="selected-members" style="display: flex; flex-wrap: wrap; gap: 5px;"></div>
-                </div>
-                
-                <div id="contact-selection-list" style="overflow-y: auto; flex: 1; background-color: #111b21;">
-                    <div style="text-align: center; color: #8696a0; padding: 20px;">
-                        Loading contacts...
                     </div>
                 </div>
                 
@@ -2171,66 +2246,67 @@
                 </div>
             `;
             
-            // Add event listener to back button
-            document.getElementById('back-to-groups').addEventListener('click', function() {
-                // Restore original sidebar content
-                sidebarContent.innerHTML = originalContent;
-                
-                // Reattach event listener to create group button
-                document.getElementById('create-group-button').addEventListener('click', showCreateGroupView);
-                
-                // Load the groups
-                loadGroups();
-            });
+            // Add event listener for back button
+            const backButton = document.getElementById('back-to-contact-selection');
+            if (backButton) {
+                backButton.addEventListener('click', function() {
+                    showCreateGroupView();
+                });
+            }
             
             // Add event listeners for avatar upload
             const avatarInput = document.getElementById('group-avatar-input');
             const uploadButton = document.getElementById('upload-avatar-btn');
             const avatarPreview = document.getElementById('group-avatar-preview');
             
-            uploadButton.addEventListener('click', function() {
-                avatarInput.click();
-            });
-            
-            avatarInput.addEventListener('change', function(e) {
-                const file = e.target.files[0];
-                if (file) {
-                    // Check if file is an image
-                    if (!file.type.startsWith('image/')) {
-                        showNotification('Please select an image file', 'error');
-                        return;
+            if (uploadButton && avatarInput) {
+                uploadButton.addEventListener('click', function() {
+                    avatarInput.click();
+                });
+                
+                avatarInput.addEventListener('change', function(e) {
+                    const file = e.target.files[0];
+                    if (file) {
+                        // Check if file is an image
+                        if (!file.type.startsWith('image/')) {
+                            showNotification('Please select an image file', 'error');
+                            return;
+                        }
+                        
+                        // Check file size (max 5MB)
+                        if (file.size > 5 * 1024 * 1024) {
+                            showNotification('Image size should be less than 5MB', 'error');
+                            return;
+                        }
+                        
+                        // Create preview
+                        const reader = new FileReader();
+                        reader.onload = function(e) {
+                            if (avatarPreview) {
+                                avatarPreview.innerHTML = `<img src="${e.target.result}" style="width: 100%; height: 100%; object-fit: cover;">`;
+                            }
+                        };
+                        reader.readAsDataURL(file);
                     }
-                    
-                    // Check file size (max 5MB)
-                    if (file.size > 5 * 1024 * 1024) {
-                        showNotification('Image size should be less than 5MB', 'error');
-                        return;
-                    }
-                    
-                    // Create preview
-                    const reader = new FileReader();
-                    reader.onload = function(e) {
-                        avatarPreview.innerHTML = `<img src="${e.target.result}" style="width: 100%; height: 100%; object-fit: cover;">`;
-                    };
-                    reader.readAsDataURL(file);
-                }
-            });
+                });
+            }
             
             // Add event listener for group name input
             const groupNameInput = document.getElementById('group-name');
-            groupNameInput.addEventListener('input', function() {
-                updateCreateGroupButton();
-            });
+            if (groupNameInput) {
+                groupNameInput.addEventListener('input', function() {
+                    updateCreateGroupButton();
+                });
+            }
             
             // Add event listener for create group button
             const createGroupBtn = document.getElementById('create-group-btn');
-            createGroupBtn.addEventListener('click', function(e) {
-                e.preventDefault();
-                createNewGroup();
-            });
-            
-            // Load contacts for selection
-            loadContactsForGroupCreation();
+            if (createGroupBtn) {
+                createGroupBtn.addEventListener('click', function(e) {
+                    e.preventDefault();
+                    createNewGroup();
+                });
+            }
         }
         
         // Function to load contacts for group creation
@@ -2285,8 +2361,8 @@
                                 </div>
                                 <div class="contact-checkbox" style="width: 24px; height: 24px; border: 2px solid ${isSelected ? '#00a884' : '#8696a0'}; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
                                     <svg viewBox="0 0 24 24" width="18" height="18" style="display: ${isSelected ? 'block' : 'none'};">
-                                    <path fill="#00a884" d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"></path>
-                                </svg>
+                                        <path fill="#00a884" d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"></path>
+                                    </svg>
                                 </div>
                             </div>
                         `;
@@ -2294,21 +2370,15 @@
                         contactElement.addEventListener('click', function() {
                             const contactId = this.getAttribute('data-contact-id');
                             const contactName = this.getAttribute('data-contact-name');
-                            const checkbox = this.querySelector('.contact-checkbox');
-                            const checkmark = checkbox.querySelector('svg');
+                            const isSelected = selectedMembers.has(contactId);
                             
-                            if (selectedMembers.has(contactId)) {
+                            if (isSelected) {
                                 removeSelectedMember(contactId);
-                                checkbox.style.borderColor = '#8696a0';
-                                checkmark.style.display = 'none';
+                                updateContactCheckbox(contactId, false);
                             } else {
                                 addSelectedMember(contactId, contactName, profilePic);
-                                checkbox.style.borderColor = '#00a884';
-                                checkmark.style.display = 'block';
+                                updateContactCheckbox(contactId, true);
                             }
-                            
-                            // Update the Next button state
-                            updateNextButton();
                         });
                         
                         contactsList.appendChild(contactElement);
@@ -2326,11 +2396,15 @@
         // Function to add a selected member
         function addSelectedMember(id, name, profilePic) {
             selectedMembers.set(id, { id, name, profilePic });
+            updateSelectedMembersList();
+            updateNextStepButton();
         }
         
         // Function to remove a selected member
         function removeSelectedMember(id) {
             selectedMembers.delete(id);
+            updateSelectedMembersList();
+            updateNextStepButton();
         }
         
         // Function to filter contacts for group creation
@@ -4742,6 +4816,205 @@
                 groupsList.insertBefore(groupElement, groupsList.firstChild);
             }
         }
+
+        // ... existing code ...
+        // Function to update next step button state
+        function updateNextStepButton() {
+            const nextButton = document.getElementById('next-step-btn');
+            if (selectedMembers.size >= 2) {
+                nextButton.style.opacity = '1';
+                nextButton.disabled = false;
+            } else {
+                nextButton.style.opacity = '0.5';
+                nextButton.disabled = true;
+            }
+        }
+
+        // Function to update create group button state
+        function updateCreateGroupButton() {
+            const createButton = document.getElementById('create-group-btn');
+            const groupName = document.getElementById('group-name').value.trim();
+            
+            // Enable button if there's a group name and at least 2 members selected
+            if (groupName && selectedMembers.size >= 2) {
+                createButton.style.opacity = '1';
+                createButton.disabled = false;
+            } else {
+                createButton.style.opacity = '0.5';
+                createButton.disabled = true;
+            }
+        }
+
+        // Function to add a selected member
+        function addSelectedMember(id, name, profilePic) {
+            selectedMembers.set(id, { id, name, profilePic });
+            updateSelectedMembersList();
+            updateNextStepButton();
+        }
+
+        // Function to remove a selected member
+        function removeSelectedMember(id) {
+            selectedMembers.delete(id);
+            updateSelectedMembersList();
+            updateNextStepButton();
+        }
+
+        // Function to update the selected members list
+        function updateSelectedMembersList() {
+            const selectedCount = document.getElementById('selected-count');
+            const selectedMembersContainer = document.getElementById('selected-members');
+            
+            if (selectedCount) {
+                selectedCount.textContent = selectedMembers.size;
+            }
+            
+            if (selectedMembersContainer) {
+                selectedMembersContainer.innerHTML = '';
+                
+                selectedMembers.forEach((member, id) => {
+                    const memberElement = document.createElement('div');
+                    memberElement.style.display = 'flex';
+                    memberElement.style.alignItems = 'center';
+                    memberElement.style.background = '#2a3942';
+                    memberElement.style.padding = '5px 10px';
+                    memberElement.style.borderRadius = '15px';
+                    memberElement.style.marginRight = '5px';
+                    memberElement.style.marginBottom = '5px';
+                    
+                    memberElement.innerHTML = `
+                        <img src="${member.profilePic}" alt="${member.name}" style="width: 20px; height: 20px; border-radius: 50%; margin-right: 5px;">
+                        <span style="color: #e9edef; font-size: 14px;">${member.name}</span>
+                        <div class="remove-member" style="margin-left: 5px; cursor: pointer;">
+                            <svg viewBox="0 0 24 24" width="16" height="16" style="color: #8696a0;">
+                                <path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path>
+                            </svg>
+                        </div>
+                    `;
+                    
+                    memberElement.querySelector('.remove-member').addEventListener('click', function(e) {
+                        e.stopPropagation();
+                        removeSelectedMember(id);
+                        updateContactCheckbox(id, false);
+                    });
+                    
+                    selectedMembersContainer.appendChild(memberElement);
+                });
+            }
+        }
+
+        // Function to update contact checkbox state
+        function updateContactCheckbox(contactId, isSelected) {
+            const contactElement = document.querySelector(`.contact-selection-item[data-contact-id="${contactId}"]`);
+            if (contactElement) {
+                const checkbox = contactElement.querySelector('.contact-checkbox');
+                const checkmark = checkbox.querySelector('svg');
+                checkbox.style.borderColor = isSelected ? '#00a884' : '#8696a0';
+                checkmark.style.display = isSelected ? 'block' : 'none';
+            }
+        }
+
+        // Function to filter contacts for group creation
+        function filterContactsForGroupCreation(searchTerm) {
+            const contacts = document.querySelectorAll('.contact-selection-item');
+            
+            contacts.forEach(contact => {
+                const name = contact.getAttribute('data-contact-name').toLowerCase();
+                if (name.includes(searchTerm)) {
+                    contact.style.display = '';
+                } else {
+                    contact.style.display = 'none';
+                }
+            });
+        }
+
+        // Add event listener for contact search
+        document.addEventListener('input', function(e) {
+            if (e.target && e.target.id === 'search-members') {
+                filterContactsForGroupCreation(e.target.value.toLowerCase());
+            }
+        });
+
+        // Function to load contacts for group creation
+        function loadContactsForGroupCreation() {
+            const contactsList = document.getElementById('contact-selection-list');
+            
+            fetch('/chat/contacts')
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to load contacts');
+                    }
+                    return response.json();
+                })
+                .then(contacts => {
+                    contactsList.innerHTML = '';
+                    
+                    if (contacts.length === 0) {
+                        contactsList.innerHTML = '<div style="text-align: center; color: #8696a0; padding: 20px;">No contacts found. Add contacts first to create a group.</div>';
+                        return;
+                    }
+                    
+                    // Create contact elements for selection
+                    contacts.forEach(contact => {
+                        let contactId, contactName, profilePic;
+                        
+                        // Handle different contact data formats
+                        if (Array.isArray(contact)) {
+                            contactId = contact[0];
+                            contactName = contact[1];
+                            profilePic = `/api/placeholder/49/49`; // Default placeholder
+                        } else {
+                            contactId = contact.id;
+                            contactName = contact.username || contact.name;
+                            profilePic = contact.profile_picture ? `/uploads/profile_pics/${contact.profile_picture}` : `/api/placeholder/49/49`;
+                        }
+                        
+                        const contactElement = document.createElement('div');
+                        contactElement.className = 'contact-selection-item';
+                        contactElement.setAttribute('data-contact-id', contactId);
+                        contactElement.setAttribute('data-contact-name', contactName);
+                        
+                        // Check if this contact is already selected
+                        const isSelected = selectedMembers.has(contactId);
+                        
+                        contactElement.innerHTML = `
+                            <div style="display: flex; align-items: center; padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #222d34; transition: background-color 0.2s;">
+                                <div style="width: 45px; height: 45px; border-radius: 50%; margin-right: 15px; overflow: hidden;">
+                                    <img src="${profilePic}" alt="${contactName}" style="width: 100%; height: 100%; object-fit: cover;">
+                            </div>
+                                <div style="flex: 1;">
+                                    <div style="color: #e9edef; font-size: 16px;">${contactName}</div>
+                                </div>
+                                <div class="contact-checkbox" style="width: 24px; height: 24px; border: 2px solid ${isSelected ? '#00a884' : '#8696a0'}; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
+                                    <svg viewBox="0 0 24 24" width="18" height="18" style="display: ${isSelected ? 'block' : 'none'};">
+                                        <path fill="#00a884" d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"></path>
+                                    </svg>
+                                </div>
+                            </div>
+                        `;
+                        
+                        contactElement.addEventListener('click', function() {
+                            const contactId = this.getAttribute('data-contact-id');
+                            const contactName = this.getAttribute('data-contact-name');
+                            const isSelected = selectedMembers.has(contactId);
+                            
+                            if (isSelected) {
+                                removeSelectedMember(contactId);
+                                updateContactCheckbox(contactId, false);
+                            } else {
+                                addSelectedMember(contactId, contactName, profilePic);
+                                updateContactCheckbox(contactId, true);
+                            }
+                        });
+                        
+                        contactsList.appendChild(contactElement);
+                    });
+                })
+                .catch(error => {
+                    console.error('Error loading contacts:', error);
+                    contactsList.innerHTML = '<div style="text-align: center; color: #ff6b6b; padding: 20px;">Failed to load contacts. Please try again.</div>';
+                });
+        }
+// ... existing code ...
     </script>
 </body>
 </html>
