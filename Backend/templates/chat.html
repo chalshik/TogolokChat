@@ -2892,6 +2892,7 @@
             // Handle leave group action
             document.getElementById('leave-group-btn').addEventListener('click', function() {
                 if (confirm('Are you sure you want to leave this group?')) {
+                    // Call the backend endpoint to leave the group
                     fetch('/chat/leave_group', {
                         method: 'POST',
                         headers: {
@@ -2901,25 +2902,41 @@
                             group_id: group.id
                         })
                     })
-                    .then(response => {
-                        if (!response.ok) {
-                            throw new Error('Network response was not ok');
-                        }
-                        return response.json();
-                    })
+                    .then(response => response.json())
                     .then(data => {
-                        showNotification(data.message, 'success');
-                        // Close the group info panel
-                        panel.style.transform = 'translateX(100%)';
-                        setTimeout(() => {
-                            document.body.removeChild(modal);
-                            // Refresh the groups list
-                            loadGroups();
-                        }, 300);
+                        if (data.message === "Successfully left the group") {
+                            showNotification('Successfully left the group', 'success');
+                            
+                            // Close the group info panel
+                            panel.style.transform = 'translateX(100%)';
+                            setTimeout(() => {
+                                document.body.removeChild(modal);
+                            }, 300);
+                            
+                            // Remove the group from the sidebar
+                            const groupElement = document.querySelector(`.contact[data-group-id="${group.id}"]`);
+                            if (groupElement) {
+                                groupElement.remove();
+                            }
+                            
+                            // Clear the chat interface if this was the current chat
+                            if (window.currentChat && window.currentChat.id === group.id) {
+                                const chatInterface = document.querySelector('.chat-interface');
+                                if (chatInterface) {
+                                    chatInterface.style.display = 'none';
+                                }
+                                window.currentChat = null;
+                            }
+                            
+                            // Reload the groups list to ensure everything is in sync
+                            showGroupsView();
+                        } else {
+                            showNotification('Failed to leave group: ' + data.message, 'error');
+                        }
                     })
                     .catch(error => {
-                        showNotification('Error leaving group: ' + error.message, 'error');
-                        console.error('Error:', error);
+                        console.error('Error leaving group:', error);
+                        showNotification('Failed to leave group. Please try again.', 'error');
                     });
                 }
             });
