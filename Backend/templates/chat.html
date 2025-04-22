@@ -858,14 +858,33 @@
                     console.log("Current chat updated to:", window.currentChat);
                     
                     // Get profile picture
-                    const profilePic = isGroup
-                        ? (entity.picture ? `/uploads/group_images/${entity.picture}` : '/api/placeholder/49/49')
-                        : (entity.profile_picture ? `/uploads/profile_photos/${entity.profile_picture}` : '/api/placeholder/49/49');
+                    let profilePic;
+                    if (isGroup) {
+                        profilePic = entity.picture ? `/uploads/group_images/${entity.picture}` : '/static/images/contact_logo.png';
+                    } else {
+                        // For direct chats, use the same logic as contact list
+                        profilePic = entity.profile_picture ? `/uploads/profile_photos/${entity.profile_picture}` : '/static/images/contact_logo.png';
+                        
+                        // If no profile picture in entity, fetch it from the API
+                        if (!entity.profile_picture) {
+                            fetch(`/api/user/${entity.id}/profile-picture`)
+                                .then(response => response.json())
+                                .then(data => {
+                                    if (data.photo_url) {
+                                        const img = chatHeader.querySelector('.profile-pic img');
+                                        if (img) {
+                                            img.src = data.photo_url;
+                                        }
+                                    }
+                                })
+                                .catch(error => console.error('Error fetching profile picture:', error));
+                        }
+                    }
                     
                     // Update header content
                     chatHeader.innerHTML = `
                         <div class="profile-pic" style="cursor: pointer;">
-                            <img src="${profilePic}" alt="${isGroup ? entity.name : (entity.username || entity)}">
+                            <img src="${profilePic}" alt="${isGroup ? entity.name : (entity.username || entity)}" onerror="this.src='/static/images/contact_logo.png'">
                         </div>
                         <div class="chat-header-info" style="cursor: pointer;">
                             <div class="chat-header-name">${isGroup ? entity.name : (entity.username || entity)}</div>
@@ -1213,6 +1232,18 @@
             if (userDetail?.profile_picture) {
                 profilePic = `/uploads/profile_photos/${userDetail.profile_picture}`;
             } else {
+                // Try to get profile picture from profile_photos table
+                fetch(`/api/user/${contactId}/profile-picture`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.photo_url) {
+                            const img = contactElement.querySelector('.profile-pic img');
+                            if (img) {
+                                img.src = data.photo_url;
+                            }
+                        }
+                    })
+                    .catch(error => console.error('Error fetching profile picture:', error));
                 profilePic = defaultAvatar;
             }
 
@@ -2651,13 +2682,32 @@
             }
 
             // Get profile picture URL
-            const profilePic = isGroup 
-                ? (entity.picture ? `/uploads/group_images/${entity.picture}` : '/api/placeholder/80/80')
-                : (entity.profile_picture ? `/uploads/profile_photos/${entity.profile_picture}` : '/api/placeholder/80/80');
+            let profilePic;
+            if (isGroup) {
+                profilePic = entity.picture ? `/uploads/group_images/${entity.picture}` : '/static/images/contact_logo.png';
+            } else {
+                // For direct chats, use the same logic as contact list
+                profilePic = entity.profile_picture ? `/uploads/profile_photos/${entity.profile_picture}` : '/static/images/contact_logo.png';
+                
+                // If no profile picture in entity, fetch it from the API
+                if (!entity.profile_picture) {
+                    fetch(`/api/user/${entity.id}/profile-picture`)
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.photo_url) {
+                                const img = chatHeader.querySelector('.profile-pic img');
+                                if (img) {
+                                    img.src = data.photo_url;
+                                }
+                            }
+                        })
+                        .catch(error => console.error('Error fetching profile picture:', error));
+                }
+            }
 
             chatHeader.innerHTML = `
                 <div class="profile-pic" style="cursor: pointer;">
-                    <img src="${profilePic}" alt="${isGroup ? entity.name : (entity.username || entity)}">
+                    <img src="${profilePic}" alt="${isGroup ? entity.name : (entity.username || entity)}" onerror="this.src='/static/images/contact_logo.png'">
                 </div>
                 <div class="chat-header-info" style="cursor: pointer;">
                     <div class="chat-header-name">${isGroup ? entity.name : (entity.username || entity)}</div>
@@ -3366,17 +3416,6 @@
 
         // Function to show actual admin panel with user list
         function showActualAdminPanel() {
-            // Check if user has admin access
-            if (!hasAdminAccess()) {
-                return; // Just return if no admin access, since loadAdminPanel already shows the prompt
-            }
-
-            // Remove any existing modals first
-            const existingModals = document.querySelectorAll('.modal');
-            existingModals.forEach(modal => {
-                document.body.removeChild(modal);
-            });
-
             const modal = document.createElement('div');
             modal.className = 'modal';
             modal.style.position = 'fixed';
@@ -3389,120 +3428,116 @@
             modal.style.display = 'flex';
             modal.style.justifyContent = 'center';
             modal.style.alignItems = 'center';
-
+            
             const panel = document.createElement('div');
-            panel.className = 'admin-panel';
             panel.style.backgroundColor = '#1f2c33';
-            panel.style.width = '800px';
+            panel.style.padding = '20px';
+            panel.style.borderRadius = '8px';
+            panel.style.width = '600px';
             panel.style.maxWidth = '90%';
             panel.style.maxHeight = '80vh';
             panel.style.overflowY = 'auto';
-            panel.style.borderRadius = '8px';
-            panel.style.display = 'flex';
-            panel.style.flexDirection = 'column';
-
-            // Initial panel content with loading state
+            
             panel.innerHTML = `
-                <div style="padding: 20px; border-bottom: 1px solid #374045;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                        <h2 style="color: #e9edef; margin: 0;">Admin Panel</h2>
-                        <div class="close-button" style="cursor: pointer;">
-                            <svg viewBox="0 0 24 24" width="24" height="24">
-                                <path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path>
-                            </svg>
-                        </div>
-                    </div>
-                    <div style="position: relative;">
-                        <input type="text" id="user-search" placeholder="Search users..." 
-                            style="width: 100%; padding: 8px 32px 8px 8px; background-color: #2a3942; color: #e9edef; 
-                            border: 1px solid #374045; border-radius: 4px; font-size: 14px;">
-                        <svg viewBox="0 0 24 24" width="20" height="20" 
-                            style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); color: #8696a0;">
-                            <path fill="currentColor" d="M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"></path>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="color: #e9edef; margin: 0;">Admin Panel - Users</h2>
+                    <div class="close-button" style="cursor: pointer;">
+                        <svg viewBox="0 0 24 24" width="24" height="24">
+                            <path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path>
                         </svg>
                     </div>
                 </div>
-                <div id="users-stats" style="padding: 15px; border-bottom: 1px solid #374045; color: #e9edef;">
-                    Loading user statistics...
+                <div style="margin-bottom: 20px; position: relative;">
+                    <input type="text" id="admin-search" placeholder="Search users..." 
+                        style="width: 100%; padding: 8px 32px 8px 8px; background-color: #2a3942; color: #e9edef; 
+                        border: 1px solid #374045; border-radius: 4px; font-size: 14px;">
+                    <svg viewBox="0 0 24 24" width="20" height="20" 
+                        style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); color: #8696a0;">
+                        <path fill="currentColor" d="M15.009 13.805h-.636l-.22-.219a5.184 5.184 0 0 0 1.256-3.386 5.207 5.207 0 1 0-5.207 5.208 5.183 5.183 0 0 0 3.385-1.255l.221.22v.635l4.004 3.999 1.194-1.195-3.997-4.007zm-4.808 0a3.605 3.605 0 1 1 0-7.21 3.605 3.605 0 0 1 0 7.21z"></path>
+                    </svg>
                 </div>
-                <div id="users-list" style="padding: 15px;">
-                    <div style="color: #e9edef; text-align: center;">
-                        Loading users...
-                    </div>
+                <div class="user-list" style="display: flex; flex-direction: column; gap: 10px;">
+                    Loading users...
                 </div>
             `;
-
+            
             modal.appendChild(panel);
             document.body.appendChild(modal);
-
-            // Add event listeners
+            
+            // Add close button event listener
             const closeButton = panel.querySelector('.close-button');
-            const searchInput = panel.querySelector('#user-search');
-
             closeButton.addEventListener('click', () => {
                 document.body.removeChild(modal);
             });
-
-            // Load and display users
+            
+            // Add search functionality
+            const searchInput = panel.querySelector('#admin-search');
+            searchInput.addEventListener('input', (e) => {
+                const searchTerm = e.target.value.toLowerCase();
+                const userCards = panel.querySelectorAll('.user-list > div');
+                userCards.forEach(card => {
+                    const username = card.querySelector('div[style*="font-weight: bold"]')?.textContent.toLowerCase() || '';
+                    const email = card.querySelector('div[style*="font-size: 14px"]')?.textContent.toLowerCase() || '';
+                    if (username.includes(searchTerm) || email.includes(searchTerm)) {
+                        card.style.display = 'flex';
+                    } else {
+                        card.style.display = 'none';
+                    }
+                });
+            });
+            
+            // Load users
             fetch('/api/users')
                 .then(response => response.json())
                 .then(data => {
-                    const users = data.users;
-                    const usersList = panel.querySelector('#users-list');
-                    const usersStats = panel.querySelector('#users-stats');
+                    const userList = panel.querySelector('.user-list');
+                    userList.innerHTML = '';
 
-                    // Update stats
-                    usersStats.innerHTML = `
-                        <div style="font-size: 16px;">
-                            Total Users: <span style="color: #00a884; font-weight: bold;">${users.length}</span>
-                        </div>
-                    `;
+                    data.users.forEach(user => {
+                        const userCard = document.createElement('div');
+                        userCard.style.backgroundColor = '#2a3942';
+                        userCard.style.padding = '15px';
+                        userCard.style.borderRadius = '8px';
+                        userCard.style.cursor = 'pointer';
+                        userCard.style.display = 'flex';
+                        userCard.style.alignItems = 'center';
+                        userCard.style.gap = '15px';
 
-                    // Render users list
-                    usersList.innerHTML = users.map(user => `
-                        <div class="user-item" data-user-id="${user.id}" style="display: flex; align-items: center; padding: 10px; background-color: #2a3942; margin-bottom: 8px; border-radius: 8px; cursor: pointer;">
-                            <div style="width: 40px; height: 40px; border-radius: 50%; overflow: hidden; margin-right: 15px;">
-                                <img src="${user.profile_picture || '/api/placeholder/40/40'}" alt="${user.username}" style="width: 100%; height: 100%; object-fit: cover;">
-                                </div>
-                                <div style="flex: 1;">
-                                <div style="color: #e9edef;">${user.username}</div>
-                                <div style="color: #8696a0; font-size: 12px;">${user.email || 'No email'}</div>
-                                </div>
-                            </div>
-                        `).join('');
-
-                    // Add click event listeners to user items
-                    const userItems = usersList.querySelectorAll('.user-item');
-                    userItems.forEach(item => {
-                        item.addEventListener('click', () => {
-                            const userId = item.getAttribute('data-user-id');
-                            showUserDetailsModal(userId);
-                        });
-                    });
-
-                    // Add search functionality
-                    if (searchInput) {
-                    searchInput.addEventListener('input', (e) => {
-                        const searchTerm = e.target.value.toLowerCase();
-                            userItems.forEach(item => {
-                                const username = item.querySelector('div:nth-child(2) div:first-child').textContent.toLowerCase();
-                                const email = item.querySelector('div:nth-child(2) div:last-child').textContent.toLowerCase();
-                                if (username.includes(searchTerm) || email.includes(searchTerm)) {
-                                    item.style.display = 'flex';
-                                } else {
-                                    item.style.display = 'none';
-                                }
+                        // Get profile picture
+                        fetch(`/api/user/${user.id}/profile-picture`)
+                            .then(response => response.json())
+                            .then(data => {
+                                const profilePic = data.photo_url;
+                                userCard.innerHTML = `
+                                    <div class="user-avatar" style="width: 50px; height: 50px; border-radius: 50%; overflow: hidden; background-color: #374045;">
+                                        <img src="${profilePic}" alt="${user.username}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2U5ZWRlZiI+PHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgM2MyLjY3IDAgNC44NCAyLjE3IDQuODQgNC44NFMxNC42NyAxNC42OCAxMiAxNC42OCA3LjE2IDEyLjUxIDcuMTYgOS44NCA5LjMzIDUgMTIgNXptMCAxM2MtMi4zMyAwLTQuMzEtLjgtNS45My0yLjQyLjg0LTEuNzEgMi41NS0yLjg4IDQuNTItMi44OCAxLjk3IDAgMy42OCAxLjE3IDQuNTIgMi44OEMxMy42OSAxNy4yIDExLjcgMTggOS4zNyAxOHoiLz48L3N2Zz4='">
+                                    </div>
+                                    <div style="flex: 1;">
+                                        <div style="color: #e9edef; font-weight: bold;">${user.username}</div>
+                                        <div style="color: #8696a0; font-size: 14px;">${user.email}</div>
+                                    </div>
+                                `;
+                            })
+                            .catch(error => {
+                                console.error('Error fetching profile picture:', error);
+                                userCard.innerHTML = `
+                                    <div class="user-avatar" style="width: 50px; height: 50px; border-radius: 50%; overflow: hidden; background-color: #374045;">
+                                        <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2U5ZWRlZiI+PHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgM2MyLjY3IDAgNC44NCAyLjE3IDQuODQgNC44NFMxNC42NyAxNC42OCAxMiAxNC42OCA3LjE2IDEyLjUxIDcuMTYgOS44NCA5LjMzIDUgMTIgNXptMCAxM2MtMi4zMyAwLTQuMzEtLjgtNS45My0yLjQyLjg0LTEuNzEgMi41NS0yLjg4IDQuNTItMi44OCAxLjk3IDAgMy42OCAxLjE3IDQuNTIgMi44OEMxMy42OSAxNy4yIDExLjcgMTggOS4zNyAxOHoiLz48L3N2Zz4=" alt="${user.username}" style="width: 100%; height: 100%; object-fit: cover;">
+                                    </div>
+                                    <div style="flex: 1;">
+                                        <div style="color: #e9edef; font-weight: bold;">${user.username}</div>
+                                        <div style="color: #8696a0; font-size: 14px;">${user.email}</div>
+                                    </div>
+                                `;
                             });
-                        });
-                    }
+
+                        userCard.addEventListener('click', () => showUserDetailsModal(user.id));
+                        userList.appendChild(userCard);
+                    });
                 })
                 .catch(error => {
                     console.error('Error loading users:', error);
-                    panel.querySelector('#users-list').innerHTML = `
-                        <div style="color: #ff6b6b; text-align: center; padding: 20px;">
-                            Error loading users. Please try again.
-                        </div>
-                    `;
+                    panel.querySelector('.user-list').innerHTML = 'Error loading users';
                 });
         }
 
@@ -4241,6 +4276,18 @@
             if (userDetail?.profile_picture) {
                 profilePic = `/uploads/profile_photos/${userDetail.profile_picture}`;
             } else {
+                // Try to get profile picture from profile_photos table
+                fetch(`/api/user/${contactId}/profile-picture`)
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.photo_url) {
+                            const img = contactElement.querySelector('.profile-pic img');
+                            if (img) {
+                                img.src = data.photo_url;
+                            }
+                        }
+                    })
+                    .catch(error => console.error('Error fetching profile picture:', error));
                 profilePic = defaultAvatar;
             }
 
