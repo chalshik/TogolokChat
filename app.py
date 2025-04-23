@@ -17,7 +17,7 @@ app = Flask(__name__,
            template_folder='Backend/templates',
            static_folder='static')
 app.secret_key = os.environ.get('SECRET_KEY', 'dev_key_for_togolok_chat')  # Set secret key for sessions
-app.permanent_session_lifetime = timedelta(days=7)  # Set session lifetime
+app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)  # Maximum session lifetime for remember me
 
 # Initialize SocketIO with explicit configuration
 socketio = SocketIO(app, 

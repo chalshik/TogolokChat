@@ -98,13 +98,8 @@ def login():
             "email": user[3]
         })
         
-        if remember_me:
-            # Set session to permanent with 30 day lifetime
-            session.permanent = True
-            current_app.permanent_session_lifetime = timedelta(days=30)
-        else:
-            # Default session lifetime (usually until browser closes)
-            session.permanent = False
+        # If remember me is checked, make the session permanent
+        session.permanent = remember_me
 
         return jsonify({
             "message": "Login successful",

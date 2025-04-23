@@ -531,6 +531,58 @@
             color: #f15e6c;
         }
 
+        /* Logout Modal Styles */
+        .logout-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .logout-modal-content {
+            background-color: #202c33;
+            padding: 20px;
+            border-radius: 10px;
+            width: 300px;
+            text-align: center;
+        }
+
+        .logout-modal-title {
+            color: #e9edef;
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+
+        .logout-modal-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .logout-modal-button {
+            padding: 8px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            border: none;
+        }
+
+        .logout-modal-cancel {
+            background-color: #374045;
+            color: #e9edef;
+        }
+
+        .logout-modal-confirm {
+            background-color: #f15e6c;
+            color: white;
+        }
+
         /* Added for user selection */
         .user-item.user-selected {
             background-color: #2a3942 !important; /* Force selection background */
@@ -4453,15 +4505,40 @@
 
         // Handle logout
         document.getElementById('logout-button').addEventListener('click', () => {
-            fetch('/auth/logout', {
-                method: 'POST'
-            })
-            .then(response => {
-                if (response.ok) {
-                    window.location.href = '/';
-                }
-            })
-            .catch(error => console.error('Error logging out:', error));
+            // Create and show logout confirmation modal
+            const modal = document.createElement('div');
+            modal.className = 'logout-modal';
+            modal.style.display = 'flex';
+            
+            modal.innerHTML = `
+                <div class="logout-modal-content">
+                    <div class="logout-modal-title">Are you sure you want to logout?</div>
+                    <div class="logout-modal-buttons">
+                        <button class="logout-modal-button logout-modal-cancel">Cancel</button>
+                        <button class="logout-modal-button logout-modal-confirm">Logout</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Handle cancel button
+            modal.querySelector('.logout-modal-cancel').addEventListener('click', () => {
+                modal.remove();
+            });
+            
+            // Handle confirm button
+            modal.querySelector('.logout-modal-confirm').addEventListener('click', () => {
+                fetch('/auth/logout', {
+                    method: 'POST'
+                })
+                .then(response => {
+                    if (response.ok) {
+                        window.location.href = '/';
+                    }
+                })
+                .catch(error => console.error('Error logging out:', error));
+            });
         });
 
         // Load profile data when settings sidebar is opened
