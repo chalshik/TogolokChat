@@ -62,14 +62,44 @@ def get_all_users():
     conn = connect_db()
     cursor = conn.cursor()
     
-    cursor.execute("SELECT id, username, email FROM users")
-    users = cursor.fetchall()
-    
-    conn.close()
+    try:
+        cursor.execute("""
+            SELECT u.id, u.username, u.email, u.profile_picture
+            FROM users u
+        """)
+        users = cursor.fetchall()
+        
+        user_list = []
+        for user in users:
+            # Get profile photo if available
+            photo_url = None
+            if user[3]:  # if profile_picture is not None
+                photo_url = f"/uploads/profile_photos/{user[3]}"
+            else:
+                # Check if there's an entry in the profile_photos table
+                cursor.execute("SELECT photo FROM profile_photos WHERE user_id = ?", (user[0],))
+                photo_result = cursor.fetchone()
+                if photo_result:
+                    photo_url = f"/uploads/profile_photos/{photo_result[0]}"
+            
+            # Default to placeholder if no photo is found
+            if not photo_url:
+                photo_url = "/api/placeholder/50/50"
+            
+            user_list.append({
+                "id": user[0],
+                "username": user[1],
+                "email": user[2],
+                "profile_picture": photo_url
+            })
 
-    user_list = [{"id": user[0], "username": user[1], "email": user[2]} for user in users]
-
-    return jsonify({"users": user_list}), 200
+        return jsonify({"users": user_list}), 200
+        
+    except Exception as e:
+        return jsonify({"message": f"Error fetching users: {str(e)}"}), 500
+        
+    finally:
+        conn.close()
 
 @bp.route('/set_profile_photo', methods=['POST'])
 def set_profile_photo():
@@ -373,7 +403,7 @@ def get_user_details(user_id):
         # Get user details
         cursor.execute("""
             SELECT u.id, u.username, u.email, u.name, u.profile_picture, u.info,
-                   datetime(u.rowid * 86400 / 86400, 'unixepoch') as registration_date,
+                   u.registration_date,
                    (SELECT COUNT(*) FROM group_members WHERE user_id = u.id) as group_count,
                    (SELECT COUNT(*) FROM complaints WHERE reported_user_id = u.id) as complaint_count
             FROM users u
@@ -397,7 +427,7 @@ def get_user_details(user_id):
 
         # Default to placeholder avatar if no photo is found
         if not photo_url:
-            photo_url = "/static/images/contact_logo.png"
+            photo_url = "/api/placeholder/120/120"
 
         return jsonify({
             "id": user[0],

@@ -1,0 +1,54 @@
+async function updateProfilePicture() {
+    try {
+        const fileInput = document.createElement('input');
+        fileInput.type = 'file';
+        fileInput.accept = 'image/*';
+        fileInput.name = 'profile_picture';
+        
+        fileInput.onchange = async (e) => {
+            const file = e.target.files[0];
+            if (!file) {
+                console.error('No file selected');
+                return;
+            }
+
+            console.log('Selected file:', file.name, 'Size:', file.size, 'Type:', file.type);
+
+            const formData = new FormData();
+            formData.append('profile_picture', file);
+
+            try {
+                console.log('Sending profile picture update request...');
+                const response = await fetch('/api/user/update-profile-picture', {
+                    method: 'POST',
+                    body: formData
+                });
+
+                console.log('Response status:', response.status);
+                const data = await response.json();
+                console.log('Response data:', data);
+
+                if (response.ok && data.success) {
+                    console.log('Profile picture updated successfully');
+                    // Update all profile picture elements on the page
+                    const profilePics = document.querySelectorAll('.profile-picture');
+                    profilePics.forEach(pic => {
+                        // Add timestamp to prevent caching
+                        pic.src = `/uploads/profile_photos/${data.filename}?t=${Date.now()}`;
+                    });
+                } else {
+                    console.error('Failed to update profile picture:', data.message);
+                    alert('Failed to update profile picture: ' + data.message);
+                }
+            } catch (error) {
+                console.error('Error updating profile picture:', error);
+                alert('Error updating profile picture. Please try again.');
+            }
+        };
+
+        fileInput.click();
+    } catch (error) {
+        console.error('Error in updateProfilePicture:', error);
+        alert('Error updating profile picture. Please try again.');
+    }
+} 

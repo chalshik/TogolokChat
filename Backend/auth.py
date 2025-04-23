@@ -1,5 +1,7 @@
 from flask import Blueprint, request, jsonify, session
 from Backend.db import connect_db
+import pytz
+import datetime
 
 bp = Blueprint("auth", __name__, url_prefix="/auth")
 
@@ -35,11 +37,15 @@ def register():
         if cursor.fetchone():
             return jsonify({"message": "Email or Username already exists"}), 409
 
+        # Get current time in Kyrgyzstan timezone
+        kyrgyzstan_tz = pytz.timezone('Asia/Bishkek')
+        current_time = datetime.datetime.now(kyrgyzstan_tz)
+
         # Register new user
         cursor.execute("""
-            INSERT INTO users (username, email, password, security_question, secret_word) 
-            VALUES (?, ?, ?, ?, ?)
-        """, (data["username"], data["email"], data["password"], data["security_question"], data["secret_word"]))
+            INSERT INTO users (username, email, password, security_question, secret_word, registration_date) 
+            VALUES (?, ?, ?, ?, ?, ?)
+        """, (data["username"], data["email"], data["password"], data["security_question"], data["secret_word"], current_time.isoformat()))
         conn.commit()
 
         user_id = cursor.lastrowid

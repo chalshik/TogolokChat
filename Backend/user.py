@@ -87,28 +87,51 @@ def update_profile():
 @bp.route('/update-profile-picture', methods=['POST'])
 def update_profile_picture():
     if not is_authenticated():
-        return jsonify({"message": "Not authenticated"}), 401
+        print("Authentication failed for profile picture update")
+        return jsonify({"message": "Not authenticated", "success": False}), 401
 
     if 'profile_picture' not in request.files:
-        return jsonify({"message": "No file provided"}), 400
+        print("No profile_picture file in request")
+        return jsonify({"message": "No file provided", "success": False}), 400
 
     file = request.files['profile_picture']
     if file.filename == '':
-        return jsonify({"message": "No file selected"}), 400
+        print("Empty filename provided")
+        return jsonify({"message": "No file selected", "success": False}), 400
 
     if not allowed_file(file.filename):
-        return jsonify({"message": "File type not allowed"}), 400
+        print(f"Invalid file type: {file.filename}")
+        return jsonify({"message": "File type not allowed", "success": False}), 400
 
     user_id = session.get('user_id')
     filename = secure_filename(f"{user_id}_{file.filename}")
     filepath = os.path.join(UPLOAD_FOLDER, filename)
 
+    print(f"Processing profile picture update for user {user_id}")
+    print(f"Saving file to: {filepath}")
+
     conn = connect_db()
     cursor = conn.cursor()
 
     try:
-        # Save the file
+        # Ensure upload directory exists
+        os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+        
+        # Remove old profile picture if it exists
+        cursor.execute("SELECT profile_picture FROM users WHERE id = ?", (user_id,))
+        old_picture = cursor.fetchone()
+        if old_picture and old_picture[0]:
+            old_filepath = os.path.join(UPLOAD_FOLDER, old_picture[0])
+            if os.path.exists(old_filepath):
+                try:
+                    os.remove(old_filepath)
+                    print(f"Removed old profile picture: {old_filepath}")
+                except Exception as e:
+                    print(f"Failed to remove old profile picture: {e}")
+
+        # Save the new file
         file.save(filepath)
+        print(f"New profile picture saved successfully")
 
         # Update database
         cursor.execute("""
@@ -117,6 +140,7 @@ def update_profile_picture():
             WHERE id = ?
         """, (filename, user_id))
         conn.commit()
+        print(f"Database updated successfully")
 
         return jsonify({
             "message": "Profile picture updated successfully",
@@ -125,10 +149,18 @@ def update_profile_picture():
         }), 200
 
     except Exception as e:
+        print(f"Error updating profile picture: {str(e)}")
         if os.path.exists(filepath):
-            os.remove(filepath)
+            try:
+                os.remove(filepath)
+                print(f"Cleaned up failed upload: {filepath}")
+            except Exception as cleanup_error:
+                print(f"Failed to clean up failed upload: {cleanup_error}")
         conn.rollback()
-        return jsonify({"message": f"Failed to update profile picture: {str(e)}"}), 500
+        return jsonify({
+            "message": f"Failed to update profile picture: {str(e)}",
+            "success": False
+        }), 500
 
     finally:
         cursor.close()

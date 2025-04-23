@@ -949,7 +949,7 @@
             
             const currentChatId = window.currentChat?.id;
             const currentChatType = window.currentChat?.type;
-            const isFromCurrentUser = data.sender_id == document.documentElement.getAttribute('data-user-id');
+            const isFromCurrentUser = data.sender_id.toString() === document.documentElement.getAttribute('data-user-id');
             const timestamp = data.timestamp || Date.now();
             const messageId = data.message_id || `msg_${timestamp}_${Math.random().toString(36).substring(2, 9)}`;
             
@@ -968,34 +968,15 @@
             if (data.group_id) {
                 console.log('Handling group message:', data.group_id, 'current chat:', currentChatId, currentChatType);
                 
+                // Update group list order and message preview
+                updateGroupListOrder(data.group_id, data.message, data.sender_id, data.sender_username);
+                
                 if (currentChatType === 'group' && currentChatId == data.group_id) {
                     const chatBody = document.querySelector('.chat-body');
-                    
-                    // Check if we need to add a date separator
-                    const lastMessage = chatBody.lastElementChild;
-                    if (lastMessage) {
-                        const lastMessageDate = new Date(lastMessage.getAttribute('data-timestamp'));
-                        const currentMessageDate = new Date(timestamp);
-                        
-                        if (lastMessageDate.toDateString() !== currentMessageDate.toDateString()) {
-                            const dateSeparator = document.createElement('div');
-                            dateSeparator.className = 'date-separator';
-                            dateSeparator.textContent = formatDateSeparator(currentMessageDate, true);
-                            chatBody.appendChild(dateSeparator);
-                        }
-                    } else {
-                        // If this is the first message, add date separator
-                        const dateSeparator = document.createElement('div');
-                        dateSeparator.className = 'date-separator';
-                        dateSeparator.textContent = formatDateSeparator(new Date(timestamp), true);
-                        chatBody.appendChild(dateSeparator);
-                    }
-                    
                     const messageElement = document.createElement('div');
                     messageElement.className = isFromCurrentUser ? 'message sent' : 'message received';
                     messageElement.setAttribute('data-message-id', messageId);
-                    messageElement.setAttribute('data-timestamp', timestamp);
-                    
+                        
                     const senderName = !isFromCurrentUser ? `<div class="message-sender" style="font-size: 12px; color: #00a884; margin-bottom: 2px;">${data.sender_username}</div>` : '';
                     
                     messageElement.innerHTML = `
@@ -1174,7 +1155,7 @@
                             last_message: lastMessage || '',
                             last_message_timestamp: lastMessageTime ? new Date(lastMessageTime).getTime() : 0,
                             last_message_time: lastMessageTime ? 
-                                new Date(lastMessageTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'}) : ''
+                                new Date(lastMessageTime).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: false}) : ''
                         };
                     });
 
@@ -1327,6 +1308,13 @@
             if (chatInterface) {
                 chatInterface.style.display = 'flex';
             }
+
+            // Highlight the active contact in the list
+            document.querySelectorAll('.contact').forEach(c => c.classList.remove('contact-active'));
+            const contactElement = document.querySelector(`.contact[data-contact-id="${contactId}"]`);
+            if (contactElement) {
+                contactElement.classList.add('contact-active');
+            }
         }
 
         // Helper function for Enter key press
@@ -1466,91 +1454,55 @@
         // Function to send a message
         function sendMessage() {
             const messageInput = document.querySelector('.message-input');
-            if (!messageInput) {
-                console.error('Message input not found');
-                return;
-            }
-
+            if (!messageInput || !messageInput.value.trim()) return;
+            
             const message = messageInput.value.trim();
-            
-            if (!message || !window.currentChat) {
-                if (!window.currentChat) {
-                    showNotification('Please select a contact or group first', 'error');
-                }
-                return;
-            }
-
-            // Generate a unique message ID
-            const messageId = Date.now() + '_' + Math.random().toString(36).substr(2, 9);
-            
-            // Generate timestamp in Kyrgyzstan timezone
             const timestamp = Date.now();
+            const messageId = `msg_${timestamp}_${Math.random().toString(36).substring(2, 9)}`;
             
-            const messageElement = document.createElement('div');
-            messageElement.className = 'message sent';
-            messageElement.setAttribute('data-message-id', messageId);
-            messageElement.innerHTML = `
-                <div class="message-content">${message}</div>
-                <span class="message-timestamp">${formatMessageTimestamp(timestamp)}</span>
-            `;
-            
-            // Add message to UI immediately
-            const chatBody = document.querySelector('.chat-body');
-            if (!chatBody) {
-                console.error('Chat body not found');
-                return;
-            }
-
-            chatBody.appendChild(messageElement);
-            chatBody.scrollTop = chatBody.scrollHeight;
-
             // Clear input
             messageInput.value = '';
-
-            console.log("Sending message in chat type:", window.currentChat.type);
-            console.log("Current chat ID:", window.currentChat.id);
-            console.log("Current chat name:", window.currentChat.name);
-
-            // Debug extra information
-            console.log("Full current chat object:", JSON.stringify(window.currentChat));
-
-            // Handle based on chat type
-            if (window.currentChat.type === 'direct') {
-                console.log("Sending direct message to user ID:", window.currentChat.id);
-                
-                // Update contact's last message in the database for direct messages
-            fetch('/chat/update_last_message', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                    contact_id: window.currentChat.id,
-                    message: message,
-                    timestamp: timestamp
-                })
-            });
-
-                // Emit direct message
-            socket.emit('send_message', {
-                receiver_id: window.currentChat.id,
-                message: message,
-                timestamp: timestamp,
-                message_id: messageId
-            });
-            } else if (window.currentChat.type === 'group') {
+            
+            if (window.currentChat.type === 'group') {
                 console.log("Sending group message to group ID:", window.currentChat.id);
                 
-                // Emit group message with the correct group_id parameter
+                // Update group list immediately for sender
+                const currentUserId = document.documentElement.getAttribute('data-user-id');
+                updateGroupListOrder(window.currentChat.id, message, currentUserId);
+                
+                // Emit group message
                 socket.emit('send_message', {
                     group_id: window.currentChat.id,
                     message: message,
                     timestamp: timestamp,
                     message_id: messageId
                 });
+            } else if (window.currentChat.type === 'direct') {
+                console.log("Sending direct message to user ID:", window.currentChat.id);
                 
-                // Update group list order immediately after sending
-                updateGroupListOrder(window.currentChat.id);
+                // Update contact's last message in the database for direct messages
+                fetch('/chat/update_last_message', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        contact_id: window.currentChat.id,
+                        message: message,
+                        timestamp: timestamp
+                    })
+                });
+
+                // Update the contact list immediately for the sender
+                updateContactLastMessage(window.currentChat.id, message, timestamp);
+
+                // Emit direct message
+                socket.emit('send_message', {
+                    receiver_id: window.currentChat.id,
+                    message: message,
+                    timestamp: timestamp,
+                    message_id: messageId
+                });
             }
         }
 
@@ -2558,7 +2510,17 @@
                         let lastMessageTime = '';
                         if (group.last_message_time) {
                             const date = new Date(group.last_message_time);
-                            lastMessageTime = date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                            lastMessageTime = date.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: false});
+                        }
+                        
+                        // Get last message preview
+                        let lastMessagePreview = 'No messages yet';
+                        if (group.last_message) {
+                            const currentUserId = document.documentElement.getAttribute('data-user-id');
+                            const isFromCurrentUser = group.last_message_sender_id == currentUserId;
+                            lastMessagePreview = isFromCurrentUser ? 
+                                `You: ${group.last_message}` : 
+                                `${group.last_message_sender}: ${group.last_message}`;
                         }
                         
                         groupElement.innerHTML = `
@@ -2567,11 +2529,14 @@
                             </div>
                             <div class="contact-info">
                                 <div class="contact-name">${group.name}</div>
-                                <div class="contact-status">${group.member_count} members</div>
+                                <div class="contact-status">${lastMessagePreview}</div>
                             </div>
-                            <div class="contact-time">${lastMessageTime}</div>
+                            <div class="contact-meta">
+                                <div class="message-time">${lastMessageTime}</div>
+                            </div>
                         `;
                         
+                        // Add click event to load group chat
                         groupElement.addEventListener('click', function(e) {
                             e.preventDefault();
                             e.stopPropagation();
@@ -2598,7 +2563,7 @@
                 })
                 .catch(error => {
                     console.error('Error loading groups:', error);
-                    groupsList.innerHTML = '<div class="error-message" style="color: #ff6b6b; text-align: center; padding: 20px;">Failed to load groups. Please refresh and try again.</div>';
+                    groupsList.innerHTML = '<div class="error" style="color: #8696a0; text-align: center; padding: 20px;">Failed to load groups. Please try again.</div>';
                 });
         }
         
@@ -2653,6 +2618,12 @@
                 }
             }
             
+            // Show chat interface
+            const chatInterface = document.querySelector('.chat-interface');
+            if (chatInterface) {
+                chatInterface.style.display = 'flex';
+            }
+            
             // Clear chat display
             const chatBody = document.querySelector('.chat-body');
             if (chatBody) {
@@ -2692,14 +2663,40 @@
                     socket.emit('join', { room: roomName });
                     
                     // Load group messages
-                    loadGroupMessages(groupId);
-                    
-                    // Show chat interface
-                    const chatInterface = document.querySelector('.chat-interface');
-                    if (chatInterface) {
-                        chatInterface.style.display = 'flex';
-                    }
-                    
+                    return fetch(`/chat/get_group_messages/${groupId}`)
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Failed to load messages');
+                            }
+                            return response.json();
+                        })
+                        .then(messages => {
+                            // Clear loading message
+                            chatBody.innerHTML = '';
+                            
+                            // Display messages
+                            messages.forEach(msg => {
+                                const isFromCurrentUser = msg[0] == document.documentElement.getAttribute('data-user-id');
+                                const messageElement = document.createElement('div');
+                                messageElement.className = isFromCurrentUser ? 'message sent' : 'message received';
+                                
+                                const senderName = !isFromCurrentUser ? 
+                                    `<div class="message-sender" style="font-size: 12px; color: #00a884; margin-bottom: 2px;">${msg[1]}</div>` : '';
+                                
+                                messageElement.innerHTML = `
+                                    ${senderName}
+                                    <div class="message-content">${msg[2]}</div>
+                                    <span class="message-timestamp">${formatMessageTimestamp(msg[3], true)}</span>
+                                `;
+                                
+                                chatBody.appendChild(messageElement);
+                            });
+                            
+                            // Scroll to bottom
+                            chatBody.scrollTop = chatBody.scrollHeight;
+                        });
+                })
+                .then(() => {
                     // Set up message input event listeners
                     const messageInput = document.getElementById('message-input');
                     const sendButton = document.getElementById('send-message');
@@ -2730,8 +2727,11 @@
                     }
                 })
                 .catch(error => {
-                    console.error('Error loading group info:', error);
+                    console.error('Error loading group chat:', error);
                     showNotification('Failed to load group chat', 'error');
+                    if (chatBody) {
+                        chatBody.innerHTML = '<div class="error-message" style="color: #ff6b6b; text-align: center; padding: 20px;">Failed to load messages. Please try again.</div>';
+                    }
                 });
         }
         
@@ -3565,7 +3565,7 @@
                 .then(response => response.json())
                 .then(data => {
                     const userList = panel.querySelector('.user-list');
-                    userList.innerHTML = '';
+                    userList.innerHTML = ''; // Clear loading message
 
                     data.users.forEach(user => {
                         const userCard = document.createElement('div');
@@ -3577,33 +3577,17 @@
                         userCard.style.alignItems = 'center';
                         userCard.style.gap = '15px';
 
-                        // Get profile picture
-                        fetch(`/api/user/${user.id}/profile-picture`)
-                            .then(response => response.json())
-                            .then(data => {
-                                const profilePic = data.photo_url;
-                                userCard.innerHTML = `
-                                    <div class="user-avatar" style="width: 50px; height: 50px; border-radius: 50%; overflow: hidden; background-color: #374045;">
-                                        <img src="${profilePic}" alt="${user.username}" style="width: 100%; height: 100%; object-fit: cover;" onerror="this.src='data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2U5ZWRlZiI+PHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgM2MyLjY3IDAgNC44NCAyLjE3IDQuODQgNC44NFMxNC42NyAxNC42OCAxMiAxNC42OCA3LjE2IDEyLjUxIDcuMTYgOS44NCA5LjMzIDUgMTIgNXptMCAxM2MtMi4zMyAwLTQuMzEtLjgtNS45My0yLjQyLjg0LTEuNzEgMi41NS0yLjg4IDQuNTItMi44OCAxLjk3IDAgMy42OCAxLjE3IDQuNTIgMi44OEMxMy42OSAxNy4yIDExLjcgMTggOS4zNyAxOHoiLz48L3N2Zz4='">
-                                    </div>
-                                    <div style="flex: 1;">
-                                        <div style="color: #e9edef; font-weight: bold;">${user.username}</div>
-                                        <div style="color: #8696a0; font-size: 14px;">${user.email}</div>
-                                    </div>
-                                `;
-                            })
-                            .catch(error => {
-                                console.error('Error fetching profile picture:', error);
-                                userCard.innerHTML = `
-                                    <div class="user-avatar" style="width: 50px; height: 50px; border-radius: 50%; overflow: hidden; background-color: #374045;">
-                                        <img src="data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2U5ZWRlZiI+PHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgM2MyLjY3IDAgNC44NCAyLjE3IDQuODQgNC44NFMxNC42NyAxNC42OCAxMiAxNC42OCA3LjE2IDEyLjUxIDcuMTYgOS44NCA5LjMzIDUgMTIgNXptMCAxM2MtMi4zMyAwLTQuMzEtLjgtNS45My0yLjQyLjg0LTEuNzEgMi41NS0yLjg4IDQuNTItMi44OCAxLjk3IDAgMy42OCAxLjE3IDQuNTIgMi44OEMxMy42OSAxNy4yIDExLjcgMTggOS4zNyAxOHoiLz48L3N2Zz4=" alt="${user.username}" style="width: 100%; height: 100%; object-fit: cover;">
-                                    </div>
-                                    <div style="flex: 1;">
-                                        <div style="color: #e9edef; font-weight: bold;">${user.username}</div>
-                                        <div style="color: #8696a0; font-size: 14px;">${user.email}</div>
-                                    </div>
-                                `;
-                            });
+                        userCard.innerHTML = `
+                            <div class="user-avatar" style="width: 50px; height: 50px; border-radius: 50%; overflow: hidden; background-color: #374045;">
+                                <img src="${user.profile_picture}" alt="${user.username}" 
+                                     style="width: 100%; height: 100%; object-fit: cover;"
+                                     onerror="this.src='/api/placeholder/50/50'">
+                            </div>
+                            <div style="flex: 1;">
+                                <div style="color: #e9edef; font-weight: bold;">${user.username}</div>
+                                <div style="color: #8696a0; font-size: 14px;">${user.email}</div>
+                            </div>
+                        `;
 
                         userCard.addEventListener('click', () => showUserDetailsModal(user.id));
                         userList.appendChild(userCard);
@@ -3656,8 +3640,9 @@
                         </div>
                         <div style="text-align: center; margin-bottom: 20px;">
                             <div style="width: 120px; height: 120px; border-radius: 50%; overflow: hidden; margin: 0 auto 15px;">
-                                <img src="${user.profile_picture || '/api/placeholder/120/120'}" alt="${user.username}" 
-                                     style="width: 100%; height: 100%; object-fit: cover;">
+                                <img src="${user.profile_picture}" alt="${user.username}" 
+                                     style="width: 100%; height: 100%; object-fit: cover;"
+                                     onerror="this.src='/api/placeholder/120/120'">
                             </div>
                             <div style="color: #e9edef; font-size: 20px; font-weight: bold;">${user.username}</div>
                             <div style="color: #8696a0;">${user.name || 'No name set'}</div>
@@ -4185,7 +4170,7 @@
             
             if (contactIndex !== -1) {
                 contacts[contactIndex].last_message_timestamp = timestamp;
-                contacts[contactIndex].last_message_time = new Date(timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
+                contacts[contactIndex].last_message_time = new Date(timestamp).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: false});
                 window.contacts = contacts;
                 renderContacts(contacts);
             }
@@ -4227,7 +4212,7 @@
             
             const currentChatId = window.currentChat?.id;
             const currentChatType = window.currentChat?.type;
-            const isFromCurrentUser = data.sender_id == document.documentElement.getAttribute('data-user-id');
+            const isFromCurrentUser = data.sender_id.toString() === document.documentElement.getAttribute('data-user-id');
             const timestamp = data.timestamp || Date.now();
             const messageId = data.message_id || `msg_${timestamp}_${Math.random().toString(36).substring(2, 9)}`;
             
@@ -4237,17 +4222,12 @@
                 return;
             }
             
-            // Update contact list for the sender
-            if (!isFromCurrentUser) {
-                updateContactLastMessage(data.sender_id, data.message, timestamp);
-            }
-            
             // Handle message display in chat
             if (data.group_id) {
                 console.log('Handling group message:', data.group_id, 'current chat:', currentChatId, currentChatType);
                 
-                // Update group list order for new group messages
-                updateGroupListOrder(data.group_id);
+                // Update group list order and message preview
+                updateGroupListOrder(data.group_id, data.message, data.sender_id, data.sender_username);
                 
                 if (currentChatType === 'group' && currentChatId == data.group_id) {
                     const chatBody = document.querySelector('.chat-body');
@@ -4268,56 +4248,8 @@
                 } else {
                     showNotification(`New message in group: ${data.message}`);
                 }
-            } 
-            // Handle direct messages
-            else {
-                if (currentChatType === 'direct' && (currentChatId == data.sender_id || currentChatId == data.receiver_id)) {
-                    const chatBody = document.querySelector('.chat-body');
-                    
-                    // Check if we need to add a date separator
-                    const lastMessage = chatBody.lastElementChild;
-                    if (lastMessage) {
-                        const lastMessageDate = new Date(lastMessage.getAttribute('data-timestamp'));
-                        const currentMessageDate = new Date(timestamp);
-                        
-                        if (lastMessageDate.toDateString() !== currentMessageDate.toDateString()) {
-                            const dateSeparator = document.createElement('div');
-                            dateSeparator.className = 'date-separator';
-                            dateSeparator.textContent = formatDateSeparator(currentMessageDate, true);
-                            chatBody.appendChild(dateSeparator);
-                        }
-                    } else {
-                        // If this is the first message, add date separator
-                        const dateSeparator = document.createElement('div');
-                        dateSeparator.className = 'date-separator';
-                        dateSeparator.textContent = formatDateSeparator(new Date(timestamp), true);
-                        chatBody.appendChild(dateSeparator);
-                    }
-                    
-                    const messageElement = document.createElement('div');
-                    messageElement.className = isFromCurrentUser ? 'message sent' : 'message received';
-                    messageElement.setAttribute('data-message-id', messageId);
-                    messageElement.setAttribute('data-timestamp', timestamp);
-                    
-                    messageElement.innerHTML = `
-                        <div class="message-content">${data.message}</div>
-                        <span class="message-timestamp">${formatMessageTimestamp(timestamp, true)}</span>
-                    `;
-                    
-                    chatBody.appendChild(messageElement);
-                    chatBody.scrollTop = chatBody.scrollHeight;
-                    
-                    // Send read receipt
-                    socket.emit('update_message_status', {
-                        message_id: data.message_id,
-                        status: 'read',
-                        chat_id: data.sender_id,
-                        chat_type: 'direct'
-                    });
-                } else {
-                    showNotification(`${data.sender_username}: ${data.message}`);
-                }
             }
+            // ... rest of the handler code ...
         });
 
         socket.on('message_sent', function(data) {
@@ -4329,6 +4261,13 @@
             
             // Store the last active chat
             storeLastActiveChat(data.receiver_id, 'direct', data.receiver_username);
+            
+            // Move the contact to the top of the list
+            const contact = document.querySelector(`.contact[data-contact-id="${data.receiver_id}"]`);
+            if (contact) {
+                const contactList = contact.parentElement;
+                contactList.insertBefore(contact, contactList.firstChild);
+            }
         });
 
         // Function to create contact element (update the existing function)
@@ -4805,14 +4744,31 @@
         // ... existing code ...
 
         // Function to update group list order
-        function updateGroupListOrder(groupId) {
-            const groupsList = document.getElementById('groups-list');
+        function updateGroupListOrder(groupId, message = null, senderId = null, senderName = null) {
             const groupElement = document.querySelector(`.contact[data-group-id="${groupId}"]`);
+            if (!groupElement) return;
             
-            if (groupElement) {
-                // Remove the group from its current position
-                groupElement.remove();
-                // Insert it at the top of the list
+            const currentUserId = document.documentElement.getAttribute('data-user-id');
+            const isFromCurrentUser = senderId == currentUserId;
+            
+            // Update message preview if provided
+            if (message) {
+                const statusElement = groupElement.querySelector('.contact-status');
+                if (statusElement) {
+                    statusElement.textContent = isFromCurrentUser ? `You: ${message}` : `${senderName}: ${message}`;
+                }
+            }
+            
+            // Update timestamp
+            const timeElement = groupElement.querySelector('.message-time');
+            if (timeElement) {
+                const now = new Date();
+                timeElement.textContent = now.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit', hour12: false});
+            }
+            
+            // Move group to top of list
+            const groupsList = groupElement.parentElement;
+            if (groupsList && groupsList.firstChild) {
                 groupsList.insertBefore(groupElement, groupsList.firstChild);
             }
         }

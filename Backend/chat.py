@@ -76,11 +76,16 @@ def get_groups():
     conn = connect_db()
     cursor = conn.cursor()
     
-    # Get groups that the user is a member of with their last message timestamp
+    # Get groups that the user is a member of with their last message info
     cursor.execute("""
         SELECT g.id, g.group_name, g.admin_id, g.group_picture, 
                (SELECT COUNT(*) FROM group_members WHERE group_id = g.id) as member_count,
-               (SELECT MAX(time) FROM group_messages WHERE group_id = g.id) as last_message_time
+               (SELECT MAX(time) FROM group_messages WHERE group_id = g.id) as last_message_time,
+               (SELECT message FROM group_messages WHERE group_id = g.id ORDER BY time DESC LIMIT 1) as last_message,
+               (SELECT sender_id FROM group_messages WHERE group_id = g.id ORDER BY time DESC LIMIT 1) as last_message_sender_id,
+               (SELECT username FROM users WHERE id = (
+                   SELECT sender_id FROM group_messages WHERE group_id = g.id ORDER BY time DESC LIMIT 1
+               )) as last_message_sender
         FROM groups g
         JOIN group_members gm ON g.id = gm.group_id
         WHERE gm.user_id = ?
@@ -96,7 +101,10 @@ def get_groups():
             'picture': row[3],
             'member_count': row[4],
             'is_admin': row[2] == session['user_id'],
-            'last_message_time': row[5]
+            'last_message_time': row[5],
+            'last_message': row[6],
+            'last_message_sender_id': row[7],
+            'last_message_sender': row[8]
         })
     
     conn.close()
