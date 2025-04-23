@@ -106,11 +106,103 @@
             border-radius: 10px;
             width: 100%;
             max-width: 400px;
+            position: relative;
         }
         .modal-title {
             font-size: 18px;
             font-weight: bold;
             margin-bottom: 15px;
+            padding-right: 30px;
+        }
+        .modal-close {
+            position: absolute;
+            right: 20px;
+            top: 20px;
+            background: none;
+            border: none;
+            font-size: 20px;
+            cursor: pointer;
+            color: #666;
+            width: auto;
+            padding: 0;
+            line-height: 1;
+        }
+        .modal-close:hover {
+            color: #333;
+            background: none;
+        }
+        /* Back button styling */
+        .back-button {
+            position: absolute;
+            left: 20px;
+            top: 20px;
+            background: none;
+            border: none;
+            color: #4267B2;
+            cursor: pointer;
+            width: auto;
+            padding: 0;
+            font-size: 14px;
+        }
+        .back-button:hover {
+            text-decoration: underline;
+            background: none;
+        }
+        /* Login options container */
+        .login-options {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+        .toggle-container {
+            display: flex;
+            align-items: center;
+            margin: 0;
+        }
+        .forgot-password {
+            margin: 0;
+        }
+        /* Toggle switch styling */
+        .toggle-switch {
+            position: relative;
+            display: inline-block;
+            width: 50px;
+            height: 24px;
+            margin-right: 10px;
+        }
+        .toggle-switch input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 24px;
+        }
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 16px;
+            width: 16px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+        input:checked + .toggle-slider {
+            background-color: #4267B2;
+        }
+        input:checked + .toggle-slider:before {
+            transform: translateX(26px);
         }
     </style>
 </head>
@@ -126,6 +218,18 @@
             <div class="form-group">
                 <label for="login-password">Password</label>
                 <input type="password" id="login-password" required>
+            </div>
+            <div class="login-options">
+                <div class="toggle-container">
+                    <label class="toggle-switch">
+                        <input type="checkbox" id="remember-me">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <span>Remember me</span>
+                </div>
+                <div class="forgot-password">
+                    <a id="forgot-password-link">Forgot password?</a>
+                </div>
             </div>
             <button type="submit">Login</button>
             <div class="form-switch">
@@ -162,6 +266,7 @@
     <!-- Security Question Modal -->
     <div class="modal" id="security-modal">
         <div class="modal-content">
+            <button class="modal-close" id="close-security-modal">×</button>
             <div class="modal-title">Security Information</div>
             <div class="form-group">
                 <label for="security-question">Security Question</label>
@@ -176,11 +281,49 @@
         </div>
     </div>
 
+    <!-- Forgot Password Modal -->
+    <div class="modal" id="forgot-password-modal">
+        <div class="modal-content">
+            <button class="modal-close" id="close-forgot-modal">×</button>
+            <div class="modal-title">Reset Password</div>
+            <div id="forgot-step-1">
+                <div class="form-group">
+                    <label for="forgot-username">Username</label>
+                    <input type="text" id="forgot-username" required>
+                </div>
+                <button id="check-security">Continue</button>
+            </div>
+            <div id="forgot-step-2" style="display: none;">
+                <div class="form-group">
+                    <label id="security-question-label">Security Question</label>
+                    <div class="form-group">
+                        <label for="forgot-secret-word">Secret Word</label>
+                        <input type="text" id="forgot-secret-word" required>
+                    </div>
+                </div>
+                <button id="verify-secret">Verify</button>
+            </div>
+            <div id="forgot-step-3" style="display: none;">
+                <div class="form-group">
+                    <label for="new-password">New Password</label>
+                    <input type="password" id="new-password" required>
+                </div>
+                <div class="form-group">
+                    <label for="confirm-password">Confirm New Password</label>
+                    <input type="password" id="confirm-password" required>
+                </div>
+                <button id="reset-password">Reset Password</button>
+            </div>
+            <div class="error-message" id="forgot-error"></div>
+        </div>
+    </div>
+
     <script>
         // DOM elements
         const loginForm = document.getElementById('login-form');
         const registerForm = document.getElementById('register-form');
         const securityModal = document.getElementById('security-modal');
+        const forgotPasswordModal = document.getElementById('forgot-password-modal');
         const goToRegister = document.getElementById('go-to-register');
         const goToLogin = document.getElementById('go-to-login');
         
@@ -285,54 +428,187 @@
             });
         });
         
-        // Close modal if clicked outside
-        securityModal.addEventListener('click', function(e) {
+        // Close button handlers
+        document.getElementById('close-security-modal').addEventListener('click', function() {
+            securityModal.style.display = 'none';
+            // Clear security modal inputs
+            document.getElementById('security-question').value = '';
+            document.getElementById('secret-word').value = '';
+            document.getElementById('modal-error').textContent = '';
+        });
+
+        document.getElementById('close-forgot-modal').addEventListener('click', function() {
+            forgotPasswordModal.style.display = 'none';
+            // Clear forgot password modal inputs
+            document.getElementById('forgot-username').value = '';
+            document.getElementById('forgot-secret-word').value = '';
+            document.getElementById('new-password').value = '';
+            document.getElementById('confirm-password').value = '';
+            document.getElementById('forgot-error').textContent = '';
+            // Reset to first step
+            document.getElementById('forgot-step-1').style.display = 'block';
+            document.getElementById('forgot-step-2').style.display = 'none';
+            document.getElementById('forgot-step-3').style.display = 'none';
+        });
+
+        // Close modals when clicking outside
+        window.addEventListener('click', function(e) {
             if (e.target === securityModal) {
                 securityModal.style.display = 'none';
             }
+            if (e.target === forgotPasswordModal) {
+                forgotPasswordModal.style.display = 'none';
+            }
         });
-        
-        // Handle login form (placeholder - you'll need to implement the login API endpoint)
+
+        // Handle forgot password link click
+        document.getElementById('forgot-password-link').addEventListener('click', function() {
+            document.getElementById('forgot-password-modal').style.display = 'flex';
+            document.getElementById('forgot-step-1').style.display = 'block';
+            document.getElementById('forgot-step-2').style.display = 'none';
+            document.getElementById('forgot-step-3').style.display = 'none';
+            document.getElementById('forgot-error').textContent = '';
+            // Clear all inputs
+            document.getElementById('forgot-username').value = '';
+            document.getElementById('forgot-secret-word').value = '';
+            document.getElementById('new-password').value = '';
+            document.getElementById('confirm-password').value = '';
+        });
+
+        // Handle check security button click
+        document.getElementById('check-security').addEventListener('click', function() {
+            const username = document.getElementById('forgot-username').value;
+            
+            if (!username) {
+                document.getElementById('forgot-error').textContent = 'Please enter your username';
+                return;
+            }
+
+            // Fetch security question from server
+            fetch('/auth/get-security-question', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ username })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    document.getElementById('forgot-error').textContent = data.error;
+                    return;
+                }
+                document.getElementById('security-question-label').textContent = data.security_question;
+                document.getElementById('forgot-step-1').style.display = 'none';
+                document.getElementById('forgot-step-2').style.display = 'block';
+            })
+            .catch(error => {
+                document.getElementById('forgot-error').textContent = 'An error occurred. Please try again.';
+            });
+        });
+
+        // Handle verify secret word button click
+        document.getElementById('verify-secret').addEventListener('click', function() {
+            const username = document.getElementById('forgot-username').value;
+            const secretWord = document.getElementById('forgot-secret-word').value;
+
+            if (!secretWord) {
+                document.getElementById('forgot-error').textContent = 'Please enter the secret word';
+                return;
+            }
+
+            // Verify secret word with server
+            fetch('/auth/verify-secret-word', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ username, secret_word: secretWord })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    document.getElementById('forgot-error').textContent = data.error;
+                    return;
+                }
+                document.getElementById('forgot-step-2').style.display = 'none';
+                document.getElementById('forgot-step-3').style.display = 'block';
+            })
+            .catch(error => {
+                document.getElementById('forgot-error').textContent = 'An error occurred. Please try again.';
+            });
+        });
+
+        // Handle reset password button click
+        document.getElementById('reset-password').addEventListener('click', function() {
+            const username = document.getElementById('forgot-username').value;
+            const newPassword = document.getElementById('new-password').value;
+            const confirmPassword = document.getElementById('confirm-password').value;
+
+            if (!newPassword || !confirmPassword) {
+                document.getElementById('forgot-error').textContent = 'Please fill in all fields';
+                return;
+            }
+
+            if (newPassword !== confirmPassword) {
+                document.getElementById('forgot-error').textContent = 'Passwords do not match';
+                return;
+            }
+
+            // Reset password on server
+            fetch('/auth/reset-password', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ 
+                    username,
+                    new_password: newPassword
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.error) {
+                    document.getElementById('forgot-error').textContent = data.error;
+                    return;
+                }
+                document.getElementById('forgot-password-modal').style.display = 'none';
+                document.getElementById('login-success').textContent = 'Password reset successfully. Please login with your new password.';
+            })
+            .catch(error => {
+                document.getElementById('forgot-error').textContent = 'An error occurred. Please try again.';
+            });
+        });
+
+        // Handle login form submission with remember me
         loginForm.addEventListener('submit', function(e) {
             e.preventDefault();
-            document.getElementById('login-error').textContent = '';
-            document.getElementById('login-success').textContent = '';
             
             const username = document.getElementById('login-username').value;
             const password = document.getElementById('login-password').value;
+            const rememberMe = document.getElementById('remember-me').checked;
             
-            // Basic validation
-            if (!username || !password) {
-                document.getElementById('login-error').textContent = 'Username and password are required!';
-                return;
-            }
-            
-            // Send login request to API
             fetch('/auth/login', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ username, password })
+                body: JSON.stringify({
+                    username,
+                    password,
+                    remember_me: rememberMe
+                })
             })
             .then(response => response.json())
             .then(data => {
-                if (data.message === "Login successful") {
-                    // Show success message
-                    document.getElementById('login-success').textContent = 'Login successful! Redirecting...';
-                    
-                    // Redirect to chat
-                    setTimeout(() => {
-                        window.location.href = '/chat';
-                    }, 1000);
-                } else {
-                    // Show error message
-                    document.getElementById('login-error').textContent = data.message || 'Login failed. Please try again.';
+                if (data.error) {
+                    document.getElementById('login-error').textContent = data.error;
+                    return;
                 }
+                window.location.href = '/';
             })
             .catch(error => {
                 document.getElementById('login-error').textContent = 'An error occurred. Please try again.';
-                console.error('Error:', error);
             });
         });
     </script>

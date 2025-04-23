@@ -1,7 +1,8 @@
-from flask import Blueprint, request, jsonify, session
+from flask import Blueprint, request, jsonify, session, current_app
 from Backend.db import connect_db
 import pytz
 import datetime
+from datetime import timedelta
 
 bp = Blueprint("auth", __name__, url_prefix="/auth")
 
@@ -75,31 +76,35 @@ def register():
 def login():
     data = request.get_json()
     username = data.get("username")
-    email = data.get("email")
     password = data.get("password")
+    remember_me = data.get("remember_me", False)
 
-    if not (email or username) or not password:
-        return jsonify({"message": "Username/Email and Password are required"}), 400
+    if not username or not password:
+        return jsonify({"error": "Username and Password are required"}), 400
 
     conn = connect_db()
     cursor = conn.cursor()
 
     try:
-        if email:
-            cursor.execute("SELECT * FROM users WHERE email = ?", (email,))
-        else:
-            cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
-
+        cursor.execute("SELECT * FROM users WHERE username = ?", (username,))
         user = cursor.fetchone()
+        
         if not user or user[2] != password:  # Index 2 is password
-            return jsonify({"message": "Invalid credentials"}), 400
+            return jsonify({"error": "Invalid credentials"}), 400
 
         session.update({
             "user_id": user[0],
             "username": user[1],
             "email": user[3]
         })
-        session.permanent = True
+        
+        if remember_me:
+            # Set session to permanent with 30 day lifetime
+            session.permanent = True
+            current_app.permanent_session_lifetime = timedelta(days=30)
+        else:
+            # Default session lifetime (usually until browser closes)
+            session.permanent = False
 
         return jsonify({
             "message": "Login successful",
@@ -116,32 +121,26 @@ def login():
 @bp.route("/reset-password", methods=["POST"])
 def reset_password():
     data = request.get_json()
-    email = data.get("email")
-    secret_word = data.get("keyword") or data.get("secret_word")
+    username = data.get("username")
     new_password = data.get("new_password")
 
-    if not all([email, secret_word, new_password]):
-        return jsonify({"message": "Email, secret word, and new password required"}), 400
+    if not username or not new_password:
+        return jsonify({"error": "Username and new password are required"}), 400
 
     conn = connect_db()
     cursor = conn.cursor()
 
     try:
-        cursor.execute("SELECT secret_word FROM users WHERE email = ?", (email,))
-        result = cursor.fetchone()
-
-        if not result:
-            return jsonify({"message": "User not found"}), 404
-        if result[0] != secret_word:
-            return jsonify({"message": "Incorrect secret word"}), 400
-
-        cursor.execute("UPDATE users SET password = ? WHERE email = ?", (new_password, email))
+        cursor.execute("UPDATE users SET password = ? WHERE username = ?", (new_password, username))
+        if cursor.rowcount == 0:
+            return jsonify({"error": "User not found"}), 404
+            
         conn.commit()
         return jsonify({"message": "Password reset successful"}), 200
 
     except Exception as e:
         conn.rollback()
-        return jsonify({"message": f"Password reset failed: {e}"}), 500
+        return jsonify({"error": f"Password reset failed: {str(e)}"}), 500
 
     finally:
         cursor.close()
@@ -150,22 +149,53 @@ def reset_password():
 
 @bp.route("/get-security-question", methods=["POST"])
 def get_security_question():
-    email = request.get_json().get("email")
-    if not email:
-        return jsonify({"message": "Email is required"}), 400
+    username = request.get_json().get("username")
+    if not username:
+        return jsonify({"error": "Username is required"}), 400
 
     conn = connect_db()
     cursor = conn.cursor()
 
-    cursor.execute("SELECT security_question FROM users WHERE email = ?", (email,))
-    result = cursor.fetchone()
+    try:
+        cursor.execute("SELECT security_question FROM users WHERE username = ?", (username,))
+        result = cursor.fetchone()
 
-    cursor.close()
-    conn.close()
+        if result:
+            return jsonify({"security_question": result[0]}), 200
+        return jsonify({"error": "User not found"}), 404
 
-    if result:
-        return jsonify({"security_question": result[0]}), 200
-    return jsonify({"message": "User not found"}), 404
+    finally:
+        cursor.close()
+        conn.close()
+
+
+@bp.route("/verify-secret-word", methods=["POST"])
+def verify_secret_word():
+    data = request.get_json()
+    username = data.get("username")
+    secret_word = data.get("secret_word")
+
+    if not username or not secret_word:
+        return jsonify({"error": "Username and secret word are required"}), 400
+
+    conn = connect_db()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("SELECT secret_word FROM users WHERE username = ?", (username,))
+        result = cursor.fetchone()
+
+        if not result:
+            return jsonify({"error": "User not found"}), 404
+        
+        if result[0] != secret_word:
+            return jsonify({"error": "Incorrect secret word"}), 400
+
+        return jsonify({"message": "Secret word verified"}), 200
+
+    finally:
+        cursor.close()
+        conn.close()
 
 
 @bp.route("/logout", methods=["POST"])
