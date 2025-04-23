@@ -1470,6 +1470,21 @@
                 const currentUserId = document.documentElement.getAttribute('data-user-id');
                 updateGroupListOrder(window.currentChat.id, message, currentUserId);
                 
+                // Immediately display the message in the chat
+                const chatBody = document.querySelector('.chat-body');
+                const messageElement = document.createElement('div');
+                messageElement.className = 'message sent';
+                messageElement.setAttribute('data-message-id', messageId);
+                messageElement.setAttribute('data-timestamp', timestamp);
+                
+                messageElement.innerHTML = `
+                    <div class="message-content">${message}</div>
+                    <span class="message-timestamp">${formatMessageTimestamp(timestamp, true)}</span>
+                `;
+                
+                chatBody.appendChild(messageElement);
+                chatBody.scrollTop = chatBody.scrollHeight;
+                
                 // Emit group message
                 socket.emit('send_message', {
                     group_id: window.currentChat.id,
@@ -1495,6 +1510,42 @@
 
                 // Update the contact list immediately for the sender
                 updateContactLastMessage(window.currentChat.id, message, timestamp);
+
+                // Immediately display the message in the chat
+                const chatBody = document.querySelector('.chat-body');
+                
+                // Check if we need to add a date separator
+                const lastMessage = chatBody.lastElementChild;
+                if (lastMessage) {
+                    const lastMessageDate = new Date(lastMessage.getAttribute('data-timestamp'));
+                    const currentMessageDate = new Date(timestamp);
+                    
+                    if (lastMessageDate.toDateString() !== currentMessageDate.toDateString()) {
+                        const dateSeparator = document.createElement('div');
+                        dateSeparator.className = 'date-separator';
+                        dateSeparator.textContent = formatDateSeparator(currentMessageDate, true);
+                        chatBody.appendChild(dateSeparator);
+                    }
+                } else {
+                    // If this is the first message, add date separator
+                    const dateSeparator = document.createElement('div');
+                    dateSeparator.className = 'date-separator';
+                    dateSeparator.textContent = formatDateSeparator(new Date(timestamp), true);
+                    chatBody.appendChild(dateSeparator);
+                }
+                
+                const messageElement = document.createElement('div');
+                messageElement.className = 'message sent';
+                messageElement.setAttribute('data-message-id', messageId);
+                messageElement.setAttribute('data-timestamp', timestamp);
+                
+                messageElement.innerHTML = `
+                    <div class="message-content">${message}</div>
+                    <span class="message-timestamp">${formatMessageTimestamp(timestamp, true)}</span>
+                `;
+                
+                chatBody.appendChild(messageElement);
+                chatBody.scrollTop = chatBody.scrollHeight;
 
                 // Emit direct message
                 socket.emit('send_message', {
