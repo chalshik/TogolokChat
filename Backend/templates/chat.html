@@ -13,6 +13,8 @@
     <title>TogolohChat</title>
     <!-- Include Socket.IO client library -->
     <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
+    <!-- Add Font Awesome for eye icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         * {
             margin: 0;
@@ -3544,7 +3546,12 @@
                 <div style="color: #e9edef;">
                     <div style="margin-bottom: 15px;">
                         <label style="display: block; margin-bottom: 5px;">Enter Admin Password</label>
-                        <input type="password" id="admin-password" style="width: 100%; padding: 8px; background-color: #2a3942; color: #e9edef; border: 1px solid #374045; border-radius: 4px;">
+                        <div style="position: relative;">
+                            <input type="password" id="admin-password" style="width: 100%; padding: 8px; background-color: #2a3942; color: #e9edef; border: 1px solid #374045; border-radius: 4px; padding-right: 35px;">
+                            <button type="button" class="toggle-password" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #8696a0;">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
                     </div>
                     <button id="verify-admin" style="width: 100%; padding: 10px; background-color: #00a884; color: white; border: none; border-radius: 4px; cursor: pointer;">
                         Verify
@@ -3559,16 +3566,26 @@
             const closeButton = panel.querySelector('.close-button');
             const verifyButton = panel.querySelector('#verify-admin');
             const passwordInput = panel.querySelector('#admin-password');
+            const toggleButton = panel.querySelector('.toggle-password');
+
+            // Add password toggle functionality
+            toggleButton.addEventListener('click', function() {
+                const input = this.parentElement.querySelector('input');
+                const icon = this.querySelector('i');
+                
+                if (input.type === 'password') {
+                    input.type = 'text';
+                    icon.classList.remove('fa-eye');
+                    icon.classList.add('fa-eye-slash');
+                } else {
+                    input.type = 'password';
+                    icon.classList.remove('fa-eye-slash');
+                    icon.classList.add('fa-eye');
+                }
+            });
 
             closeButton.addEventListener('click', () => {
                 document.body.removeChild(modal);
-            });
-
-            // Add enter key support
-            passwordInput.addEventListener('keypress', (e) => {
-                if (e.key === 'Enter') {
-                    verifyPassword();
-                }
             });
 
             verifyButton.addEventListener('click', verifyPassword);
@@ -3913,17 +3930,32 @@
                     </div>
                 </div>
                 <div style="color: #e9edef;">
-                    <div style="margin-bottom: 15px;">
+                    <div style="margin-bottom: 15px; position: relative;">
                         <label style="display: block; margin-bottom: 5px;">Current Password</label>
-                        <input type="password" id="current-password" style="width: 100%; padding: 8px; background-color: #2a3942; color: #e9edef; border: 1px solid #374045; border-radius: 4px;">
+                        <div style="position: relative;">
+                            <input type="password" id="current-password" style="width: 100%; padding: 8px; background-color: #2a3942; color: #e9edef; border: 1px solid #374045; border-radius: 4px; padding-right: 35px;">
+                            <button type="button" class="toggle-password" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #8696a0;">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
                     </div>
-                    <div style="margin-bottom: 15px;">
+                    <div style="margin-bottom: 15px; position: relative;">
                         <label style="display: block; margin-bottom: 5px;">New Password</label>
-                        <input type="password" id="new-password" style="width: 100%; padding: 8px; background-color: #2a3942; color: #e9edef; border: 1px solid #374045; border-radius: 4px;">
+                        <div style="position: relative;">
+                            <input type="password" id="new-password" style="width: 100%; padding: 8px; background-color: #2a3942; color: #e9edef; border: 1px solid #374045; border-radius: 4px; padding-right: 35px;">
+                            <button type="button" class="toggle-password" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #8696a0;">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
                     </div>
-                    <div style="margin-bottom: 15px;">
+                    <div style="margin-bottom: 15px; position: relative;">
                         <label style="display: block; margin-bottom: 5px;">Confirm New Password</label>
-                        <input type="password" id="confirm-password" style="width: 100%; padding: 8px; background-color: #2a3942; color: #e9edef; border: 1px solid #374045; border-radius: 4px;">
+                        <div style="position: relative;">
+                            <input type="password" id="confirm-password" style="width: 100%; padding: 8px; background-color: #2a3942; color: #e9edef; border: 1px solid #374045; border-radius: 4px; padding-right: 35px;">
+                            <button type="button" class="toggle-password" style="position: absolute; right: 10px; top: 50%; transform: translateY(-50%); background: none; border: none; cursor: pointer; color: #8696a0;">
+                                <i class="fas fa-eye"></i>
+                            </button>
+                        </div>
                     </div>
                     <button id="save-password" style="width: 100%; padding: 10px; background-color: #00a884; color: white; border: none; border-radius: 4px; cursor: pointer;">
                         Change Password
@@ -3937,6 +3969,25 @@
             // Add event listeners
             const closeButton = panel.querySelector('.close-button');
             const saveButton = panel.querySelector('#save-password');
+            
+            // Add event listeners for password toggle buttons
+            const toggleButtons = panel.querySelectorAll('.toggle-password');
+            toggleButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    const input = this.parentElement.querySelector('input');
+                    const icon = this.querySelector('i');
+                    
+                    if (input.type === 'password') {
+                        input.type = 'text';
+                        icon.classList.remove('fa-eye');
+                        icon.classList.add('fa-eye-slash');
+                    } else {
+                        input.type = 'password';
+                        icon.classList.remove('fa-eye-slash');
+                        icon.classList.add('fa-eye');
+                    }
+                });
+            });
 
             closeButton.addEventListener('click', () => {
                 document.body.removeChild(modal);

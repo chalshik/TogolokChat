@@ -204,10 +204,65 @@
         input:checked + .toggle-slider:before {
             transform: translateX(26px);
         }
+
+        /* Password visibility toggle styles */
+        .password-container {
+            position: relative;
+            width: 100%;
+        }
+        .password-toggle {
+            position: absolute;
+            right: 10px;
+            top: 50%;
+            transform: translateY(-50%);
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #666;
+            padding: 0;
+            width: auto;
+        }
+        .password-toggle:hover {
+            color: #333;
+        }
+        .password-toggle i {
+            font-size: 18px;
+        }
+        .logo-container {
+            text-align: center;
+            margin-bottom: 30px;
+        }
+        .logo {
+            display: inline-block;
+            background-color: rgba(0, 0, 0, 0.7);
+            padding: 10px 30px;
+            border-radius: 30px;
+        }
+        .logo-text {
+            font-size: 32px;
+            font-weight: bold;
+            font-family: 'Arial', sans-serif;
+        }
+        .logo-text-main {
+            color: white;
+        }
+        .logo-text-highlight {
+            color: #5FD3D0;
+        }
     </style>
+    <!-- Add Font Awesome for eye icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
 </head>
 <body>
     <div class="container">
+        <!-- Logo -->
+        <div class="logo-container">
+            <div class="logo">
+                <span class="logo-text">
+                    <span class="logo-text-main">Togolok</span><span class="logo-text-highlight">Chat</span>
+                </span>
+            </div>
+        </div>
         <!-- Login Form -->
         <form class="form active" id="login-form">
             <div class="form-title">Login</div>
@@ -217,7 +272,12 @@
             </div>
             <div class="form-group">
                 <label for="login-password">Password</label>
-                <input type="password" id="login-password" required>
+                <div class="password-container">
+                    <input type="password" id="login-password" required>
+                    <button type="button" class="password-toggle" onclick="togglePasswordVisibility('login-password')">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
             </div>
             <div class="login-options">
                 <div class="toggle-container">
@@ -252,11 +312,21 @@
             </div>
             <div class="form-group">
                 <label for="register-password">Password</label>
-                <input type="password" id="register-password" required>
+                <div class="password-container">
+                    <input type="password" id="register-password" required>
+                    <button type="button" class="password-toggle" onclick="togglePasswordVisibility('register-password')">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
             </div>
             <div class="form-group">
                 <label for="register-password-confirm">Confirm Password</label>
-                <input type="password" id="register-password-confirm" required>
+                <div class="password-container">
+                    <input type="password" id="register-password-confirm" required>
+                    <button type="button" class="password-toggle" onclick="togglePasswordVisibility('register-password-confirm')">
+                        <i class="fas fa-eye"></i>
+                    </button>
+                </div>
             </div>
             <button type="submit">Continue Registration</button>
             <div class="form-switch">
@@ -310,11 +380,21 @@
             <div id="forgot-step-3" style="display: none;">
                 <div class="form-group">
                     <label for="new-password">New Password</label>
-                    <input type="password" id="new-password" required>
+                    <div class="password-container">
+                        <input type="password" id="new-password" required>
+                        <button type="button" class="password-toggle" onclick="togglePasswordVisibility('new-password')">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
                 </div>
                 <div class="form-group">
                     <label for="confirm-password">Confirm New Password</label>
-                    <input type="password" id="confirm-password" required>
+                    <div class="password-container">
+                        <input type="password" id="confirm-password" required>
+                        <button type="button" class="password-toggle" onclick="togglePasswordVisibility('confirm-password')">
+                            <i class="fas fa-eye"></i>
+                        </button>
+                    </div>
                 </div>
                 <button id="reset-password">Reset Password</button>
             </div>
@@ -323,6 +403,23 @@
     </div>
 
     <script>
+        // Add password visibility toggle function
+        function togglePasswordVisibility(inputId) {
+            const input = document.getElementById(inputId);
+            const toggleButton = input.nextElementSibling;
+            const icon = toggleButton.querySelector('i');
+            
+            if (input.type === 'password') {
+                input.type = 'text';
+                icon.classList.remove('fa-eye');
+                icon.classList.add('fa-eye-slash');
+            } else {
+                input.type = 'password';
+                icon.classList.remove('fa-eye-slash');
+                icon.classList.add('fa-eye');
+            }
+        }
+
         // DOM elements
         const loginForm = document.getElementById('login-form');
         const registerForm = document.getElementById('register-form');
