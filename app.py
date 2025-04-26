@@ -1,7 +1,8 @@
 from flask import Flask, render_template, redirect, url_for, session, send_from_directory, request, jsonify 
 import os
-from datetime import timedelta
+from datetime import timedelta, datetime
 from flask_socketio import SocketIO
+from werkzeug.utils import secure_filename
 
 # Import blueprints
 from Backend.auth import bp as auth_bp, is_authenticated
@@ -15,9 +16,26 @@ from Backend.db import create_tables, connect_db
 # Create Flask app
 app = Flask(__name__, 
            template_folder='Backend/templates',
-           static_folder='static')
+           static_folder='Backend/static')
 app.secret_key = os.environ.get('SECRET_KEY', 'dev_key_for_togolok_chat')  # Set secret key for sessions
 app.config['PERMANENT_SESSION_LIFETIME'] = timedelta(days=30)  # Maximum session lifetime for remember me
+
+# File upload configuration
+UPLOAD_FOLDER = os.path.join(os.path.dirname(os.path.abspath(__file__)), 'uploads')
+ALLOWED_EXTENSIONS = {'txt', 'pdf', 'png', 'jpg', 'jpeg', 'gif', 'doc', 'docx', 'xls', 'xlsx'}
+MAX_CONTENT_LENGTH = 16 * 1024 * 1024  # 16MB max file size
+
+app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
+app.config['MAX_CONTENT_LENGTH'] = MAX_CONTENT_LENGTH
+
+def allowed_file(filename):
+    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
+def get_file_size(filepath):
+    try:
+        return os.path.getsize(filepath)
+    except OSError:
+        return 0
 
 # Initialize SocketIO with explicit configuration
 socketio = SocketIO(app, 
@@ -25,6 +43,7 @@ socketio = SocketIO(app,
                    async_mode='threading',
                    logger=True, 
                    engineio_logger=True)
+
 # Add this to app.py after creating the socketio instance
 from Backend.chat import register_socket_events
 
@@ -56,6 +75,77 @@ def index():
     if is_authenticated():
         return render_template('chat.html')  # Render chat.html directly
     return render_template('index.html')
+
+# File upload handling
+@app.route('/chat/send_file', methods=['POST'])
+def handle_file_upload():
+    """Handle file uploads from the chat."""
+    if 'file' not in request.files:
+        return jsonify({'success': False, 'message': 'No file provided'}), 400
+    
+    file = request.files['file']
+    if file.filename == '':
+        return jsonify({'success': False, 'message': 'No file selected'}), 400
+    
+    if not allowed_file(file.filename):
+        return jsonify({'success': False, 'message': 'File type not allowed'}), 400
+    
+    try:
+        # Secure the filename and generate a unique name
+        filename = secure_filename(file.filename)
+        timestamp = datetime.now().strftime('%Y%m%d_%H%M%S')
+        unique_filename = f"{timestamp}_{filename}"
+        filepath = os.path.join(app.config['UPLOAD_FOLDER'], unique_filename)
+        
+        # Save the file
+        file.save(filepath)
+        file_size = get_file_size(filepath)
+        
+        # Get additional message data
+        message = request.form.get('message', '')
+        timestamp = request.form.get('timestamp')
+        message_id = request.form.get('message_id')
+        
+        # Determine if it's a group or direct message
+        group_id = request.form.get('group_id')
+        receiver_id = request.form.get('receiver_id')
+        
+        # Create file info for the response
+        file_info = {
+            'name': filename,
+            'url': f'/uploads/{unique_filename}',
+            'size': file_size
+        }
+        
+        # Prepare message data
+        message_data = {
+            'success': True,
+            'message_id': message_id,
+            'timestamp': timestamp,
+            'file_info': file_info,
+            'message': message,
+            'display_message': f'📎 {filename}' + (f': {message}' if message else ''),
+            'sender_id': request.form.get('sender_id'),
+            'sender_username': request.form.get('sender_username')
+        }
+        
+        if group_id:
+            message_data['group_id'] = group_id
+            message_data['chat_type'] = 'group'
+            # Emit to group room
+            socketio.emit('new_message', message_data, room=f'group_{group_id}')
+        else:
+            message_data['receiver_id'] = receiver_id
+            message_data['chat_type'] = 'direct'
+            # Emit to sender and receiver rooms
+            socketio.emit('new_message', message_data, room=f'user_{receiver_id}')
+            socketio.emit('new_message', message_data, room=f'user_{request.form.get("sender_id")}')
+        
+        return jsonify(message_data)
+        
+    except Exception as e:
+        print(f"Error handling file upload: {str(e)}")
+        return jsonify({'success': False, 'message': 'Error processing file upload'}), 500
 
 # Serve static files from the uploads directory
 @app.route('/uploads/<path:filename>')
