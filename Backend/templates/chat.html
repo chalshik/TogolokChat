@@ -10,7 +10,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TogolohChat</title>
+    <title>TogolokChat</title>
     <!-- Include Socket.IO client library -->
     <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
     <!-- Add Font Awesome for eye icons -->
@@ -28,26 +28,110 @@
         }
         
         body {
-            background-color: #111b21;
             height: 100vh;
             display: flex;
             flex-direction: column;
+            position: relative;
+        }
+        
+        /* Custom scrollbar styling */
+        ::-webkit-scrollbar {
+            width: 4px;
+        }
+        
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+        
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.3);
+            border-radius: 4px;
+        }
+        
+        ::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.5);
+        }
+        
+        /* Background image and overlay */
+        body::before {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: url('/static/images/pik_karakol.jpg.png');
+            background-size: cover;
+            background-position: center;
+            z-index: -2;
+        }
+        
+        /* Dark overlay with 70% opacity */
+        body::after {
+            content: "";
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.7);
+            z-index: -1;
+        }
+        
+        /* Top header bar */
+        .app-header {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 60px;
+            background-color: rgba(0, 0, 0, 0.8);
+            display: flex;
+            align-items: center;
+            padding: 0 20px;
+            z-index: 1000;
+        }
+        
+        .app-logo {
+            display: flex;
+            align-items: center;
+        }
+        
+        .app-logo img {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        
+        .app-title {
+            color: white;
+            font-size: 18px;
+            font-weight: bold;
         }
         
         .chat-container {
             display: flex;
             height: 100vh;
             width: 100%;
+            padding-top: 60px; /* Account for the header */
+            gap: 5px; /* Smaller consistent gap */
         }
         
         .sidebar {
             width: 30%;
-            height: 100vh;
-            background-color: #111b21;
-            border-right: 1px solid #222d34;
+            height: calc(100vh - 70px);
+            background-color: rgba(255, 255, 255, 0.4); /* Semi-transparent white */
             display: flex;
             flex-direction: column;
-            position: relative; /* Add this */
+            position: relative;
+            border-radius: 20px 0 0 20px;
+            overflow: hidden;
+            margin: 5px 0 5px 0;
+            z-index: 5;
+            /* Remove any other potential backgrounds */
+            border: none;
+            box-shadow: none;
         }
         
         .sidebar-content {
@@ -55,7 +139,8 @@
             display: flex;
             flex-direction: column;
             overflow-y: auto;
-            padding-bottom: 60px; /* Add padding at bottom to ensure content doesn't go under the nav bar */
+            padding-bottom: 70px; /* Make room for nav bar */
+            background-color: transparent;
         }
         
         .sidebar-header {
@@ -64,11 +149,13 @@
             justify-content: space-between;
             padding: 10px 16px;
             height: 60px;
-            background-color: #202c33;
+            background-color: rgba(255, 255, 255, 0.6);
+            border-top-right-radius: 0;
+            border-top-left-radius: 20px;
         }
         
         .app-name {
-            color: #e9edef;
+            color: black;
             font-size: 16px;
             font-weight: bold;
         }
@@ -80,12 +167,12 @@
         
         .search-container {
             padding: 8px;
-            background-color: #111b21;
+            background-color: transparent;
         }
         
         .search-bar {
-            background-color: #202c33;
-            border-radius: 8px;
+            background-color: rgba(255, 255, 255, 0.6);
+            border-radius: 20px 0 20px 20px;
             padding: 10px;
             display: flex;
             align-items: center;
@@ -94,7 +181,7 @@
         .search-bar input {
             background: transparent;
             border: none;
-            color: #d1d7db;
+            color: black;
             width: 100%;
             outline: none;
             margin-left: 10px;
@@ -104,23 +191,27 @@
         .contact-list {
             overflow-y: auto;
             flex: 1;
+            background-color: transparent;
         }
         
-        /* Contact styles that were accidentally removed */
         .contact {
             display: flex;
             align-items: center;
             padding: 10px 15px;
-            border-bottom: 1px solid #222d34;
+            border-bottom: none;
             cursor: pointer;
+            background-color: rgba(255, 255, 255, 0.6);
+            margin: 5px 5px;
+            border-radius: 20px;
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
         }
         
         .contact:hover {
-            background-color: #202c33;
+            background-color: rgba(255, 255, 255, 0.6);
         }
         
         .contact-active {
-            background-color: #2a3942;
+            background-color: rgba(255, 255, 255, 0.7);
         }
         
         .profile-pic {
@@ -142,13 +233,13 @@
         }
         
         .contact-name {
-            color: #e9edef;
+            color: black;
             font-size: 17px;
             margin-bottom: 3px;
         }
         
         .contact-message {
-            color: #8696a0;
+            color: #333;
             font-size: 13px;
             white-space: nowrap;
             overflow: hidden;
@@ -163,7 +254,7 @@
         }
         
         .message-time {
-            color: #8696a0;
+            color: #333;
             font-size: 12px;
             margin-bottom: 3px;
         }
@@ -174,61 +265,64 @@
             bottom: 0;
             left: 0;
             width: 100%;
-            background-color: #202c33;
+            background-color: transparent; /* Make it transparent to match sidebar */
             display: flex;
             justify-content: space-around;
             padding: 10px 0;
-            z-index: 1001; /* Ensure it stays above other content */
-            height: 70px; /* Increased height */
+            height: 80px;
+            z-index: 10;
+            border-bottom-left-radius: 20px;
         }
         
         .nav-icon {
             display: flex;
             flex-direction: column;
             align-items: center;
-            justify-content: center; /* Add this to center content vertically */
-            color: #8696a0;
+            justify-content: center;
+            color: #333;
             cursor: pointer;
-            padding: 8px 12px;
-            border-radius: 8px;
+            padding: 8px;
+            border-radius: 12px;
             transition: background-color 0.2s;
-            min-width: 70px; /* Increased from 60px */
-            height: 100%; /* Make it take full height */
+            min-width: 70px;
+            height: 100%;
         }
         
         .nav-icon:hover {
-            background-color: #2a3942;
+            background-color: rgba(255, 255, 255, 0.6);
         }
         
         .nav-icon.active {
-            color: #00a884;
+            color: #000;
         }
         
         .nav-icon svg {
-            margin-bottom: 6px; /* Increased from 4px */
-            width: 28px; /* Increased from 24px */
-            height: 28px; /* Increased from 24px */
+            margin-bottom: 6px;
+            width: 36px;
+            height: 36px;
         }
         
         .nav-icon-label {
-            font-size: 13px; /* Increased from 12px */
-            font-weight: 500; /* Added font weight */
+            font-size: 14px;
+            font-weight: bold;
         }
         
         .main-chat {
             flex: 1;
             display: flex;
             flex-direction: column;
-            background-color: #0b141a;
             position: relative;
+            margin: 5px 5px 5px 0; /* Match sidebar margins */
         }
         
         .chat-header {
             display: flex;
             align-items: center;
             padding: 10px 16px;
-            background-color: #202c33;
+            background-color: rgba(255, 255, 255, 0.6);
             height: 60px;
+            border-top-right-radius: 20px;
+            border-top-left-radius: 0;
         }
         
         .chat-header-info {
@@ -237,53 +331,54 @@
         }
         
         .chat-header-name {
-            color: #e9edef;
+            color: black;
             font-size: 16px;
         }
         
         .chat-header-status {
             font-size: 13px;
-            color: #8696a0;
+            color: #333;
             margin-top: 2px;
         }
         
         .chat-header-status.online {
-            color: #00a884;
+            color: green;
         }
         
         .chat-header-status.offline {
-            color: #8696a0;
+            color: #333;
         }
         
         .chat-header-icons {
             display: flex;
             gap: 20px;
-            color: #aebac1;
+            color: #333;
         }
         
         .chat-body {
             flex: 1;
-            background-image: url('https://user-images.githubusercontent.com/15075759/28719144-86dc0f70-73b1-11e7-911d-60d70fcded21.png');
-            background-size: contain;
             padding: 20px;
             overflow-y: auto;
             display: flex;
             flex-direction: column;
+            background-color: transparent;
         }
         
         .message {
             max-width: 65%;
             padding: 8px 10px;
             margin-bottom: 8px;
-            border-radius: 7.5px;
+            border-radius: 15px;
             position: relative;
             word-wrap: break-word;
             cursor: pointer;
+            background-color: rgba(255, 255, 255, 0.6);
+            box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
         }
         
         .message.deleted {
-            background-color: #202c33;
-            color: #8696a0;
+            background-color: rgba(255, 255, 255, 0.4);
+            color: #333;
             font-style: italic;
         }
         
@@ -291,7 +386,7 @@
             position: absolute;
             top: 0;
             right: -120px;
-            background-color: #202c33;
+            background-color: rgba(255, 255, 255, 0.6);
             border-radius: 8px;
             padding: 8px;
             display: none;
@@ -306,7 +401,7 @@
         
         .message-option {
             padding: 8px;
-            color: #e9edef;
+            color: #333;
             cursor: pointer;
             border-radius: 4px;
             display: flex;
@@ -317,7 +412,7 @@
         }
         
         .message-option:hover {
-            background-color: #2a3942;
+            background-color: rgba(255, 255, 255, 0.8);
         }
         
         .message-option.delete {
@@ -325,26 +420,26 @@
         }
         
         .message-option.edit {
-            color: #00a884;
+            color: green;
         }
         
         .edited-indicator {
             font-size: 10px;
-            color: #8696a0;
+            color: #333;
             margin-left: 5px;
             font-style: italic;
         }
         
         .received {
-            background-color: #202c33;
-            color: #e9edef;
+            background-color: rgba(255, 255, 255, 0.6);
+            color: black;
             align-self: flex-start;
             border-top-left-radius: 0;
         }
         
         .sent {
-            background-color: #005c4b;
-            color: #e9edef;
+            background-color: rgba(255, 255, 255, 0.6);
+            color: black;
             align-self: flex-end;
             border-top-right-radius: 0;
         }
@@ -358,7 +453,7 @@
             position: absolute;
             bottom: 5px;
             right: 7px;
-            color: #8696a0;
+            color: #333;
             font-size: 11px;
         }
         
@@ -366,30 +461,32 @@
             display: flex;
             align-items: center;
             padding: 10px;
-            background-color: #202c33;
+            background-color: rgba(255, 255, 255, 0.6);
+            border-bottom-right-radius: 20px;
+            border-bottom-left-radius: 0;
         }
         
         .chat-footer-icons {
             display: flex;
             gap: 15px;
-            color: #8696a0;
+            color: #333;
             padding: 0 15px;
         }
         
         .message-input {
             flex: 1;
-            background-color: #2a3942;
-            border-radius: 8px;
+            background-color: rgba(255, 255, 255, 0.4);
+            border-radius: 20px;
             border: none;
             padding: 9px 12px;
-            color: #d1d7db;
+            color: black;
             outline: none;
             font-size: 15px;
         }
         
         .send-button {
             margin-left: 10px;
-            color: #8696a0;
+            color: #333;
             cursor: pointer;
         }
         
@@ -444,29 +541,39 @@
         /* Settings Sidebar Styles */
         .settings-sidebar {
             width: 30%;
-            height: 100%;
-            background-color: #111b21;
+            height: calc(100% - 70px);
+            background-color: transparent;
             position: fixed;
             left: 0;
             top: 0;
-            z-index: 1000;
+            z-index: 999;
             display: flex;
             flex-direction: column;
+            padding: 10px;
+        }
+
+        .settings-title {
+            font-size: 20px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 15px;
+            padding: 5px 10px;
         }
 
         .settings-content {
             flex: 1;
             overflow-y: auto;
-            padding: 20px;
-            margin-bottom: 60px; /* Add space for navigation */
+            padding: 10px;
+            margin-bottom: 70px;
+            background-color: transparent;
         }
 
         /* Profile Section Styles */
         .profile-section {
-            background-color: #202c33;
+            background-color: rgba(255, 255, 255, 0.6);
             border-radius: 10px;
-            padding: 20px;
-            margin-bottom: 20px;
+            padding: 15px;
+            margin-bottom: 15px;
         }
 
         .profile-header {
@@ -511,7 +618,7 @@
         }
 
         .profile-nickname {
-            color: #e9edef;
+            color: #333;
             font-size: 18px;
             font-weight: bold;
             margin-bottom: 5px;
@@ -521,7 +628,7 @@
             background-color: transparent;
             border: none;
             border-bottom: 1px solid #374045;
-            color: #e9edef;
+            color: #333;
             font-size: 16px;
             padding: 5px 0;
             width: 100%;
@@ -532,7 +639,7 @@
             background-color: transparent;
             border: 1px solid #374045;
             border-radius: 5px;
-            color: #e9edef;
+            color: #333;
             width: 100%;
             padding: 10px;
             resize: none;
@@ -542,50 +649,52 @@
 
         .profile-bio textarea:focus,
         .profile-name input:focus {
-            border-color: #00a884;
+            border-color: #333;
         }
 
         /* Settings Section Styles */
         .settings-section {
-            background-color: #202c33;
+            background-color: rgba(255, 255, 255, 0.6);
             border-radius: 10px;
-            padding: 20px;
+            padding: 15px;
         }
         
         .settings-list {
             display: flex;
             flex-direction: column;
-            gap: 10px;
+            gap: 8px;
         }
         
         .settings-item {
             display: flex;
             align-items: center;
             gap: 15px;
-            padding: 15px;
-            color: #e9edef;
+            padding: 12px;
+            color: #333;
             cursor: pointer;
-            border-radius: 5px;
+            border-radius: 8px;
             transition: background-color 0.2s;
         }
         
         .settings-item:hover {
-            background-color: #374045;
+            background-color: rgba(255, 255, 255, 0.8);
         }
         
         .settings-item i,
         .settings-item svg {
             width: 24px;
             height: 24px;
-            color: #8696a0;
+            color: #333;
         }
         
         .settings-item span {
             font-size: 16px;
+            font-weight: 500;
         }
 
         #logout-button {
             color: #f15e6c;
+            margin-top: 5px;
         }
 
         #logout-button i {
@@ -651,25 +760,26 @@
 
         .add-contact-footer {
             padding: 10px 15px;
-            background-color: #111b21;
-            border-top: 1px solid #222d34;
+            background-color: transparent;
             margin-top: auto; /* Push to bottom */
+            border-radius: 0 0 0 20px;
         }
 
         .add-contact-footer button {
             width: 100%;
             padding: 12px;
-            background-color: #00a884;
+            background-color: rgba(0, 168, 132, 0.8);
             color: white;
             border: none;
-            border-radius: 5px;
+            border-radius: 20px;
             cursor: pointer;
             font-size: 16px;
+            font-weight: bold;
         }
 
         .add-contact-footer button:disabled {
-            background-color: #2a3942;
-            opacity: 0.5;
+            background-color: rgba(180, 180, 180, 0.6);
+            opacity: 0.7;
             cursor: not-allowed;
         }
 
@@ -679,13 +789,14 @@
             display: flex;
             flex-direction: column;
             height: 100%;
-            background-color: #111b21;
+            background-color: transparent;
         }
 
         .contact-list {
             flex: 1;
             overflow-y: auto;
             padding: 10px 0;
+            background-color: transparent;
         }
 
         .contact-item {
@@ -693,12 +804,15 @@
             align-items: center;
             padding: 10px 15px;
             cursor: pointer;
-            border-bottom: 1px solid #222d34;
+            border-bottom: none;
             transition: background-color 0.2s;
+            background-color: rgba(255, 255, 255, 0.6);
+            margin: 5px;
+            border-radius: 20px;
         }
 
         .contact-item:hover {
-            background-color: #202c33;
+            background-color: rgba(255, 255, 255, 0.8);
         }
 
         .contact-avatar {
@@ -720,26 +834,28 @@
         }
 
         .contact-name {
-            color: #e9edef;
+            color: #333;
             font-size: 16px;
             margin-bottom: 4px;
         }
 
         .contact-status {
-            color: #8696a0;
+            color: #333;
             font-size: 13px;
         }
 
         .loading-contacts {
             text-align: center;
             padding: 20px;
-            color: #8696a0;
+            color: #333;
+            background-color: transparent;
         }
 
         .no-contacts {
             text-align: center;
             padding: 20px;
-            color: #8696a0;
+            color: #333;
+            background-color: transparent;
         }
 
         /* Removing the duplicate sidebar-nav definition */
@@ -747,7 +863,7 @@
         .date-separator {
             text-align: center;
             margin: 20px 0;
-            color: #8696a0;
+            color: #333;
             font-size: 12.5px;
             position: relative;
             display: flex;
@@ -763,41 +879,70 @@
             margin: 0 10px;
             opacity: 0.2;
         }
+
+        /* User selection in add contacts view */
+        .user-item.user-selected {
+            background-color: rgba(255, 255, 255, 0.8) !important; /* Force selection background */
+        }
+        
+        /* Update search result styling */
+        .user-item {
+            padding: 10px 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            background-color: rgba(255, 255, 255, 0.6);
+            margin: 5px;
+            border-radius: 20px;
+        }
+        
+        .user-item:hover {
+            background-color: rgba(255, 255, 255, 0.8);
+        }
     </style>
 </head>
 <body>
+    <!-- Top header with logo -->
+    <div class="app-header">
+        <div class="app-logo">
+            <img src="/static/images/logo_icon.png" alt="TogolokChat Logo">
+            <div class="app-title">TogolokChat</div>
+        </div>
+    </div>
+    
     <div class="chat-container">
-        <!-- Sidebar will be handled by you -->
+        <!-- Sidebar with transparent background -->
         <div class="sidebar">
             <div class="sidebar-content">
-            <div class="sidebar-header">
-                <div class="app-name">TogolohChat</div>
-                <div class="sidebar-header-icons">
-                    <svg viewBox="0 0 24 24" width="24" height="24" class="icon">
-                        <path fill="currentColor" d="M12 20.664a8.664 8.664 0 0 1-8.664-8.664A8.664 8.664 0 0 1 12 3.336a8.664 8.664 0 0 1 8.664 8.664A8.664 8.664 0 0 1 12 20.664zm0-17.328a8.664 8.664 0 0 0-8.664 8.664A8.664 8.664 0 0 0 12 20.664a8.664 8.664 0 0 0 8.664-8.664A8.664 8.664 0 0 0 12 3.336z"></path>
-                        <path fill="currentColor" d="M12 14.504c-1.104 0-2-.896-2-2s.896-2 2-2 2 .896 2 2-.896 2-2 2zm0-5c-1.657 0-3 1.343-3 3s1.343 3 3 3 3-1.343 3-3-1.343-3-3-3z"></path>
-                    </svg>
+                <div class="sidebar-header">
+                    <div class="app-name">TogolokChat</div>
+                    <div class="sidebar-header-icons">
+                        <svg viewBox="0 0 24 24" width="24" height="24" class="icon">
+                            <path fill="currentColor" d="M12 20.664a8.664 8.664 0 0 1-8.664-8.664A8.664 8.664 0 0 1 12 3.336a8.664 8.664 0 0 1 8.664 8.664A8.664 8.664 0 0 1 12 20.664zm0-17.328a8.664 8.664 0 0 0-8.664 8.664A8.664 8.664 0 0 0 12 20.664a8.664 8.664 0 0 0 8.664-8.664A8.664 8.664 0 0 0 12 3.336z"></path>
+                            <path fill="currentColor" d="M12 14.504c-1.104 0-2-.896-2-2s.896-2 2-2 2 .896 2 2-.896 2-2 2zm0-5c-1.657 0-3 1.343-3 3s1.343 3 3 3 3-1.343 3-3-1.343-3-3-3z"></path>
+                        </svg>
+                    </div>
                 </div>
-            </div>
-            
-            <div class="search-container">
-                <div class="search-bar">
-                    <svg viewBox="0 0 24 24" width="24" height="24" class="icon">
-                        <path fill="currentColor" d="M15.009 13.805h-.636l-.22-.219a5.184 5.184 0 0 0 1.256-3.386 5.207 5.207 0 1 0-5.207 5.208 5.183 5.183 0 0 0 3.385-1.255l.221.22v.635l4.004 3.999 1.194-1.195-3.997-4.007zm-4.808 0a3.605 3.605 0 1 1 0-7.21 3.605 3.605 0 0 1 0 7.21z"></path>
-                    </svg>
-                    <input type="text" id="search-input" placeholder="Іздеу же жаңы чат баштоо..." onkeyup="searchContacts()">
+                
+                <div class="search-container">
+                    <div class="search-bar">
+                        <svg viewBox="0 0 24 24" width="24" height="24" class="icon">
+                            <path fill="currentColor" d="M15.009 13.805h-.636l-.22-.219a5.184 5.184 0 0 0 1.256-3.386 5.207 5.207 0 1 0-5.207 5.208 5.183 5.183 0 0 0 3.385-1.255l.221.22v.635l4.004 3.999 1.194-1.195-3.997-4.007zm-4.808 0a3.605 3.605 0 1 1 0-7.21 3.605 3.605 0 0 1 0 7.21z"></path>
+                        </svg>
+                        <input type="text" id="search-input" placeholder="Іздеу же жаңы чат баштоо..." onkeyup="searchContacts()">
+                    </div>
                 </div>
-            </div>
-            
-            <div class="contact-list" id="contact-list">
-                <!-- Contacts will be loaded dynamically -->
-                <div class="loading-contacts" style="color: #8696a0; text-align: center; padding: 20px;">
-                    Loading contacts...
+                
+                <div class="contact-list" id="contact-list">
+                    <!-- Contacts will be loaded dynamically -->
+                    <div class="loading-contacts">
+                        Loading contacts...
                     </div>
                 </div>
             </div>
             
-            <!-- Sidebar Navigation (moved from bottom) -->
+            <!-- Sidebar Navigation -->
             <div class="sidebar-nav">
                 <div class="nav-icon active" data-target="contacts">
                     <svg viewBox="0 0 24 24" width="28" height="28">
@@ -828,20 +973,7 @@
         
         <!-- Settings Sidebar -->
         <div class="settings-sidebar" style="display: none;">
-            <div class="sidebar-header">
-                <div class="sidebar-header-back">
-                    <svg viewBox="0 0 24 24" width="24" height="24">
-                        <path fill="currentColor" d="M19.8 11H7.5l5.6-5.6L11.7 4l-8 8 8 8 1.4-1.4L7.5 13h12.3v-2z"></path>
-                    </svg>
-                </div>
-                <div class="app-name">Profile & Settings</div>
-                <div class="close-settings">
-                    <svg viewBox="0 0 24 24" width="24" height="24">
-                        <path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path>
-                    </svg>
-                </div>
-            </div>
-            
+            <div class="settings-title">Profile & Settings</div>
             <div class="settings-content">
                 <!-- Profile Section -->
                 <div class="profile-section">
@@ -868,20 +1000,20 @@
 
                 <!-- Settings Section -->
                 <div class="settings-section">
-            <div class="settings-list">
-                <div class="settings-item" id="language-settings">
-                    <svg viewBox="0 0 24 24" width="24" height="24">
-                            <path fill="currentColor" d="M12 22.0005C5.07 22.0005 1.5 18.5205 1.5 12.0005C1.5 5.48047 5.07 2.00047 12 2.00047C18.93 2.00047 22.5 5.48047 22.5 12.0005C22.5 18.5205 18.93 22.0005 12 22.0005ZM12 3.50047C5.82 3.50047 3 6.24047 3 12.0005C3 17.7605 5.82 20.5005 12 20.5005C18.18 20.5005 21 17.7605 21 12.0005C21 6.24047 18.18 3.50047 12 3.50047ZM15.53 13.8805C15.82 13.2405 16 12.9505 16 12.0005C16 11.0505 15.82 10.7605 15.53 10.1205C15.37 9.78047 15.1 9.50047 14.79 9.27047C14.43 9.00047 14.25 8.77047 14.25 7.75047V7.50047C14.25 6.94047 13.81 6.50047 13.25 6.50047H10.75C10.19 6.50047 9.75 6.94047 9.75 7.50047V7.72047C9.75 8.69047 9.59 8.87047 9.33 9.11047C9 9.42047 8.71 9.75047 8.5 10.1705C8.19 10.8005 8 11.1505 8 12.0005C8 12.8505 8.19 13.1905 8.48 13.7905C8.71 14.1905 9 14.5305 9.34 14.8505C9.58 15.0605 9.75 15.2805 9.75 16.2405V16.5005C9.75 17.0605 10.19 17.5005 10.75 17.5005H13.25C13.81 17.5005 14.25 17.0605 14.25 16.5005V16.2405C14.25 15.2805 14.41 15.0605 14.67 14.8305C15 14.5305 15.3 14.2005 15.53 13.8805ZM12 14.0005C10.9 14.0005 10 13.1005 10 12.0005C10 10.9005 10.9 10.0005 12 10.0005C13.1 10.0005 14 10.9005 14 12.0005C14 13.1005 13.1 14.0005 12 14.0005Z"></path>
-                        </svg>
-                    <span>Change Language</span>
-                    </div>
-                <div class="settings-item" id="password-settings">
-                    <i class="fa-solid fa-key"></i>
-                    <span>Change Password</span>
-                </div>
-                <div class="settings-item" id="admin-panel">
-                    <i class="fa-solid fa-user-shield"></i>
-                    <span>Admin Panel</span>
+                    <div class="settings-list">
+                        <div class="settings-item" id="language-settings">
+                            <svg viewBox="0 0 24 24" width="24" height="24">
+                                <path fill="currentColor" d="M12 22.0005C5.07 22.0005 1.5 18.5205 1.5 12.0005C1.5 5.48047 5.07 2.00047 12 2.00047C18.93 2.00047 22.5 5.48047 22.5 12.0005C22.5 18.5205 18.93 22.0005 12 22.0005ZM12 3.50047C5.82 3.50047 3 6.24047 3 12.0005C3 17.7605 5.82 20.5005 12 20.5005C18.18 20.5005 21 17.7605 21 12.0005C21 6.24047 18.18 3.50047 12 3.50047ZM15.53 13.8805C15.82 13.2405 16 12.9505 16 12.0005C16 11.0505 15.82 10.7605 15.53 10.1205C15.37 9.78047 15.1 9.50047 14.79 9.27047C14.43 9.00047 14.25 8.77047 14.25 7.75047V7.50047C14.25 6.94047 13.81 6.50047 13.25 6.50047H10.75C10.19 6.50047 9.75 6.94047 9.75 7.50047V7.72047C9.75 8.69047 9.59 8.87047 9.33 9.11047C9 9.42047 8.71 9.75047 8.5 10.1705C8.19 10.8005 8 11.1505 8 12.0005C8 12.8505 8.19 13.1905 8.48 13.7905C8.71 14.1905 9 14.5305 9.34 14.8505C9.58 15.0605 9.75 15.2805 9.75 16.2405V16.5005C9.75 17.0605 10.19 17.5005 10.75 17.5005H13.25C13.81 17.5005 14.25 17.0605 14.25 16.5005V16.2405C14.25 15.2805 14.41 15.0605 14.67 14.8305C15 14.5305 15.3 14.2005 15.53 13.8805ZM12 14.0005C10.9 14.0005 10 13.1005 10 12.0005C10 10.9005 10.9 10.0005 12 10.0005C13.1 10.0005 14 10.9005 14 12.0005C14 13.1005 13.1 14.0005 12 14.0005Z"></path>
+                            </svg>
+                            <span>Change Language</span>
+                        </div>
+                        <div class="settings-item" id="password-settings">
+                            <i class="fa-solid fa-key"></i>
+                            <span>Change Password</span>
+                        </div>
+                        <div class="settings-item" id="admin-panel">
+                            <i class="fa-solid fa-user-shield"></i>
+                            <span>Admin Panel</span>
                         </div>
                         <div class="settings-item" id="logout-button">
                             <i class="fa-solid fa-right-from-bracket"></i>
@@ -1759,25 +1891,10 @@
             }
             
             // Add event listeners
-            const backButton = settingsSidebar.querySelector('.sidebar-header-back');
-            const closeButton = settingsSidebar.querySelector('.close-settings');
             const languageSettings = settingsSidebar.querySelector('#language-settings');
             const passwordSettings = settingsSidebar.querySelector('#password-settings');
             const adminPanel = settingsSidebar.querySelector('#admin-panel');
-            
-            if (backButton) {
-                backButton.addEventListener("click", () => {
-                    settingsSidebar.style.display = "none";
-                    showMainSidebar();
-                });
-            }
-            
-            if (closeButton) {
-                closeButton.addEventListener("click", () => {
-                    settingsSidebar.style.display = "none";
-                    showMainSidebar();
-                });
-            }
+            const logoutButton = settingsSidebar.querySelector('#logout-button');
             
             if (languageSettings) {
                 languageSettings.addEventListener("click", showLanguageSettings);
@@ -1790,6 +1907,45 @@
             if (adminPanel) {
                 adminPanel.addEventListener("click", () => {
                     loadAdminPanel();
+                });
+            }
+            
+            if (logoutButton) {
+                logoutButton.addEventListener("click", () => {
+                    // Create and show logout confirmation modal
+                    const modal = document.createElement('div');
+                    modal.className = 'logout-modal';
+                    modal.style.display = 'flex';
+                    
+                    modal.innerHTML = `
+                        <div class="logout-modal-content">
+                            <div class="logout-modal-title">Are you sure you want to logout?</div>
+                            <div class="logout-modal-buttons">
+                                <button class="logout-modal-button logout-modal-cancel">Cancel</button>
+                                <button class="logout-modal-button logout-modal-confirm">Logout</button>
+                            </div>
+                        </div>
+                    `;
+                    
+                    document.body.appendChild(modal);
+                    
+                    // Handle cancel button
+                    modal.querySelector('.logout-modal-cancel').addEventListener('click', () => {
+                        modal.remove();
+                    });
+                    
+                    // Handle confirm button
+                    modal.querySelector('.logout-modal-confirm').addEventListener('click', () => {
+                        fetch('/auth/logout', {
+                            method: 'POST'
+                        })
+                        .then(response => {
+                            if (response.ok) {
+                                window.location.href = '/';
+                            }
+                        })
+                        .catch(error => console.error('Error logging out:', error));
+                    });
                 });
             }
         }
@@ -1827,20 +1983,18 @@
                     </div>
                 </div>
                 
-                <div style="padding: 10px 15px; background-color: #111b21; border-bottom: 1px solid #222d34;">
-                        <div style="display: flex;">
-                        <input type="text" id="search-user" style="flex: 1; padding: 10px; background-color: #2a3942; border: none; color: #e9edef; border-radius: 5px 0 0 5px;" placeholder="Search by Username or Email">
-                        <button id="search-user-btn" style="padding: 0 15px; background-color: #2a3942; color: #8696a0; border: none; border-left: 1px solid #111b21; border-radius: 0 5px 5px 0; cursor: pointer;">
-                            <svg viewBox="0 0 24 24" width="20" height="20">
-                                    <path fill="currentColor" d="M15.009 13.805h-.636l-.22-.219a5.184 5.184 0 0 0 1.256-3.386 5.207 5.207 0 1 0-5.207 5.208 5.183 5.183 0 0 0 3.385-1.255l.221.22v.635l4.004 3.999 1.194-1.195-3.997-4.007zm-4.808 0a3.605 3.605 0 1 1 0-7.21 3.605 3.605 0 0 1 0 7.21z"></path>
-                                </svg>
-                            </button>
+                <div style="padding: 10px 15px; background-color: transparent;">
+                    <div class="search-bar" style="border-radius: 20px 0 20px 20px;">
+                        <svg viewBox="0 0 24 24" width="24" height="24" class="icon">
+                            <path fill="currentColor" d="M15.009 13.805h-.636l-.22-.219a5.184 5.184 0 0 0 1.256-3.386 5.207 5.207 0 1 0-5.207 5.208 5.183 5.183 0 0 0 3.385-1.255l.221.22v.635l4.004 3.999 1.194-1.195-3.997-4.007zm-4.808 0a3.605 3.605 0 1 1 0-7.21 3.605 3.605 0 0 1 0 7.21z"></path>
+                        </svg>
+                        <input type="text" id="search-user" placeholder="Search by Username or Email">
                     </div>
                 </div>
                 
-                <div id="all-users-list" style="overflow-y: auto; flex: 1; background-color: #111b21;">
+                <div id="all-users-list" style="overflow-y: auto; flex: 1; background-color: transparent;">
                     <!-- User list will be loaded here -->
-                    <div class="loading-users" style="text-align: center; color: #8696a0; padding: 20px;">
+                    <div class="loading-users" style="text-align: center; color: #333; padding: 20px;">
                         Loading users...
                     </div>
                 </div>
@@ -1872,17 +2026,21 @@
                 if (contactsIcon) contactsIcon.classList.add('active');
             });
             
-            document.getElementById('search-user-btn').addEventListener('click', function() {
-                const searchTerm = document.getElementById('search-user').value.trim();
-                // Trigger search even if empty to potentially show all users again
+            const searchInput = document.getElementById('search-user');
+            if (searchInput) {
+                searchInput.addEventListener('input', function() {
+                    const searchTerm = this.value.trim();
+                    // Trigger search even if empty to potentially show all users again
                     searchUsers(searchTerm);
-            });
-            
-            document.getElementById('search-user').addEventListener('keypress', function(e) {
-                if (e.key === 'Enter') {
-                    document.getElementById('search-user-btn').click();
-                }
-            });
+                });
+                
+                searchInput.addEventListener('keypress', function(e) {
+                    if (e.key === 'Enter') {
+                        const searchTerm = this.value.trim();
+                        searchUsers(searchTerm);
+                    }
+                });
+            }
 
             // Add listener for the new bottom button
             document.getElementById('add-selected-contact-btn').addEventListener('click', function() {
@@ -1950,56 +2108,59 @@
             container.innerHTML = ''; // Clear previous content or loading message
             
             if (!users || users.length === 0) {
-                container.innerHTML = '<div style="text-align: center; color: #8696a0; padding: 20px;">No users found.</div>';
+                container.innerHTML = '<div style="text-align: center; color: #333; padding: 20px;">No users found.</div>';
                 // Ensure button is disabled if no users
                 container.removeAttribute('data-selected-user-id');
                 const addButton = document.getElementById('add-selected-contact-btn');
                 if (addButton) addButton.disabled = true;
-                        return;
-                    }
-                    
-                    users.forEach(user => {
+                return;
+            }
+            
+            users.forEach(user => {
                 // Skip if user object is somehow invalid
                 if (!user || !user.id || !user.username) return;
 
-                        const userElement = document.createElement('div');
+                const userElement = document.createElement('div');
                 userElement.className = 'user-item'; // Add a class for styling and selection
                 userElement.setAttribute('data-user-id', user.id);
-                        userElement.style.padding = '10px 15px';
-                        userElement.style.display = 'flex';
-                        userElement.style.alignItems = 'center';
+                userElement.style.padding = '10px 15px';
+                userElement.style.display = 'flex';
+                userElement.style.alignItems = 'center';
                 userElement.style.justifyContent = 'space-between'; // Keep space for potential future icons
-                        userElement.style.borderBottom = '1px solid #222d34';
-                        userElement.style.cursor = 'pointer';
-                        
-                        // Highlight on hover
-                        userElement.addEventListener('mouseover', function() {
+                userElement.style.borderBottom = 'none';
+                userElement.style.cursor = 'pointer';
+                userElement.style.backgroundColor = 'rgba(255, 255, 255, 0.6)';
+                userElement.style.margin = '5px';
+                userElement.style.borderRadius = '20px';
+                
+                // Highlight on hover
+                userElement.addEventListener('mouseover', function() {
                     // Don't change background if it's selected
                     if (!this.classList.contains('user-selected')) {
-                            this.style.backgroundColor = '#202c33';
+                        this.style.backgroundColor = 'rgba(255, 255, 255, 0.8)';
                     }
-                        });
-                        userElement.addEventListener('mouseout', function() {
-                     // Don't change background if it's selected
+                });
+                userElement.addEventListener('mouseout', function() {
+                    // Don't change background if it's selected
                     if (!this.classList.contains('user-selected')) {
-                            this.style.backgroundColor = 'transparent';
+                        this.style.backgroundColor = 'rgba(255, 255, 255, 0.6)';
                     }
-                        });
-                        
-                        const profilePic = user.profile_picture 
-                            ? `/uploads/profile_photos/${user.profile_picture}` 
+                });
+                
+                const profilePic = user.profile_picture 
+                    ? `/uploads/profile_photos/${user.profile_picture}` 
                     : '/api/placeholder/40/40'; // Use placeholder API
-                            
-                        userElement.innerHTML = `
-                            <div style="display: flex; align-items: center;">
-                                <div style="width: 40px; height: 40px; border-radius: 50%; overflow: hidden; margin-right: 10px;">
-                                    <img src="${profilePic}" alt="${user.username}" style="width: 100%; height: 100%; object-fit: cover;">
-                                </div>
-                                <div>
-                                    <div style="color: #e9edef; font-weight: bold;">${user.username}</div>
-                            <div style="color: #8696a0; font-size: 12px;">${user.email || user.name || ''}</div>
-                                </div>
-                            </div>
+                    
+                userElement.innerHTML = `
+                    <div style="display: flex; align-items: center;">
+                        <div style="width: 40px; height: 40px; border-radius: 50%; overflow: hidden; margin-right: 10px;">
+                            <img src="${profilePic}" alt="${user.username}" style="width: 100%; height: 100%; object-fit: cover;">
+                        </div>
+                        <div>
+                            <div style="color: #333; font-weight: bold;">${user.username}</div>
+                            <div style="color: #333; font-size: 12px;">${user.email || user.name || ''}</div>
+                        </div>
+                    </div>
                     <!-- Removed individual add button -->
                 `;
                 
@@ -2012,19 +2173,19 @@
                     // Deselect if clicking the already selected user
                     if (this.classList.contains('user-selected')) {
                         this.classList.remove('user-selected');
-                        this.style.backgroundColor = 'transparent'; // Remove selected background
+                        this.style.backgroundColor = 'rgba(255, 255, 255, 0.6)'; // Reset to normal background
                         container.removeAttribute('data-selected-user-id');
                         if (addButton) addButton.disabled = true;
                     } else {
                         // Remove selection from others
                         allUserItems.forEach(item => {
                             item.classList.remove('user-selected');
-                            item.style.backgroundColor = 'transparent'; // Reset background for all
+                            item.style.backgroundColor = 'rgba(255, 255, 255, 0.6)'; // Reset background for all
                         });
                         
                         // Select the clicked one
                         this.classList.add('user-selected');
-                        this.style.backgroundColor = '#2a3942'; // Set selected background
+                        this.style.backgroundColor = 'rgba(255, 255, 255, 0.8)'; // Set selected background
                         container.setAttribute('data-selected-user-id', clickedUserId);
                         if (addButton) addButton.disabled = false;
                     }
@@ -2045,7 +2206,7 @@
                 return;
             }
 
-            resultsContainer.innerHTML = '<div style="text-align: center; color: #e9edef; padding: 20px;">Searching...</div>';
+            resultsContainer.innerHTML = '<div style="text-align: center; color: #333; padding: 20px;">Searching...</div>';
             // Reset selection state during search
             resultsContainer.removeAttribute('data-selected-user-id');
             const addButton = document.getElementById('add-selected-contact-btn');
