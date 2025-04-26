@@ -896,12 +896,7 @@
         <div class="main-chat">
             <!-- Chat Header -->
             <div class="chat-header">
-                <div class="profile-pic">
-                    <img src="/api/placeholder/49/49" alt="Profile">
-                </div>
-                <div class="chat-header-info">
-                    <!-- there should be name and status of the user -->
-                </div>
+                <!-- Will be filled by JS -->
             </div>
             
             <!-- Chat Body -->
@@ -979,7 +974,7 @@
                     
                     console.log("Current chat updated to:", window.currentChat);
                     
-                    // Get profile picture
+                    // Get profile picture URL
                     let profilePic;
                     if (isGroup) {
                         profilePic = entity.picture ? `/uploads/group_images/${entity.picture}` : '/static/images/contact_logo.png';
@@ -1003,14 +998,36 @@
                         }
                     }
                     
-                    // Update header content
+                    // For group chats, prepare member names
+                    let memberDisplay = '';
+                    if (isGroup) {
+                        console.log('Group entity object:', entity);
+                        console.log('Group members array:', entity.members);
+                        if (entity.members && entity.members.length > 0) {
+                            // Display member names instead of count
+                            memberDisplay = entity.members.map(member => member.username).join(', ');
+                            console.log('Member display string:', memberDisplay);
+                        } else {
+                            memberDisplay = `${entity.member_count} members`;
+                            console.log('Fallback to member count:', memberDisplay);
+                        }
+                    } else {
+                        memberDisplay = isUserOnline(entity.id || entity) ? 'online' : 'offline';
+                    }
+
                     chatHeader.innerHTML = `
                         <div class="profile-pic" style="cursor: pointer;">
                             <img src="${profilePic}" alt="${isGroup ? entity.name : (entity.username || entity)}" onerror="this.src='/static/images/contact_logo.png'">
                         </div>
                         <div class="chat-header-info" style="cursor: pointer;">
                             <div class="chat-header-name">${isGroup ? entity.name : (entity.username || entity)}</div>
-                            <div class="chat-header-status ${isUserOnline(entity.id || entity) ? 'online' : 'offline'}">${isGroup ? (entity.member_count + ' members') : (isUserOnline(entity.id || entity) ? 'online' : 'offline')}</div>
+                            <div class="chat-header-status ${!isGroup && isUserOnline(entity.id || entity) ? 'online' : 'offline'}">
+                                ${isGroup 
+                                    ? (entity.members && entity.members.length > 0 
+                                        ? entity.members.map(member => member.username).join(', ') 
+                                        : entity.member_count + ' members')
+                                    : (isUserOnline(entity.id || entity) ? 'online' : 'offline')}
+                            </div>
                         </div>
                     `;
                     
@@ -2101,7 +2118,7 @@
         }
         
         // Function to show notification
-        function showNotification(message, type = 'info') {
+        function showNotification(message, type = 'info', duration = 5000) {
             // Create notification element
             const notification = document.createElement('div');
             notification.className = 'notification-toast';
@@ -2138,7 +2155,7 @@
             // Add to document
             document.body.appendChild(notification);
             
-            // Remove after 5 seconds
+            // Remove after specified duration
             setTimeout(function() {
                 notification.style.opacity = '0';
                 notification.style.transition = 'opacity 0.5s ease';
@@ -2147,7 +2164,7 @@
                         notification.parentNode.removeChild(notification);
                     }
                 }, 500);
-            }, 5000);
+            }, duration);
         }
         
         // Function to show groups view
@@ -2784,6 +2801,16 @@
                 })
                 .then(group => {
                     console.log('Group info loaded:', group);
+                    console.log('Group members array:', group.members);
+                    console.log('Group members count:', group.member_count);
+                    
+                    // Check if members are available
+                    if (group.members && group.members.length > 0) {
+                        console.log('Found ' + group.members.length + ' members in the group data');
+                        console.log('First few members:', group.members.slice(0, 3));
+                    } else {
+                        console.warn('No members array found in the group data, or it is empty');
+                    }
                     
                     // IMPORTANT: Force set the chat type to group right here
                     window.currentChat = {
@@ -2795,11 +2822,32 @@
                     
                     console.log('Current chat set to:', window.currentChat);
                     
+                    // Test if members data is received correctly
+                    if (group.members && group.members.length > 0) {
+                        const memberNames = group.members.map(member => member.username).join(', ');
+                        // showNotification(`Group members: ${memberNames}`, 'info', 5000); // Removed as per request
+                    } else {
+                        // showNotification(`Group has ${group.member_count} members, but member details are not available.`, 'warning', 5000); // Removed as per request
+                    }
+                    
                     // Store the last active chat
                     storeLastActiveChat(groupId, 'group', group.name);
                     
                     // Update the chat header with group info
                     updateChatHeader(group, true);
+                    
+                    // Force refresh header after a short delay to ensure members are shown
+                    setTimeout(() => {
+                        const chatHeader = document.querySelector('.chat-header');
+                        if (chatHeader && group.members && group.members.length > 0) {
+                            const memberNamesList = group.members.map(member => member.username).join(', ');
+                            const statusElement = chatHeader.querySelector('.chat-header-status');
+                            if (statusElement) {
+                                statusElement.textContent = memberNamesList;
+                                console.log('Directly updated header status with member names:', memberNamesList);
+                            }
+                        }
+                    }, 3000);
                     
                     // Join the group's Socket.IO room
                     const roomName = `group_${groupId}`;
@@ -2884,20 +2932,20 @@
             const chatHeader = document.querySelector('.chat-header');
             if (!chatHeader) return;
 
-            // Clean up existing event listeners first
-            const existingProfilePic = chatHeader.querySelector('.profile-pic');
-            const existingHeaderInfo = chatHeader.querySelector('.chat-header-info');
-            const existingInfoButton = chatHeader.querySelector('.info-button');
-
-            if (existingProfilePic) {
-                existingProfilePic.replaceWith(existingProfilePic.cloneNode(true));
-            }
-            if (existingHeaderInfo) {
-                existingHeaderInfo.replaceWith(existingHeaderInfo.cloneNode(true));
-            }
-            if (existingInfoButton) {
-                existingInfoButton.replaceWith(existingInfoButton.cloneNode(true));
-            }
+            // Clear existing event listeners to prevent duplicates
+            const oldProfileElements = [
+                chatHeader.querySelector('.profile-pic'), 
+                chatHeader.querySelector('.chat-header-info')
+            ];
+            
+            oldProfileElements.forEach(element => {
+                if (element) {
+                    const clone = element.cloneNode(true);
+                    if (element.parentNode) {
+                        element.parentNode.replaceChild(clone, element);
+                    }
+                }
+            });
 
             // Get profile picture URL
             let profilePic;
@@ -2923,401 +2971,36 @@
                 }
             }
 
+            // For group chats, prepare member names
+            let memberDisplay = '';
+                    if (isGroup) {
+                console.log('Group entity object:', entity);
+                console.log('Group members array:', entity.members);
+                if (entity.members && entity.members.length > 0) {
+                    // Display member names instead of count
+                    memberDisplay = entity.members.map(member => member.username).join(', ');
+                    console.log('Member display string:', memberDisplay);
+                    } else {
+                    memberDisplay = `${entity.member_count} members`;
+                    console.log('Fallback to member count:', memberDisplay);
+                }
+                        } else {
+                memberDisplay = isUserOnline(entity.id || entity) ? 'online' : 'offline';
+            }
+
             chatHeader.innerHTML = `
                 <div class="profile-pic" style="cursor: pointer;">
                     <img src="${profilePic}" alt="${isGroup ? entity.name : (entity.username || entity)}" onerror="this.src='/static/images/contact_logo.png'">
-                </div>
+                        </div>
                 <div class="chat-header-info" style="cursor: pointer;">
                     <div class="chat-header-name">${isGroup ? entity.name : (entity.username || entity)}</div>
-                    <div class="chat-header-status ${isUserOnline(entity.id || entity) ? 'online' : 'offline'}">${isGroup ? (entity.member_count + ' members') : (isUserOnline(entity.id || entity) ? 'online' : 'offline')}</div>
-                </div>
-            `;
-            
-            // Add event listener for profile click (both image and name/status area)
-            const profileElements = [
-                chatHeader.querySelector('.profile-pic'), 
-                chatHeader.querySelector('.chat-header-info')
-            ];
-            
-            profileElements.forEach(element => {
-                element.addEventListener('click', function() {
-                    if (isGroup) {
-                        showGroupInfo(entity);
-                    } else {
-                        showContactInfo(entity);
-                    }
-                });
-            });
-        }
-        
-        // Function to load group messages
-        function loadGroupMessages(groupId) {
-            const chatBody = document.querySelector('.chat-body');
-            chatBody.innerHTML = '';
-            
-            // Show loading indicator
-            const loadingElement = document.createElement('div');
-            loadingElement.className = 'message';
-            loadingElement.style.alignSelf = 'center';
-            loadingElement.textContent = 'Loading messages...';
-            chatBody.appendChild(loadingElement);
-            
-            // Fetch messages for this group
-            fetch(`/chat/get_group_messages/${groupId}`)
-                .then(response => response.json())
-                .then(messages => {
-                    // Remove loading indicator
-                    chatBody.innerHTML = '';
-                    
-                    let lastMessageDate = null;
-                    
-                    messages.forEach(msg => {
-                        const [senderId, senderUsername, msgContent, timestamp] = msg;
-                        const messageDate = new Date(timestamp);
-                        
-                        // Add date separator if this is a new day
-                        if (!lastMessageDate || lastMessageDate.toDateString() !== messageDate.toDateString()) {
-                            const dateSeparator = document.createElement('div');
-                            dateSeparator.className = 'date-separator';
-                            dateSeparator.textContent = formatDateSeparator(messageDate, true);
-                            chatBody.appendChild(dateSeparator);
-                            lastMessageDate = messageDate;
-                        }
-                        
-                        const isSent = senderId.toString() === document.documentElement.getAttribute('data-user-id');
-                        const messageElement = document.createElement('div');
-                        messageElement.className = isSent ? 'message sent' : 'message received';
-                        messageElement.setAttribute('data-timestamp', timestamp);
-                        
-                        let senderNameDiv = '';
-                        if (!isSent) {
-                            senderNameDiv = `<div class="message-sender" style="font-size: 12px; color: #00a884; margin-bottom: 2px;">${senderUsername}</div>`;
-                        }
-                        
-                        messageElement.innerHTML = `
-                            ${senderNameDiv}
-                            <div class="message-content">${msgContent}</div>
-                            <span class="message-timestamp">${formatMessageTimestamp(timestamp, true)}</span>
-                        `;
-                        
-                        chatBody.appendChild(messageElement);
-                    });
-                    
-                    chatBody.scrollTop = chatBody.scrollHeight;
-                })
-                .catch(error => {
-                    console.error('Error loading group messages:', error);
-                    chatBody.innerHTML = '';
-                    
-                    const errorElement = document.createElement('div');
-                    errorElement.className = 'message';
-                    errorElement.style.alignSelf = 'center';
-                    errorElement.style.backgroundColor = '#8B0000';
-                    errorElement.style.padding = '10px 15px';
-                    errorElement.style.borderRadius = '8px';
-                    errorElement.style.color = '#ffffff';
-                    errorElement.textContent = 'Error loading messages. Please try again.';
-                    chatBody.appendChild(errorElement);
-                });
-        }
-        
-        // Function to show group info
-        function showGroupInfo(group) {
-            // Create a modal to display group info
-            const modal = document.createElement('div');
-            modal.className = 'modal';
-            modal.style.position = 'fixed';
-            modal.style.top = '0';
-            modal.style.left = '0';
-            modal.style.width = '100%';
-            modal.style.height = '100%';
-            modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-            modal.style.zIndex = '1000';
-            modal.style.display = 'flex';
-            modal.style.justifyContent = 'flex-end'; // Align to right side
-            modal.style.alignItems = 'stretch';
-            
-            // Group profile picture
-            const profilePic = group.picture ? `/uploads/group_images/${group.picture}` : '/api/placeholder/80/80';
-            
-            // Create side panel
-            const panel = document.createElement('div');
-            panel.className = 'group-info-panel';
-            panel.style.backgroundColor = '#1f2c33';
-            panel.style.width = '350px';
-            panel.style.maxWidth = '100%';
-            panel.style.height = '100%';
-            panel.style.overflowY = 'auto';
-            panel.style.transition = 'transform 0.3s ease';
-            panel.style.transform = 'translateX(100%)'; // Start offscreen
-            panel.style.boxShadow = '-5px 0 15px rgba(0, 0, 0, 0.1)';
-            
-            // Check if user is admin
-            const isAdmin = group.is_admin || group.admin_id === parseInt(document.documentElement.getAttribute('data-user-id'));
-            
-            panel.innerHTML = `
-                <div style="display: flex; align-items: center; padding: 15px; border-bottom: 1px solid #2a3942;">
-                    <div id="close-group-info" style="cursor: pointer; margin-right: 15px;">
-                        <svg viewBox="0 0 24 24" width="24" height="24">
-                            <path fill="currentColor" d="M19.8 11H7.5l5.6-5.6L11.7 4l-8 8 8 8 1.4-1.4L7.5 13h12.3v-2z"></path>
-                        </svg>
+                    <div class="chat-header-status ${!isGroup && isUserOnline(entity.id || entity) ? 'online' : 'offline'}">
+                        ${isGroup 
+                            ? (entity.members && entity.members.length > 0 
+                                ? entity.members.map(member => member.username).join(', ') 
+                                : entity.member_count + ' members')
+                            : (isUserOnline(entity.id || entity) ? 'online' : 'offline')}
                     </div>
-                    <h2 style="color: #e9edef; margin: 0;">Group Info</h2>
-                </div>
-                
-                <div style="padding: 20px; text-align: center; border-bottom: 1px solid #2a3942;">
-                    <div style="width: 150px; height: 150px; border-radius: 75px; overflow: hidden; margin: 0 auto 15px;">
-                        <img src="${profilePic}" alt="${group.name}" style="width: 100%; height: 100%; object-fit: cover;">
-                    </div>
-                    <h2 style="color: #e9edef; margin-bottom: 5px;">${group.name}</h2>
-                    <p style="color: #8696a0; margin-bottom: 0;">Group · ${group.member_count} members</p>
-                </div>
-                
-                ${group.description ? `
-                <div style="padding: 15px; border-bottom: 1px solid #2a3942;">
-                    <h3 style="color: #e9edef; margin-bottom: 10px; font-size: 16px;">Description</h3>
-                    <p style="color: #e9edef; margin: 0;">${group.description}</p>
-                </div>
-                ` : ''}
-                
-                ${isAdmin ? `
-                <div style="padding: 15px; border-bottom: 1px solid #2a3942;">
-                    <button id="add-members-btn" class="action-button" style="width: 100%; padding: 12px; background-color: #00a884; color: white; border: none; border-radius: 5px; cursor: pointer; font-size: 16px;">
-                        Add Members
-                    </button>
-                </div>
-                ` : ''}
-                
-                <div style="padding: 15px; border-bottom: 1px solid #2a3942;">
-                    <h3 style="color: #e9edef; margin-bottom: 10px; font-size: 16px;">Members</h3>
-                    <div id="group-members-list">
-                        ${group.members.map(member => `
-                            <div class="group-member" data-user-id="${member.id}" style="display: flex; align-items: center; padding: 10px; border-bottom: 1px solid #2a3942; cursor: pointer;">
-                                <div style="width: 40px; height: 40px; border-radius: 20px; overflow: hidden; margin-right: 15px;">
-                                    <img src="${member.profile_picture ? `/uploads/profile_photos/${member.profile_picture}` : '/api/placeholder/40/40'}" alt="${member.username}" style="width: 100%; height: 100%; object-fit: cover;">
-                                </div>
-                                <div style="flex: 1;">
-                                    <div style="color: #e9edef;">${member.username}</div>
-                                    ${member.is_admin ? `<div style="color: #00a884; font-size: 12px;">Group Admin</div>` : ''}
-                                </div>
-                            </div>
-                        `).join('')}
-                    </div>
-                </div>
-                
-                <div style="padding: 15px;">
-                    <button id="leave-group-btn" class="action-button" style="width: 100%; padding: 12px; background-color: #1f2c33; color: #f15c6d; border: 1px solid #2a3942; border-radius: 5px; cursor: pointer; font-size: 16px;">
-                        Leave Group
-                    </button>
-                </div>
-            `;
-            
-            modal.appendChild(panel);
-            document.body.appendChild(modal);
-            
-            // Add a slight delay for animation effect
-            setTimeout(() => {
-                panel.style.transform = 'translateX(0)';
-            }, 10);
-            
-            // Close panel when button is clicked
-            document.getElementById('close-group-info').addEventListener('click', function() {
-                panel.style.transform = 'translateX(100%)';
-                setTimeout(() => {
-                    document.body.removeChild(modal);
-                }, 300);
-            });
-            
-            // Close panel when clicking outside
-            modal.addEventListener('click', function(e) {
-                if (e.target === modal) {
-                    panel.style.transform = 'translateX(100%)';
-                    setTimeout(() => {
-                        document.body.removeChild(modal);
-                    }, 300);
-                }
-            });
-            
-            // Add click event to members to view their profile
-            const memberElements = document.querySelectorAll('.group-member');
-            memberElements.forEach(element => {
-                element.addEventListener('click', function() {
-                    const userId = this.getAttribute('data-user-id');
-                    const member = group.members.find(m => m.id == userId);
-                    
-                    if (member) {
-                        // Close current panel first
-                        panel.style.transform = 'translateX(100%)';
-                        setTimeout(() => {
-                            document.body.removeChild(modal);
-                            // Show contact profile using our new function
-                            showContactInfo(member);
-                        }, 300);
-                    }
-                });
-            });
-            
-            // Handle leave group action
-            document.getElementById('leave-group-btn').addEventListener('click', function() {
-                if (confirm('Are you sure you want to leave this group?')) {
-                    // Call the backend endpoint to leave the group
-                    fetch('/chat/leave_group', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            group_id: group.id
-                        })
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.message === "Successfully left the group") {
-                            showNotification('Successfully left the group', 'success');
-                            
-                            // Close the group info panel
-                            panel.style.transform = 'translateX(100%)';
-                            setTimeout(() => {
-                                document.body.removeChild(modal);
-                            }, 300);
-                            
-                            // Remove the group from the sidebar
-                            const groupElement = document.querySelector(`.contact[data-group-id="${group.id}"]`);
-                            if (groupElement) {
-                                groupElement.remove();
-                            }
-                            
-                            // Clear the chat interface if this was the current chat
-                            if (window.currentChat && window.currentChat.id === group.id) {
-                                const chatInterface = document.querySelector('.chat-interface');
-                                if (chatInterface) {
-                                    chatInterface.style.display = 'none';
-                                }
-                                window.currentChat = null;
-                            }
-                            
-                            // Reload the groups list to ensure everything is in sync
-                            showGroupsView();
-                        } else {
-                            showNotification('Failed to leave group: ' + data.message, 'error');
-                        }
-                    })
-                    .catch(error => {
-                        console.error('Error leaving group:', error);
-                        showNotification('Failed to leave group. Please try again.', 'error');
-                    });
-                }
-            });
-            
-            // Add members functionality (if admin)
-            const addMembersBtn = document.getElementById('add-members-btn');
-            if (addMembersBtn) {
-                addMembersBtn.addEventListener('click', function() {
-                    // Close the current panel
-                    panel.style.transform = 'translateX(100%)';
-                    setTimeout(() => {
-                        document.body.removeChild(modal);
-                        showAddGroupMembersView(group.id);
-                    }, 300);
-                });
-            }
-
-            // Add delete group button for admins
-            if (isAdmin) {
-                const deleteGroupBtn = document.createElement('button');
-                deleteGroupBtn.id = 'delete-group-btn';
-                deleteGroupBtn.className = 'action-button';
-                deleteGroupBtn.style.width = '100%';
-                deleteGroupBtn.style.padding = '12px';
-                deleteGroupBtn.style.backgroundColor = '#f15c6d';
-                deleteGroupBtn.style.color = 'white';
-                deleteGroupBtn.style.border = 'none';
-                deleteGroupBtn.style.borderRadius = '5px';
-                deleteGroupBtn.style.cursor = 'pointer';
-                deleteGroupBtn.style.fontSize = '16px';
-                deleteGroupBtn.style.marginTop = '10px';
-                deleteGroupBtn.textContent = 'Delete Group';
-                
-                panel.querySelector('div:last-child').appendChild(deleteGroupBtn);
-                
-                deleteGroupBtn.addEventListener('click', function() {
-                    if (confirm('Are you sure you want to delete this group? This action cannot be undone.')) {
-                        fetch('/chat/delete_group', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                group_id: group.id
-                            })
-                        })
-                        .then(response => {
-                            if (!response.ok) {
-                                throw new Error('Network response was not ok');
-                            }
-                            return response.json();
-                        })
-                        .then(data => {
-                            showNotification(data.message, 'success');
-                            // Close the group info panel
-                            panel.style.transform = 'translateX(100%)';
-                            setTimeout(() => {
-                                document.body.removeChild(modal);
-                                // Refresh the groups list
-                                loadGroups();
-                            }, 300);
-                        })
-                        .catch(error => {
-                            showNotification('Error deleting group: ' + error.message, 'error');
-                            console.error('Error:', error);
-                        });
-                    }
-                });
-            }
-        }
-
-        // Function to show add members to group view
-        function showAddGroupMembersView(groupId) {
-            // Get the sidebar content
-            const sidebarContent = document.querySelector('.sidebar-content');
-            
-            // Save the current sidebar content
-            const originalContent = sidebarContent.innerHTML;
-            window.originalSidebarState = originalContent;
-            
-            // Clear selected members for a fresh start
-            selectedMembers.clear();
-            
-            // Create and show the contact selection interface
-            sidebarContent.innerHTML = `
-                <div class="sidebar-header">
-                    <div style="display: flex; align-items: center;">
-                        <div id="back-to-group-info" style="margin-right: 15px; cursor: pointer;">
-                            <svg viewBox="0 0 24 24" width="24" height="24">
-                                <path fill="currentColor" d="M19 11H7.83l4.88-4.88c.39-.39.39-1.03 0-1.42-.39-.39-1.02-.39-1.41 0l-6.59 6.59c-.39.39-.39 1.02 0 1.41l6.59 6.59c.39.39 1.02.39 1.41 0 .39-.39.39-1.02 0-1.41L7.83 13H19c.55 0 1-.45 1-1s-.45-1-1-1z"></path>
-                            </svg>
-                        </div>
-                        <div class="app-name">Add Members</div>
-                    </div>
-                </div>
-                
-                <div style="padding: 10px 15px; background-color: #111b21; border-bottom: 1px solid #222d34;">
-                    <div class="search-bar">
-                        <svg viewBox="0 0 24 24" width="24" height="24" class="search-icon">
-                            <path fill="currentColor" d="M15.009 13.805h-.636l-.22-.219a5.184 5.184 0 0 0 1.256-3.386 5.207 5.207 0 1 0-5.207 5.208 5.183 5.183 0 0 0 3.385-1.255l.221.22v.635l4.004 3.999 1.194-1.195-3.997-4.007zm-4.808 0a3.605 3.605 0 1 1 0-7.21 3.605 3.605 0 0 1 0 7.21z"></path>
-                        </svg>
-                        <input type="text" id="add-members-search" placeholder="Search contacts" onkeyup="filterContactsForGroupCreation(this.value.toLowerCase())">
-                    </div>
-                </div>
-                
-                <div id="add-members-list" class="contact-list" style="overflow-y: auto; flex: 1;">
-                    <div class="loading-contacts" style="color: #8696a0; text-align: center; padding: 20px;">
-                        Loading contacts...
-                    </div>
-                </div>
-                
-                <div class="add-contact-footer">
-                    <button id="add-selected-members" disabled>Add Selected Members</button>
                 </div>
             `;
             
@@ -5168,364 +4851,6 @@
                     contactsList.innerHTML = '<div style="text-align: center; color: #ff6b6b; padding: 20px;">Failed to load contacts. Please try again.</div>';
                 });
         }
-// ... existing code ...
-
-        // Global variable to store the selected file
-        let selectedFile = null;
-
-        // Function to handle file selection
-        function handleFileSelect(event) {
-            const file = event.target.files[0];
-            if (file) {
-                selectedFile = file;
-                const previewContainer = document.getElementById('file-preview-container');
-                const previewName = document.getElementById('file-preview-name');
-                
-                previewName.textContent = file.name;
-                previewContainer.style.display = 'flex'; // Show preview
-                
-                // Adjust layout to put preview above input
-                const chatFooter = document.querySelector('.chat-footer');
-                chatFooter.style.flexDirection = 'column';
-                chatFooter.insertBefore(previewContainer, chatFooter.firstChild);
-                
-            } else {
-                removeSelectedFile(); // Clear if no file selected
-            }
-        }
-
-        // Function to remove the selected file
-        function removeSelectedFile() {
-            selectedFile = null;
-            const previewContainer = document.getElementById('file-preview-container');
-            const fileInput = document.getElementById('file-input');
-            
-            previewContainer.style.display = 'none';
-            fileInput.value = ''; // Clear the file input
-
-            // Restore original layout
-            const chatFooter = document.querySelector('.chat-footer');
-            chatFooter.style.flexDirection = 'row'; 
-        }
-
-        // Function to send a message or file
-        function sendMessage() {
-            const messageInput = document.querySelector('.message-input');
-            const message = messageInput.value.trim();
-            const timestamp = Date.now();
-            const messageId = `msg_${timestamp}_${Math.random().toString(36).substring(2, 9)}`;
-
-            if (!selectedFile && !message) return; // Nothing to send
-
-            // Prepare FormData if a file is selected
-            let formData = null;
-            if (selectedFile) {
-                formData = new FormData();
-                formData.append('file', selectedFile);
-                if (message) {
-                    formData.append('message', message);
-                }
-                formData.append('timestamp', timestamp.toString()); // Send timestamp as string
-                formData.append('message_id', messageId);
-                formData.append('sender_id', document.documentElement.getAttribute('data-user-id'));
-                formData.append('sender_username', document.documentElement.getAttribute('data-username'));
-
-                if (window.currentChat.type === 'group') {
-                    formData.append('group_id', window.currentChat.id);
-                } else if (window.currentChat.type === 'direct') {
-                    formData.append('receiver_id', window.currentChat.id);
-                }
-            }
-
-            // Clear input and file preview
-            messageInput.value = '';
-            removeSelectedFile(); 
-
-            const chatBody = document.querySelector('.chat-body');
-
-            // Immediately display the message/file placeholder in the chat
-            const messageElement = document.createElement('div');
-            messageElement.className = 'message sent';
-            messageElement.setAttribute('data-message-id', messageId);
-            messageElement.setAttribute('data-timestamp', timestamp);
-            
-            let contentHTML = '';
-            if (selectedFile) {
-                // Display a simple file indicator for now
-                contentHTML += `<div style="display: flex; align-items: center; gap: 5px; background-color: rgba(255,255,255,0.1); padding: 5px 8px; border-radius: 5px; margin-bottom: 5px;">
-                                  <svg viewBox="0 0 24 24" width="18" height="18"><path fill="currentColor" d="M6 2c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6H6zm7 7V3.5L18.5 9H13z"></path></svg>
-                                  <span>${selectedFile.name}</span>
-                               </div>`;
-            }
-            if (message) {
-                 contentHTML += `<div class="message-content">${message}</div>`;
-            }
-            
-            messageElement.innerHTML = `
-                ${contentHTML}
-                <span class="message-timestamp">Sending...</span> 
-            `;
-
-            // Add date separator logic (copied from existing sendMessage)
-            const lastMessage = chatBody.lastElementChild;
-            if (lastMessage) {
-                const lastMessageDate = new Date(parseInt(lastMessage.getAttribute('data-timestamp')) || 0);
-                const currentMessageDate = new Date(timestamp);
-                if (lastMessageDate.toDateString() !== currentMessageDate.toDateString()) {
-                    const dateSeparator = document.createElement('div');
-                    dateSeparator.className = 'date-separator';
-                    dateSeparator.textContent = formatDateSeparator(currentMessageDate, true);
-                    chatBody.appendChild(dateSeparator);
-                }
-            } else {
-                const dateSeparator = document.createElement('div');
-                dateSeparator.className = 'date-separator';
-                dateSeparator.textContent = formatDateSeparator(new Date(timestamp), true);
-                chatBody.appendChild(dateSeparator);
-            }
-            
-            chatBody.appendChild(messageElement);
-            chatBody.scrollTop = chatBody.scrollHeight;
-
-            // Emit the appropriate event
-            if (formData) {
-                 console.log("Sending file with FormData");
-                // Send file via Fetch API (Socket.IO doesn't handle raw FormData well)
-                fetch('/chat/send_file', {
-                    method: 'POST',
-                    body: formData,
-                    // No Content-Type header, browser sets it with boundary
-                })
-                .then(response => response.json())
-                .then(data => {
-                    if (data.success) {
-                        console.log('File sent successfully via API:', data);
-                        // Update timestamp on the displayed message
-                        const sentMsgElement = chatBody.querySelector(`[data-message-id="${messageId}"] .message-timestamp`);
-                        if (sentMsgElement) {
-                            sentMsgElement.textContent = formatMessageTimestamp(data.timestamp || timestamp, true);
-                        }
-                        // Optionally update contact/group list order if backend confirms
-                        if (data.chat_type === 'direct') {
-                             updateContactLastMessage(data.receiver_id, data.display_message, data.timestamp);
-                        } else if (data.chat_type === 'group') {
-                            updateGroupListOrder(data.group_id, data.display_message, data.sender_id, data.sender_username);
-                        }
-                    } else {
-                         console.error('Error sending file via API:', data.message);
-                         showNotification('Error sending file: ' + data.message, 'error');
-                         // Maybe mark the message as failed?
-                         const failedMsgElement = chatBody.querySelector(`[data-message-id="${messageId}"] .message-timestamp`);
-                         if (failedMsgElement) {
-                            failedMsgElement.textContent = 'Failed';
-                            failedMsgElement.style.color = '#f15c6d';
-                        }
-                    }
-                })
-                .catch(error => {
-                     console.error('Network error sending file:', error);
-                     showNotification('Network error sending file', 'error');
-                     const failedMsgElement = chatBody.querySelector(`[data-message-id="${messageId}"] .message-timestamp`);
-                     if (failedMsgElement) {
-                        failedMsgElement.textContent = 'Failed';
-                        failedMsgElement.style.color = '#f15c6d';
-                    }
-                });
-
-            } else if (message) {
-                // Send regular text message via Socket.IO
-                const payload = {
-                    message: message,
-                    timestamp: timestamp,
-                    message_id: messageId
-                };
-                if (window.currentChat.type === 'group') {
-                    payload.group_id = window.currentChat.id;
-                    console.log("Sending group text message:", payload);
-                    socket.emit('send_message', payload);
-                } else if (window.currentChat.type === 'direct') {
-                    payload.receiver_id = window.currentChat.id;
-                    console.log("Sending direct text message:", payload);
-                    socket.emit('send_message', payload);
-
-                    // Update contact list immediately for direct messages
-                     fetch('/chat/update_last_message', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            contact_id: window.currentChat.id,
-                            message: message,
-                            timestamp: timestamp
-                        })
-                    });
-                    updateContactLastMessage(window.currentChat.id, message, timestamp);
-                }
-                // Update timestamp on the displayed message after sending (socket confirmation handles this better)
-                const sentMsgElement = chatBody.querySelector(`[data-message-id="${messageId}"] .message-timestamp`);
-                if (sentMsgElement) {
-                     sentMsgElement.textContent = formatMessageTimestamp(timestamp, true); // Show time immediately
-                }
-            }
-        }
-
-        // Attach event listeners when DOM is loaded
-        document.addEventListener('DOMContentLoaded', function() {
-            const attachIcon = document.getElementById('attach-file-icon');
-            const fileInput = document.getElementById('file-input');
-            const removeFileBtn = document.getElementById('remove-file-btn');
-
-            // Trigger file input click when paperclip is clicked
-            if (attachIcon && fileInput) {
-                attachIcon.addEventListener('click', () => {
-                    fileInput.click(); 
-                });
-            }
-
-            // Handle file selection
-            if (fileInput) {
-                fileInput.addEventListener('change', handleFileSelect);
-            }
-
-            // Handle removing the selected file
-            if (removeFileBtn) {
-                removeFileBtn.addEventListener('click', removeSelectedFile);
-            }
-
-            // Send message on Enter key
-            const messageInput = document.querySelector('.message-input');
-            if (messageInput) {
-                messageInput.addEventListener('keypress', function(e) {
-                    if (e.key === 'Enter' && !e.shiftKey) {
-                        e.preventDefault(); // Prevent default to avoid newline
-                        sendMessage();
-                    }
-                });
-            }
-
-            // Send message on button click
-            const sendButton = document.querySelector('.send-button');
-            if (sendButton) {
-                sendButton.addEventListener('click', sendMessage);
-            }
-        });
-        
-        // Modify the 'new_message' handler to display files
-        socket.on('new_message', function(data) {
-            console.log('Received new_message:', data);
-            
-            const currentChatId = window.currentChat?.id;
-            const currentChatType = window.currentChat?.type;
-            const isFromCurrentUser = data.sender_id.toString() === document.documentElement.getAttribute('data-user-id');
-            const timestamp = data.timestamp || Date.now();
-            // Use the message_id from the data if available
-            const messageId = data.message_id || `msg_${timestamp}_${Math.random().toString(36).substring(2, 9)}`;
-            
-            // Check if this message already exists in the chat to prevent duplicates
-            // Especially important if the backend sends confirmation after API upload
-            const existingMessage = document.querySelector(`[data-message-id="${messageId}"]`);
-            if (existingMessage && !existingMessage.querySelector('.message-timestamp')?.textContent.includes('Sending')) { 
-                console.log('Preventing duplicate message rendering:', messageId);
-                // If it exists and wasn't just the placeholder, maybe update timestamp?
-                const timeElement = existingMessage.querySelector('.message-timestamp');
-                if(timeElement) timeElement.textContent = formatMessageTimestamp(timestamp, true);
-                return;
-            }
-
-            let shouldDisplay = false;
-            let isCorrectChat = false;
-
-            // Determine if the message belongs to the current chat
-            if (data.group_id) {
-                isCorrectChat = currentChatType === 'group' && currentChatId == data.group_id;
-                // Update group list order regardless of whether the chat is open
-                updateGroupListOrder(data.group_id, data.display_message || data.message || 'File received', data.sender_id, data.sender_username);
-            } else {
-                // Direct message
-                const relevantUserId = isFromCurrentUser ? data.receiver_id : data.sender_id;
-                isCorrectChat = currentChatType === 'direct' && currentChatId == relevantUserId;
-                // Update contact list order
-                if(!isFromCurrentUser) { // Don't update for own messages here, already handled by message_sent or API response
-                     updateContactLastMessage(relevantUserId, data.display_message || data.message || 'File received', timestamp);
-                }
-            }
-
-            shouldDisplay = isCorrectChat;
-
-            if (shouldDisplay) {
-                const chatBody = document.querySelector('.chat-body');
-                
-                // Add date separator if necessary
-                const lastMessage = chatBody.lastElementChild;
-                if (lastMessage) {
-                    const lastMessageDate = new Date(parseInt(lastMessage.getAttribute('data-timestamp')) || 0);
-                    const currentMessageDate = new Date(timestamp);
-                    if (lastMessageDate.toDateString() !== currentMessageDate.toDateString()) {
-                        const dateSeparator = document.createElement('div');
-                        dateSeparator.className = 'date-separator';
-                        dateSeparator.textContent = formatDateSeparator(currentMessageDate, true);
-                        chatBody.appendChild(dateSeparator);
-                    }
-                } else {
-                    const dateSeparator = document.createElement('div');
-                    dateSeparator.className = 'date-separator';
-                    dateSeparator.textContent = formatDateSeparator(new Date(timestamp), true);
-                    chatBody.appendChild(dateSeparator);
-                }
-                
-                // Create or update message element
-                let messageElement = existingMessage; // Try to reuse the placeholder
-                if (!messageElement) {
-                    messageElement = document.createElement('div');
-                    messageElement.setAttribute('data-message-id', messageId);
-                    chatBody.appendChild(messageElement);
-                }
-                
-                messageElement.className = isFromCurrentUser ? 'message sent' : 'message received';
-                messageElement.setAttribute('data-timestamp', timestamp);
-                
-                let contentHTML = '';
-                const senderName = (!isFromCurrentUser && data.group_id) ? 
-                    `<div class="message-sender" style="font-size: 12px; color: #00a884; margin-bottom: 2px;">${data.sender_username}</div>` : '';
-
-                // Check if it's a file message
-                if (data.file_info) {
-                    contentHTML += `<div style="display: flex; align-items: center; gap: 8px; background-color: rgba(255,255,255,0.1); padding: 8px 10px; border-radius: 5px; margin-bottom: ${data.message ? '5px' : '0px'}">
-                                      <svg viewBox="0 0 24 24" width="24" height="24" style="min-width: 24px;"><path fill="currentColor" d="M6 2c-1.1 0-1.99.9-1.99 2L4 20c0 1.1.89 2 1.99 2H18c1.1 0 2-.9 2-2V8l-6-6H6zm7 7V3.5L18.5 9H13z"></path></svg>
-                                      <div style="overflow: hidden;">
-                                          <a href="${data.file_info.url}" target="_blank" style="color: #e9edef; text-decoration: none; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis;" title="${data.file_info.name}">${data.file_info.name}</a>
-                                          ${data.file_info.size ? `<span style="font-size: 12px; color: #8696a0;">${(data.file_info.size / 1024).toFixed(1)} KB</span>` : ''}
-                                      </div>
-                                   </div>`;
-                }
-                if (data.message) {
-                    contentHTML += `<div class="message-content">${data.message}</div>`;
-                }
-                
-                messageElement.innerHTML = `
-                    ${senderName}
-                    ${contentHTML}
-                    <span class="message-timestamp">${formatMessageTimestamp(timestamp, true)}</span>
-                `;
-                
-                chatBody.scrollTop = chatBody.scrollHeight;
-                
-                // Send read receipt if it's a direct message and not from current user
-                if (!isFromCurrentUser && !data.group_id && data.message_id) {
-                     socket.emit('update_message_status', {
-                        message_id: data.message_id,
-                        status: 'read',
-                        chat_id: data.sender_id,
-                        chat_type: 'direct'
-                    });
-                }
-            } else if (!isFromCurrentUser) {
-                // Show notification for messages from other chats
-                showNotification(`${data.sender_username}: ${data.display_message || data.message || 'Sent a file'}`);
-            }
-        });
-        
 // ... rest of the code ...
 
         // Add this after the socket initialization
@@ -5734,6 +5059,9 @@
                 });
             }
         }
+
+        // Add a diagnostic function to the debugging menu
+        
     </script>
 </body>
 </html>

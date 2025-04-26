@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Authentication System</title>
+    <title>TogolokChat</title>
     <style>
+        @import url('https://fonts.googleapis.com/css2?family=Caveat:wght@400;500;600;700&display=swap');
+        
         * {
             box-sizing: border-box;
             font-family: Arial, sans-serif;
@@ -16,73 +18,122 @@
             justify-content: center;
             align-items: center;
             height: 100vh;
-            background-color: #f0f2f5;
+            background-image: url('/static/images/pik_karakol.jpg.png');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            position: relative;
         }
         .container {
-            background-color: white;
-            border-radius: 10px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+            position: relative;
+            z-index: 1;
+            border-radius: 12px;
             width: 100%;
             max-width: 400px;
-            padding: 20px;
+            padding: 0;
+            color: white;
         }
-        .form-title {
-            font-size: 24px;
-            font-weight: bold;
+        .logo {
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 30px;
+            padding: 20px;
+            background-color: rgba(0, 0, 0, 0.7);
+            border-radius: 50%;
+            width: 450px;
+            height: 180px;
+            margin: 0 auto 30px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+        .logo-text {
+            font-family: 'Caveat', cursive;
+            font-size: 68px;
+            font-weight: 400;
+            letter-spacing: 1px;
+        }
+        .logo-text span:first-child {
+            color: white;
+        }
+        .logo-text span:last-child {
+            color: #4ecdc4;
         }
         .form-group {
-            margin-bottom: 15px;
+            margin-bottom: 20px;
         }
         label {
             display: block;
-            margin-bottom: 5px;
-            font-weight: bold;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #ffffff;
         }
         input {
             width: 100%;
-            padding: 10px;
-            border: 1px solid #ddd;
-            border-radius: 5px;
+            padding: 12px 15px;
+            border: 1px solid rgba(255, 255, 255, 0.6);
+            border-radius: 8px;
+            background-color: rgba(255, 255, 255, 0.2);
+            color: white;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+        input:focus {
+            outline: none;
+            border-color: #4ecdc4;
+            background-color: rgba(255, 255, 255, 0.3);
+        }
+        input::placeholder {
+            color: rgba(255, 255, 255, 0.8);
+        }
+        /* Input validation styling */
+        input:invalid {
+            border: 2px solid red;
         }
         button {
             width: 100%;
-            padding: 10px;
-            background-color: #4267B2;
+            padding: 14px;
+            background-color: #2d6a4f;
             color: white;
             border: none;
-            border-radius: 5px;
+            border-radius: 8px;
             cursor: pointer;
             font-size: 16px;
+            font-weight: 600;
+            transition: all 0.3s ease;
         }
         button:hover {
-            background-color: #365899;
+            background-color: #205339;
         }
         .error-message {
-            color: red;
+            color: #ff6b6b;
             margin-top: 15px;
             text-align: center;
+            font-size: 14px;
         }
         .success-message {
-            color: green;
+            color: #7bed9f;
             margin-top: 15px;
             text-align: center;
+            font-size: 14px;
         }
         .form {
             display: none;
+            /* Removing background color as requested */
+            padding: 20px 0;
         }
         .form.active {
             display: block;
         }
         .form-switch {
             text-align: center;
-            margin-top: 15px;
+            margin-top: 20px;
+            color: rgba(255, 255, 255, 0.8);
         }
         .form-switch a {
-            color: #4267B2;
+            color: #4ecdc4;
             text-decoration: none;
             cursor: pointer;
+            font-weight: 600;
         }
         .form-switch a:hover {
             text-decoration: underline;
@@ -96,23 +147,28 @@
             left: 0;
             width: 100%;
             height: 100%;
-            background-color: rgba(0, 0, 0, 0.5);
+            background-color: rgba(0, 0, 0, 0.7);
             justify-content: center;
             align-items: center;
+            z-index: 10;
         }
         .modal-content {
-            background-color: white;
-            padding: 20px;
-            border-radius: 10px;
+            background-color: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(10px);
+            padding: 30px;
+            border-radius: 12px;
             width: 100%;
             max-width: 400px;
             position: relative;
+            color: white;
+            box-shadow: 0 15px 35px rgba(0, 0, 0, 0.5);
         }
         .modal-title {
-            font-size: 18px;
+            font-size: 20px;
             font-weight: bold;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
             padding-right: 30px;
+            color: white;
         }
         .modal-close {
             position: absolute;
@@ -120,40 +176,24 @@
             top: 20px;
             background: none;
             border: none;
-            font-size: 20px;
+            font-size: 24px;
             cursor: pointer;
-            color: #666;
+            color: rgba(255, 255, 255, 0.7);
             width: auto;
             padding: 0;
             line-height: 1;
         }
         .modal-close:hover {
-            color: #333;
+            color: white;
             background: none;
         }
-        /* Back button styling */
-        .back-button {
-            position: absolute;
-            left: 20px;
-            top: 20px;
-            background: none;
-            border: none;
-            color: #4267B2;
-            cursor: pointer;
-            width: auto;
-            padding: 0;
-            font-size: 14px;
-        }
-        .back-button:hover {
-            text-decoration: underline;
-            background: none;
-        }
+        
         /* Login options container */
         .login-options {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 15px;
+            margin-bottom: 20px;
         }
         .toggle-container {
             display: flex;
@@ -163,6 +203,16 @@
         .forgot-password {
             margin: 0;
         }
+        .forgot-password a {
+            color: rgba(255, 255, 255, 0.7);
+            text-decoration: none;
+            font-size: 14px;
+            transition: color 0.3s ease;
+        }
+        .forgot-password a:hover {
+            color: #4ecdc4;
+        }
+        
         /* Toggle switch styling */
         .toggle-switch {
             position: relative;
@@ -183,7 +233,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background-color: #ccc;
+            background-color: rgba(255, 255, 255, 0.2);
             transition: .4s;
             border-radius: 24px;
         }
@@ -199,7 +249,7 @@
             border-radius: 50%;
         }
         input:checked + .toggle-slider {
-            background-color: #4267B2;
+            background-color: #4ecdc4;
         }
         input:checked + .toggle-slider:before {
             transform: translateX(26px);
@@ -212,21 +262,39 @@
         }
         .password-toggle {
             position: absolute;
-            right: 10px;
+            right: 15px;
             top: 50%;
             transform: translateY(-50%);
             background: none;
             border: none;
             cursor: pointer;
-            color: #666;
+            color: rgba(255, 255, 255, 0.7);
             padding: 0;
             width: auto;
         }
         .password-toggle:hover {
-            color: #333;
+            color: white;
         }
         .password-toggle i {
             font-size: 18px;
+        }
+        
+        /* Mobile responsiveness */
+        @media (max-width: 450px) {
+            .container {
+                max-width: 90%;
+            }
+            .modal-content {
+                max-width: 90%;
+                padding: 20px;
+            }
+            .logo {
+                width: 320px;
+                height: 140px;
+            }
+            .logo-text {
+                font-size: 48px;
+            }
         }
     </style>
     <!-- Add Font Awesome for eye icons -->
@@ -234,17 +302,21 @@
 </head>
 <body>
     <div class="container">
+        <!-- Logo in oval shape as per screenshot -->
+        <div class="logo">
+            <div class="logo-text">
+                <span>Togolok</span><span>Chat</span>
+            </div>
+        </div>
+        
         <!-- Login Form -->
         <form class="form active" id="login-form">
-            <div class="form-title">Login</div>
             <div class="form-group">
-                <label for="login-username">Username</label>
-                <input type="text" id="login-username" required>
+                <input type="text" id="login-username" placeholder="Кайманга атыңыз же почтаңыз" required>
             </div>
             <div class="form-group">
-                <label for="login-password">Password</label>
                 <div class="password-container">
-                    <input type="password" id="login-password" required>
+                    <input type="password" id="login-password" placeholder="Сыр сөз" required>
                     <button type="button" class="password-toggle" onclick="togglePasswordVisibility('login-password')">
                         <i class="fas fa-eye"></i>
                     </button>
@@ -256,15 +328,15 @@
                         <input type="checkbox" id="remember-me">
                         <span class="toggle-slider"></span>
                     </label>
-                    <span>Remember me</span>
+                    <span>Эстеп кал</span>
                 </div>
                 <div class="forgot-password">
-                    <a id="forgot-password-link">Forgot password?</a>
+                    <a id="forgot-password-link">Сыр сөздү унуттуңузбу?</a>
                 </div>
             </div>
-            <button type="submit">Login</button>
+            <button type="submit">Кирүү</button>
             <div class="form-switch">
-                First time here? <a id="go-to-register">Register now</a>
+                Аккаунт жокпу? <a id="go-to-register">Каттолуу</a>
             </div>
             <div class="error-message" id="login-error"></div>
             <div class="success-message" id="login-success"></div>
@@ -272,36 +344,31 @@
         
         <!-- Register Form (Initial) -->
         <form class="form" id="register-form">
-            <div class="form-title">Create Account</div>
             <div class="form-group">
-                <label for="register-username">Username</label>
-                <input type="text" id="register-username" required>
+                <input type="text" id="register-username" placeholder="Колдонуучу аты" required>
             </div>
             <div class="form-group">
-                <label for="register-email">Email</label>
-                <input type="email" id="register-email" required>
+                <input type="email" id="register-email" placeholder="Электрондук почта" required>
             </div>
             <div class="form-group">
-                <label for="register-password">Password</label>
                 <div class="password-container">
-                    <input type="password" id="register-password" required>
+                    <input type="password" id="register-password" placeholder="Сыр сөз" required>
                     <button type="button" class="password-toggle" onclick="togglePasswordVisibility('register-password')">
                         <i class="fas fa-eye"></i>
                     </button>
                 </div>
             </div>
             <div class="form-group">
-                <label for="register-password-confirm">Confirm Password</label>
                 <div class="password-container">
-                    <input type="password" id="register-password-confirm" required>
+                    <input type="password" id="register-password-confirm" placeholder="Сыр сөздү ырастоо" required>
                     <button type="button" class="password-toggle" onclick="togglePasswordVisibility('register-password-confirm')">
                         <i class="fas fa-eye"></i>
                     </button>
                 </div>
             </div>
-            <button type="submit">Continue Registration</button>
+            <button type="submit">Каттоону улантуу</button>
             <div class="form-switch">
-                Already have an account? <a id="go-to-login">Login</a>
+                Мурунтан аккаунтуңуз барбы? <a id="go-to-login">Кирүү</a>
             </div>
             <div class="error-message" id="register-error"></div>
             <div class="success-message" id="register-success"></div>
@@ -312,16 +379,14 @@
     <div class="modal" id="security-modal">
         <div class="modal-content">
             <button class="modal-close" id="close-security-modal">×</button>
-            <div class="modal-title">Security Information</div>
+            <div class="modal-title">Коопсуздук маалыматы</div>
             <div class="form-group">
-                <label for="security-question">Security Question</label>
-                <input type="text" id="security-question" placeholder="E.g. What was your first pet's name?" required>
+                <input type="text" id="security-question" placeholder="Коопсуздук суроосу" required>
             </div>
             <div class="form-group">
-                <label for="secret-word">Secret Word Answer</label>
-                <input type="text" id="secret-word" required>
+                <input type="text" id="secret-word" placeholder="Жашыруун сөз жообу" required>
             </div>
-            <button id="complete-registration">Complete Registration</button>
+            <button id="complete-registration">Каттоону аяктоо</button>
             <div class="error-message" id="modal-error"></div>
         </div>
     </div>
@@ -330,44 +395,40 @@
     <div class="modal" id="forgot-password-modal">
         <div class="modal-content">
             <button class="modal-close" id="close-forgot-modal">×</button>
-            <div class="modal-title">Reset Password</div>
+            <div class="modal-title">Сыр сөздү калыбына келтирүү</div>
             <div id="forgot-step-1">
                 <div class="form-group">
-                    <label for="forgot-username">Username</label>
-                    <input type="text" id="forgot-username" required>
+                    <input type="text" id="forgot-username" placeholder="Колдонуучу аты" required>
                 </div>
-                <button id="check-security">Continue</button>
+                <button id="check-security">Улантуу</button>
             </div>
             <div id="forgot-step-2" style="display: none;">
                 <div class="form-group">
-                    <label id="security-question-label">Security Question</label>
+                    <label id="security-question-label">Коопсуздук суроосу</label>
                     <div class="form-group">
-                        <label for="forgot-secret-word">Secret Word</label>
-                        <input type="text" id="forgot-secret-word" required>
+                        <input type="text" id="forgot-secret-word" placeholder="Жашыруун сөз" required>
                     </div>
                 </div>
-                <button id="verify-secret">Verify</button>
+                <button id="verify-secret">Текшерүү</button>
             </div>
             <div id="forgot-step-3" style="display: none;">
                 <div class="form-group">
-                    <label for="new-password">New Password</label>
                     <div class="password-container">
-                        <input type="password" id="new-password" required>
+                        <input type="password" id="new-password" placeholder="Жаңы сыр сөз" required>
                         <button type="button" class="password-toggle" onclick="togglePasswordVisibility('new-password')">
                             <i class="fas fa-eye"></i>
                         </button>
                     </div>
                 </div>
                 <div class="form-group">
-                    <label for="confirm-password">Confirm New Password</label>
                     <div class="password-container">
-                        <input type="password" id="confirm-password" required>
+                        <input type="password" id="confirm-password" placeholder="Жаңы сыр сөздү ырастоо" required>
                         <button type="button" class="password-toggle" onclick="togglePasswordVisibility('confirm-password')">
                             <i class="fas fa-eye"></i>
                         </button>
                     </div>
                 </div>
-                <button id="reset-password">Reset Password</button>
+                <button id="reset-password">Сыр сөздү жаңыртуу</button>
             </div>
             <div class="error-message" id="forgot-error"></div>
         </div>
