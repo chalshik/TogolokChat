@@ -10,16 +10,14 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>TogolokChat</title>
+    <title data-i18n="app.title">TogolokChat</title>
     <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
-    <!-- Include Socket.IO client library -->
     <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
-    <!-- Add Font Awesome for eye icons -->
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-    <!-- Add Emoji Picker CSS -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/emoji-picker.css') }}">
-    <!-- Add Emoji Picker JavaScript -->
     <script src="{{ url_for('static', filename='js/emoji-picker.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/language-manager.js') }}"></script>
     <style>
         * {
             margin: 0;
@@ -1327,7 +1325,7 @@
     <div class="app-header">
         <div class="app-logo">
             <img src="/static/images/logo_icon.png" alt="TogolokChat Logo">
-            <div class="app-title">TogolokChat</div>
+            <span data-i18n="app.title">TogolokChat</span>
         </div>
     </div>
     
@@ -1336,11 +1334,10 @@
         <div class="sidebar">
             <div class="sidebar-content">
                 <div class="sidebar-header">
-                    <div class="app-name">TogolokChat</div>
+                    <div class="app-name" data-i18n="chat.chats">Chats</div>
                     <div class="sidebar-header-icons">
                         <svg viewBox="0 0 24 24" width="24" height="24" class="icon">
-                            <path fill="currentColor" d="M12 20.664a8.664 8.664 0 0 1-8.664-8.664A8.664 8.664 0 0 1 12 3.336a8.664 8.664 0 0 1 8.664 8.664A8.664 8.664 0 0 1 12 20.664zm0-17.328a8.664 8.664 0 0 0-8.664 8.664A8.664 8.664 0 0 0 12 20.664a8.664 8.664 0 0 0 8.664-8.664A8.664 8.664 0 0 0 12 3.336z"></path>
-                            <path fill="currentColor" d="M12 14.504c-1.104 0-2-.896-2-2s.896-2 2-2 2 .896 2 2-.896 2-2 2zm0-5c-1.657 0-3 1.343-3 3s1.343 3 3 3 3-1.343 3-3-1.343-3-3-3z"></path>
+                            <path fill="currentColor" d="M15.009 13.805h-.636l-.22-.219a5.184 5.184 0 0 0 1.256-3.386 5.207 5.207 0 1 0-5.207 5.208 5.183 5.183 0 0 0 3.385-1.255l.221.22v.635l4.004 3.999 1.194-1.195-3.997-4.007zm-4.808 0a3.605 3.605 0 1 1 0-7.21 3.605 3.605 0 0 1 0 7.21z"></path>
                         </svg>
                     </div>
                 </div>
@@ -1350,7 +1347,7 @@
                         <svg viewBox="0 0 24 24" width="24" height="24" class="icon">
                             <path fill="currentColor" d="M15.009 13.805h-.636l-.22-.219a5.184 5.184 0 0 0 1.256-3.386 5.207 5.207 0 1 0-5.207 5.208 5.183 5.183 0 0 0 3.385-1.255l.221.22v.635l4.004 3.999 1.194-1.195-3.997-4.007zm-4.808 0a3.605 3.605 0 1 1 0-7.21 3.605 3.605 0 0 1 0 7.21z"></path>
                         </svg>
-                        <input type="text" id="search-input" placeholder="Іздеу же жаңы чат баштоо..." onkeyup="searchContacts()">
+                        <input type="text" id="search-input" data-i18n-placeholder="chat.search" placeholder="Search contacts" onkeyup="searchContacts()">
                     </div>
                 </div>
                 
@@ -1368,25 +1365,25 @@
                     <svg viewBox="0 0 24 24" width="28" height="28">
                         <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"></path>
                     </svg>
-                    <span class="nav-icon-label">Contacts</span>
+                    <span class="nav-icon-label" data-i18n="chat.contacts">Contacts</span>
                 </div>
                 <div class="nav-icon" data-target="groups">
                     <svg viewBox="0 0 24 24" width="28" height="28">
                         <path fill="currentColor" d="M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5z"></path>
                     </svg>
-                    <span class="nav-icon-label">Groups</span>
+                    <span class="nav-icon-label" data-i18n="chat.groups">Groups</span>
                 </div>
                 <div class="nav-icon" data-target="add">
                     <svg viewBox="0 0 24 24" width="28" height="28">
                         <path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"></path>
                     </svg>
-                    <span class="nav-icon-label">Add</span>
+                    <span class="nav-icon-label" data-i18n="chat.add">Add</span>
                 </div>
                 <div class="nav-icon" data-target="settings">
                     <svg viewBox="0 0 24 24" width="28" height="28">
                         <path fill="currentColor" d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z"></path>
                     </svg>
-                    <span class="nav-icon-label">Settings</span>
+                    <span class="nav-icon-label" data-i18n="chat.settings">Settings</span>
                 </div>
             </div>
         </div>
@@ -1426,13 +1423,10 @@
                         <input type="file" id="file-input" style="display: none;">
                 </div>
                 
-                <input type="text" class="message-input" placeholder="Қабарыңызды жазыңыз">
-                
-                <div class="send-button">
-                    <svg viewBox="0 0 24 24" width="24" height="24" class="icon">
-                        <path fill="currentColor" d="M1.101 21.757L23.8 12.028 1.101 2.3l.011 7.912 13.623 1.816-13.623 1.817-.011 7.912z"></path>
-                    </svg>
-                    </div>
+                <input type="text" class="message-input" data-i18n-placeholder="chat.messageInput" placeholder="Type a message...">
+                <button class="send-button" data-i18n-title="chat.send" title="Send">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
                 </div>
             </div>
         </div>
@@ -1712,14 +1706,14 @@
             sidebarContent.innerHTML = `
                 <div class="contacts-container">
                     <div class="sidebar-header">
-                        <div class="app-name">Contacts</div>
+                        <div class="app-name" data-i18n="chat.chats">Chats</div>
                     </div>
                     <div class="search-container">
                         <div class="search-bar">
                             <svg viewBox="0 0 24 24" width="24" height="24" class="search-icon">
                                 <path fill="currentColor" d="M15.009 13.805h-.636l-.22-.219a5.184 5.184 0 0 0 1.256-3.386 5.207 5.207 0 1 0-5.207 5.208 5.183 5.183 0 0 0 3.385-1.255l.221.22v.635l4.004 3.999 1.194-1.195-3.997-4.007zm-4.808 0a3.605 3.605 0 1 1 0-7.21 3.605 3.605 0 0 1 0 7.21z"></path>
                             </svg>
-                            <input type="text" id="contact-search" placeholder="Search contacts" onkeyup="filterContacts()">
+                            <input type="text" id="contact-search" data-i18n-placeholder="chat.search" placeholder="Search contacts" onkeyup="filterContacts()">
                         </div>
                     </div>
                     <div class="contact-list">
@@ -2132,7 +2126,7 @@
             // Update sidebar content with settings view
             sidebarContent.innerHTML = `
                 <div class="sidebar-header">
-                    <div class="app-name">Profile & Settings</div>
+                    <div class="app-name" data-i18n="settings.title">Settings</div>
                     <div class="sidebar-header-icons">
                         <div class="close-settings" style="cursor: pointer;">
                             <svg viewBox="0 0 24 24" width="24" height="24">
@@ -2172,19 +2166,19 @@
                             <svg viewBox="0 0 24 24" width="24" height="24">
                                 <path fill="currentColor" d="M12 22.0005C5.07 22.0005 1.5 18.5205 1.5 12.0005C1.5 5.48047 5.07 2.00047 12 2.00047C18.93 2.00047 22.5 5.48047 22.5 12.0005C22.5 18.5205 18.93 22.0005 12 22.0005ZM12 3.50047C5.82 3.50047 3 6.24047 3 12.0005C3 17.7605 5.82 20.5005 12 20.5005C18.18 20.5005 21 17.7605 21 12.0005C21 6.24047 18.18 3.50047 12 3.50047ZM15.53 13.8805C15.82 13.2405 16 12.9505 16 12.0005C16 11.0505 15.82 10.7605 15.53 10.1205C15.37 9.78047 15.1 9.50047 14.79 9.27047C14.43 9.00047 14.25 8.77047 14.25 7.75047V7.50047C14.25 6.94047 13.81 6.50047 13.25 6.50047H10.75C10.19 6.50047 9.75 6.94047 9.75 7.50047V7.72047C9.75 8.69047 9.59 8.87047 9.33 9.11047C9 9.42047 8.71 9.75047 8.5 10.1705C8.19 10.8005 8 11.1505 8 12.0005C8 12.8505 8.19 13.1905 8.48 13.7905C8.71 14.1905 9 14.5305 9.34 14.8505C9.58 15.0605 9.75 15.2805 9.75 16.2405V16.5005C9.75 17.0605 10.19 17.5005 10.75 17.5005H13.25C13.81 17.5005 14.25 17.0605 14.25 16.5005V16.2405C14.25 15.2805 14.41 15.0605 14.67 14.8305C15 14.5305 15.3 14.2005 15.53 13.8805ZM12 14.0005C10.9 14.0005 10 13.1005 10 12.0005C10 10.9005 10.9 10.0005 12 10.0005C13.1 10.0005 14 10.9005 14 12.0005C14 13.1005 13.1 14.0005 12 14.0005Z"></path>
                             </svg>
-                            <span>Change Language</span>
+                            <span data-i18n="settings.language">Change Language</span>
                         </div>
                         <div class="settings-item" id="password-settings">
                             <i class="fa-solid fa-key"></i>
-                            <span>Change Password</span>
+                            <span data-i18n="settings.password">Change Password</span>
                         </div>
                         <div class="settings-item" id="admin-panel">
                             <i class="fa-solid fa-user-shield"></i>
-                            <span>Admin Panel</span>
+                            <span data-i18n="settings.admin">Admin Panel</span>
                         </div>
                         <div class="settings-item" id="logout-button">
                             <i class="fa-solid fa-right-from-bracket"></i>
-                            <span>Logout</span>
+                            <span data-i18n="settings.logout">Logout</span>
                         </div>
                     </div>
                 </div>
@@ -3946,7 +3940,7 @@
 
             panel.innerHTML = `
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
-                    <h2 style="color: #e9edef; margin: 0;">Language Settings</h2>
+                    <h2 style="color: #e9edef; margin: 0;" data-i18n="settings.language">Language Settings</h2>
                     <div class="close-button" style="cursor: pointer;">
                         <svg viewBox="0 0 24 24" width="24" height="24">
                             <path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path>
@@ -3955,14 +3949,14 @@
                 </div>
                 <div style="color: #e9edef;">
                     <div style="margin-bottom: 15px;">
-                        <label style="display: block; margin-bottom: 5px;">Select Language</label>
+                        <label style="display: block; margin-bottom: 5px;" data-i18n="settings.language">Select Language</label>
                         <select id="language-select" style="width: 100%; padding: 8px; background-color: #2a3942; color: #e9edef; border: 1px solid #374045; border-radius: 4px;">
-                            <option value="en">English</option>
-                            <option value="ky">Кыргызча</option>
-                            <option value="ru">Русский</option>
+                            <option value="en" data-i18n="languages.en">English</option>
+                            <option value="ky" data-i18n="languages.ky">Кыргызча</option>
+                            <option value="ru" data-i18n="languages.ru">Русский</option>
                         </select>
                     </div>
-                    <button id="save-language" style="width: 100%; padding: 10px; background-color: #00a884; color: white; border: none; border-radius: 4px; cursor: pointer;">
+                    <button id="save-language" style="width: 100%; padding: 10px; background-color: #00a884; color: white; border: none; border-radius: 4px; cursor: pointer;" data-i18n="settings.save">
                         Save Changes
                     </button>
                 </div>
@@ -3970,6 +3964,13 @@
 
             modal.appendChild(panel);
             document.body.appendChild(modal);
+            
+            // Set the current language in the dropdown
+            const languageSelect = panel.querySelector('#language-select');
+            languageSelect.value = window.languageManager.currentLanguage;
+
+            // Apply translations to the modal
+            window.languageManager.applyTranslations();
 
             // Add event listeners
             const closeButton = panel.querySelector('.close-button');
@@ -3979,10 +3980,17 @@
                 document.body.removeChild(modal);
             });
 
-            saveButton.addEventListener('click', () => {
+            saveButton.addEventListener('click', async () => {
                 const selectedLanguage = panel.querySelector('#language-select').value;
-                // Here you would typically make an API call to save the language preference
-                showNotification('Language preference saved!', 'success');
+                // Change the language using the language manager
+                const success = await window.languageManager.changeLanguage(selectedLanguage);
+                
+                if (success) {
+                    showNotification(window.languageManager.translate('settings.languageSaved'), 'success');
+                } else {
+                    showNotification('Error changing language', 'error');
+                }
+                
                 document.body.removeChild(modal);
             });
         }

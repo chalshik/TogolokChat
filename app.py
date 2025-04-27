@@ -203,9 +203,14 @@ def serve_placeholder(width, height):
     return response
 
 # Serve static images from Backend/static/images directory
-@app.route('/Backend/static/images/<path:filename>')
+@app.route('/static/images/<path:filename>')
 def serve_static_images(filename):
-    return send_from_directory('Backend/static/images', filename)
+    return send_from_directory(os.path.join(app.root_path, 'Backend/static/images'), filename)
+
+# Serve language JSON files
+@app.route('/languages/<path:filename>')
+def serve_language_files(filename):
+    return send_from_directory(os.path.join(app.root_path, 'languages'), filename)
 
 # Error handlers
 @app.errorhandler(404)
