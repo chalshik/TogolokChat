@@ -2411,38 +2411,38 @@
             
             // Create and show the first step (contact selection) interface
             sidebarContent.innerHTML = `
-                <div class="sidebar-header">
+                <div class="sidebar-header" style="background-color: transparent;">
                     <div style="display: flex; align-items: center;">
                         <div id="back-to-groups" style="margin-right: 15px; cursor: pointer;">
                             <svg viewBox="0 0 24 24" width="24" height="24">
-                                <path fill="currentColor" d="M19 11H7.83l4.88-4.88c.39-.39.39-1.03 0-1.42-.39-.39-1.02-.39-1.41 0l-6.59 6.59c-.39.39-.39 1.02 0 1.41l6.59 6.59c.39.39 1.02.39 1.41 0 .39-.39.39-1.02 0-1.41L7.83 13H19c.55 0 1-.45 1-1s-.45-1-1-1z"></path>
+                                <path fill="white" d="M19 11H7.83l4.88-4.88c.39-.39.39-1.03 0-1.42-.39-.39-1.02-.39-1.41 0l-6.59 6.59c-.39.39-.39 1.02 0 1.41l6.59 6.59c.39.39 1.02.39 1.41 0 .39-.39.39-1.02 0-1.41L7.83 13H19c.55 0 1-.45 1-1s-.45-1-1-1z"></path>
                             </svg>
                         </div>
-                        <div class="app-name">Select Contacts</div>
+                        <div class="app-name" style="color: white;">Select Contacts</div>
                     </div>
                 </div>
                 
-                <div style="padding: 15px; background-color: rgba(255, 255, 255, 0.6);">
+                <div style="padding: 15px; background-color: transparent;">
                     <div class="form-group" style="margin-bottom: 15px;">
-                        <label style="display: block; color: #333; margin-bottom: 5px;">Select Members</label>
+                        <label style="display: block; color: white; margin-bottom: 5px; text-shadow: 1px 1px 2px rgba(0,0,0,0.8);">Select Members</label>
                         <div style="display: flex;">
-                            <input type="text" id="search-members" style="flex: 1; padding: 10px; background-color: rgba(255, 255, 255, 0.7); border: none; color: #333; border-radius: 20px;" placeholder="Search contacts">
+                            <input type="text" id="search-members" style="flex: 1; padding: 10px; background-color: rgba(255, 255, 255, 0.2); border: none; color: white; border-radius: 20px;" placeholder="Search contacts">
                         </div>
                     </div>
                 </div>
                 
-                <div style="padding: 10px 15px; background-color: rgba(255, 255, 255, 0.6); border-bottom: 1px solid rgba(0, 0, 0, 0.1);">
-                    <div style="color: #333; font-size: 14px; margin-bottom: 5px;">Selected Contacts (<span id="selected-count">0</span>)</div>
+                <div style="padding: 10px 15px; background-color: transparent; border-bottom: 1px solid rgba(255, 255, 255, 0.2);">
+                    <div style="color: white; font-size: 14px; margin-bottom: 5px; text-shadow: 1px 1px 2px rgba(0,0,0,0.8);">Selected Contacts (<span id="selected-count">0</span>)</div>
                     <div id="selected-members" style="display: flex; flex-wrap: wrap; gap: 5px;"></div>
                 </div>
                 
-                <div id="contact-selection-list" style="overflow-y: auto; flex: 1; background-color: rgba(255, 255, 255, 0.6);">
-                    <div style="text-align: center; color: #666; padding: 20px;">
+                <div id="contact-selection-list" style="overflow-y: auto; flex: 1; background-color: transparent;">
+                    <div style="text-align: center; color: white; padding: 20px; text-shadow: 1px 1px 2px rgba(0,0,0,0.8);">
                         Loading contacts...
                     </div>
                 </div>
                 
-                <div style="padding: 15px; background-color: rgba(255, 255, 255, 0.6); border-top: 1px solid rgba(0, 0, 0, 0.1);">
+                <div style="padding: 15px; background-color: transparent; border-top: 1px solid rgba(255, 255, 255, 0.2);">
                     <button id="next-step-btn" style="width: 100%; padding: 12px; background-color: rgba(0, 168, 132, 0.8); color: white; border: none; border-radius: 20px; cursor: pointer; font-size: 16px; font-weight: bold; opacity: 0.5;" disabled>
                         Next
                     </button>
@@ -2490,58 +2490,58 @@
             const sidebarContent = document.querySelector('.sidebar-content');
             
             sidebarContent.innerHTML = `
-                <div class="sidebar-header">
+                <div class="sidebar-header" style="background-color: transparent;">
                     <div style="display: flex; align-items: center;">
                         <div id="back-to-contact-selection" style="margin-right: 15px; cursor: pointer;">
                             <svg viewBox="0 0 24 24" width="24" height="24">
-                                <path fill="currentColor" d="M19 11H7.83l4.88-4.88c.39-.39.39-1.03 0-1.42-.39-.39-1.02-.39-1.41 0l-6.59 6.59c-.39.39-.39 1.02 0 1.41l6.59 6.59c.39.39 1.02.39 1.41 0 .39-.39.39-1.02 0-1.41L7.83 13H19c.55 0 1-.45 1-1s-.45-1-1-1z"></path>
+                                <path fill="white" d="M19 11H7.83l4.88-4.88c.39-.39.39-1.03 0-1.42-.39-.39-1.02-.39-1.41 0l-6.59 6.59c-.39.39-.39 1.02 0 1.41l6.59 6.59c.39.39 1.02.39 1.41 0 .39-.39.39-1.02 0-1.41L7.83 13H19c.55 0 1-.45 1-1s-.45-1-1-1z"></path>
                             </svg>
                         </div>
-                        <div class="app-name">Group Details</div>
+                        <div class="app-name" style="color: white;">Group Details</div>
                     </div>
                 </div>
                 
-                <div style="padding: 15px; background-color: rgba(255, 255, 255, 0.6);">
+                <div style="padding: 15px; background-color: transparent;">
                     <div class="form-group" style="margin-bottom: 15px;">
-                        <label for="group-name" style="display: block; color: #333; margin-bottom: 5px;">Group Name</label>
-                        <input type="text" id="group-name" style="width: 100%; padding: 10px; background-color: rgba(255, 255, 255, 0.7); border: none; color: #333; border-radius: 20px;" placeholder="Enter group name">
+                        <label for="group-name" style="display: block; color: white; margin-bottom: 5px; text-shadow: 1px 1px 2px rgba(0,0,0,0.8);">Group Name</label>
+                        <input type="text" id="group-name" style="width: 100%; padding: 10px; background-color: rgba(255, 255, 255, 0.2); border: none; color: white; border-radius: 20px;" placeholder="Enter group name">
                     </div>
                     
                     <div class="form-group" style="margin-bottom: 15px;">
-                        <label style="display: block; color: #333; margin-bottom: 5px;">Group Avatar</label>
+                        <label style="display: block; color: white; margin-bottom: 5px; text-shadow: 1px 1px 2px rgba(0,0,0,0.8);">Group Avatar</label>
                         <div style="display: flex; align-items: center; gap: 15px;">
-                            <div id="group-avatar-preview" style="width: 80px; height: 80px; border-radius: 50%; overflow: hidden; background-color: rgba(255, 255, 255, 0.7); display: flex; justify-content: center; align-items: center;">
-                                <svg viewBox="0 0 24 24" width="40" height="40" style="color: #666;">
+                            <div id="group-avatar-preview" style="width: 80px; height: 80px; border-radius: 50%; overflow: hidden; background-color: rgba(255, 255, 255, 0.2); display: flex; justify-content: center; align-items: center;">
+                                <svg viewBox="0 0 24 24" width="40" height="40" style="color: white;">
                                     <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"></path>
                                 </svg>
                             </div>
                             <div style="flex: 1;">
                                 <input type="file" id="group-avatar-input" accept="image/*" style="display: none;">
-                                <button type="button" id="upload-avatar-btn" style="padding: 8px 15px; background-color: rgba(255, 255, 255, 0.7); color: #333; border: 1px solid #ccc; border-radius: 20px; cursor: pointer; font-size: 14px;">
+                                <button type="button" id="upload-avatar-btn" style="padding: 8px 15px; background-color: rgba(255, 255, 255, 0.3); color: white; border: 1px solid rgba(255, 255, 255, 0.5); border-radius: 20px; cursor: pointer; font-size: 14px;">
                                     Upload Avatar
                                 </button>
-                                <div style="color: #666; font-size: 12px; margin-top: 5px;">
+                                <div style="color: white; font-size: 12px; margin-top: 5px; text-shadow: 1px 1px 2px rgba(0,0,0,0.8);">
                                     Recommended size: 200x200 pixels
                                 </div>
                             </div>
                         </div>
                     </div>
                     
-                    <div style="background-color: rgba(255, 255, 255, 0.7); padding: 15px; border-radius: 20px;">
-                        <div style="font-size: 14px; color: #666; margin-bottom: 10px;">Selected Members (${selectedMembers.size})</div>
+                    <div style="background-color: rgba(255, 255, 255, 0.1); padding: 15px; border-radius: 20px;">
+                        <div style="font-size: 14px; color: white; margin-bottom: 10px; text-shadow: 1px 1px 2px rgba(0,0,0,0.8);">Selected Members (${selectedMembers.size})</div>
                         <div id="selected-members-list" style="display: flex; flex-wrap: wrap; gap: 10px;">
                             ${Array.from(selectedMembers.values()).map(member => `
-                                <div style="display: flex; align-items: center; background-color: rgba(255, 255, 255, 0.8); padding: 5px 10px; border-radius: 15px;">
+                                <div style="display: flex; align-items: center; background-color: rgba(255, 255, 255, 0.2); padding: 5px 10px; border-radius: 15px;">
                                     <img src="${member.profilePic}" alt="${member.name}" style="width: 20px; height: 20px; border-radius: 50%; margin-right: 5px;">
-                                    <span style="color: #333; font-size: 14px;">${member.name}</span>
+                                    <span style="color: white; font-size: 14px;">${member.name}</span>
                                 </div>
                             `).join('')}
                         </div>
                     </div>
                 </div>
                 
-                <div style="padding: 15px; background-color: rgba(255, 255, 255, 0.6); border-top: 1px solid rgba(0, 0, 0, 0.1);">
-                    <button id="create-group-btn" style="width: 100%; padding: 12px; background-color: rgba(0, 168, 132, 0.8); color: white; border: none; border-radius: 20px; cursor: pointer; font-size: 16px; font-weight: bold; opacity: 0.5;" disabled>
+                <div style="padding: 15px; background-color: transparent; border-top: 1px solid rgba(0, 0, 0, 0.1);">
+                    <button id="create-group-btn" style="width: 100%; padding: 12px; background-color: rgba(0, 168, 132, 0.8); color: white; border: none; border-radius: 20px; cursor: pointer; font-size: 16px; font-weight: bold; opacity: 0.5; box-shadow: 0 2px 5px rgba(0,0,0,0.3);" disabled>
                         Create Group
                     </button>
                 </div>
@@ -2625,7 +2625,7 @@
                     contactsList.innerHTML = '';
                     
                     if (contacts.length === 0) {
-                        contactsList.innerHTML = '<div style="text-align: center; color: #8696a0; padding: 20px;">No contacts found. Add contacts first to create a group.</div>';
+                        contactsList.innerHTML = '<div style="text-align: center; color: white; padding: 20px; text-shadow: 1px 1px 2px rgba(0,0,0,0.8);">No contacts found. Add contacts first to create a group.</div>';
                         return;
                     }
                     
@@ -2653,14 +2653,14 @@
                         const isSelected = selectedMembers.has(contactId);
                         
                         contactElement.innerHTML = `
-                            <div style="display: flex; align-items: center; padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #222d34; transition: background-color 0.2s;">
-                                <div style="width: 45px; height: 45px; border-radius: 50%; margin-right: 15px; overflow: hidden;">
+                            <div style="display: flex; align-items: center; padding: 10px 15px; cursor: pointer; border-bottom: 1px solid rgba(255, 255, 255, 0.2); transition: background-color 0.2s; background-color: rgba(255, 255, 255, 0.1); margin: 5px; border-radius: 10px;">
+                                <div style="width: 45px; height: 45px; border-radius: 50%; margin-right: 15px; overflow: hidden; background-color: rgba(255, 255, 255, 0.2);">
                                     <img src="${profilePic}" alt="${contactName}" style="width: 100%; height: 100%; object-fit: cover;">
                             </div>
                                 <div style="flex: 1;">
-                                    <div style="color: #e9edef; font-size: 16px;">${contactName}</div>
+                                    <div style="color: white; font-size: 16px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">${contactName}</div>
                                 </div>
-                                <div class="contact-checkbox" style="width: 24px; height: 24px; border: 2px solid ${isSelected ? '#00a884' : '#8696a0'}; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
+                                <div class="contact-checkbox" style="width: 24px; height: 24px; border: 2px solid ${isSelected ? '#00a884' : 'rgba(255, 255, 255, 0.5)'}; border-radius: 50%; display: flex; justify-content: center; align-items: center; background-color: ${isSelected ? 'rgba(0, 168, 132, 0.3)' : 'transparent'};">
                                     <svg viewBox="0 0 24 24" width="18" height="18" style="display: ${isSelected ? 'block' : 'none'};">
                                         <path fill="#00a884" d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"></path>
                                     </svg>
@@ -2687,7 +2687,7 @@
                 })
                 .catch(error => {
                     console.error('Error loading contacts:', error);
-                    contactsList.innerHTML = '<div style="text-align: center; color: #ff6b6b; padding: 20px;">Failed to load contacts. Please try again.</div>';
+                    contactsList.innerHTML = '<div style="text-align: center; color: white; padding: 20px; text-shadow: 1px 1px 2px rgba(0,0,0,0.8);">Failed to load contacts. Please try again.</div>';
                 });
         }
         
@@ -2837,7 +2837,7 @@
                     groupsList.innerHTML = '';
                     
                     if (groups.length === 0) {
-                        groupsList.innerHTML = '<div class="no-groups" style="color: #8696a0; text-align: center; padding: 20px;">No groups found. Create a new group to get started.</div>';
+                        groupsList.innerHTML = '<div class="no-groups" style="color: white; text-shadow: 1px 1px 2px rgba(0,0,0,0.8); text-align: center; padding: 20px;">No groups found. Create a new group to get started.</div>';
                         return;
                     }
                     
@@ -2915,7 +2915,7 @@
                 })
                 .catch(error => {
                     console.error('Error loading groups:', error);
-                    groupsList.innerHTML = '<div class="error" style="color: #8696a0; text-align: center; padding: 20px;">Failed to load groups. Please try again.</div>';
+                    groupsList.innerHTML = '<div class="error" style="color: white; text-shadow: 1px 1px 2px rgba(0,0,0,0.8); text-align: center; padding: 20px;">Failed to load groups. Please try again.</div>';
                 });
         }
         
@@ -4935,7 +4935,7 @@
                     const memberElement = document.createElement('div');
                     memberElement.style.display = 'flex';
                     memberElement.style.alignItems = 'center';
-                    memberElement.style.background = '#2a3942';
+                    memberElement.style.background = 'rgba(255, 255, 255, 0.2)';
                     memberElement.style.padding = '5px 10px';
                     memberElement.style.borderRadius = '15px';
                     memberElement.style.marginRight = '5px';
@@ -4943,9 +4943,9 @@
                     
                     memberElement.innerHTML = `
                         <img src="${member.profilePic}" alt="${member.name}" style="width: 20px; height: 20px; border-radius: 50%; margin-right: 5px;">
-                        <span style="color: #e9edef; font-size: 14px;">${member.name}</span>
+                        <span style="color: white; font-size: 14px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">${member.name}</span>
                         <div class="remove-member" style="margin-left: 5px; cursor: pointer;">
-                            <svg viewBox="0 0 24 24" width="16" height="16" style="color: #8696a0;">
+                            <svg viewBox="0 0 24 24" width="16" height="16" style="color: white;">
                                 <path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path>
                             </svg>
                         </div>
@@ -4968,7 +4968,8 @@
             if (contactElement) {
                 const checkbox = contactElement.querySelector('.contact-checkbox');
                 const checkmark = checkbox.querySelector('svg');
-                checkbox.style.borderColor = isSelected ? '#00a884' : '#8696a0';
+                checkbox.style.borderColor = isSelected ? '#00a884' : 'rgba(255, 255, 255, 0.5)';
+                checkbox.style.backgroundColor = isSelected ? 'rgba(0, 168, 132, 0.3)' : 'transparent';
                 checkmark.style.display = isSelected ? 'block' : 'none';
             }
         }
@@ -5009,6 +5010,7 @@
                     contactsList.innerHTML = '';
                     
                     if (contacts.length === 0) {
+                        contactsList.innerHTML = '<div style="text-align: center; color: white; padding: 20px; text-shadow: 1px 1px 2px rgba(0,0,0,0.8);">No contacts found. Add contacts first to create a group.</div>';
                         contactsList.innerHTML = '<div style="text-align: center; color: #8696a0; padding: 20px;">No contacts found. Add contacts first to create a group.</div>';
                         return;
                     }
