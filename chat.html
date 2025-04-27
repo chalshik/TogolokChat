@@ -51,4 +51,129 @@ async function updateProfilePicture() {
         console.error('Error in updateProfilePicture:', error);
         alert('Error updating profile picture. Please try again.');
     }
-} 
+}
+
+// Function to mark messages as read for the current chat
+function markMessagesAsRead(chatId, chatType = 'direct') {
+    fetch('/chat/mark_messages_read', {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+            chat_id: chatId,
+            chat_type: chatType
+        })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            console.log('Messages marked as read for chat:', chatId);
+            // Update UI to reflect read status
+            const messageElements = document.querySelectorAll(`.message.received[data-message-id]`);
+            messageElements.forEach(elem => {
+                const statusIndicator = elem.querySelector('.message-status-indicator');
+                if (statusIndicator) {
+                    statusIndicator.classList.remove('unread');
+                    statusIndicator.classList.add('read');
+                }
+            });
+            // Update unread count in contact list
+            updateUnreadCounts();
+        }
+    })
+    .catch(error => console.error('Error marking messages as read:', error));
+}
+
+// Function to update unread message counts
+function updateUnreadCounts() {
+    fetch('/chat/get_unread_count')
+        .then(response => response.json())
+        .then(data => {
+            // Update direct message unread counts
+            Object.entries(data.direct).forEach(([contactId, count]) => {
+                const contactElem = document.querySelector(`.contact[data-contact-id="${contactId}"]`);
+                if (contactElem) {
+                    const statusIndicator = contactElem.querySelector('.message-status-indicator');
+                    if (statusIndicator) {
+                        if (count > 0) {
+                            statusIndicator.classList.add('unread');
+                            statusIndicator.classList.remove('read');
+                        } else {
+                            statusIndicator.classList.remove('unread');
+                            statusIndicator.classList.add('read');
+                        }
+                    }
+                }
+            });
+            // Similar logic can be added for group chats if needed
+        })
+        .catch(error => console.error('Error updating unread counts:', error));
+}
+
+// Update loadChatMessages to mark messages as read and update UI
+function loadChatMessages(contactId) {
+    const chatBody = document.querySelector('.chat-body');
+    if (!chatBody) return;
+    
+    chatBody.innerHTML = '<div class="loading-messages">Loading messages...</div>';
+    
+    // Load existing messages
+    fetch(`/chat/get_messages/${contactId}`)
+        .then(response => response.json())
+        .then(messages => {
+            chatBody.innerHTML = ''; // Clear loading message
+            
+            let lastMessageDate = null;
+            
+            // Display each message
+            messages.forEach(msg => {
+                const isSent = msg[0] == document.documentElement.getAttribute('data-user-id');
+                const messageElement = document.createElement('div');
+                messageElement.className = `message ${isSent ? 'sent' : 'received'}`;
+                messageElement.setAttribute('data-message-id', `history_${msg[0]}_${msg[1]}_${msg[3].replace(/[:. ]/g, '')}_${msg[2].replace(/ /g, '_')}`);
+                messageElement.setAttribute('data-timestamp', msg[3]);
+                
+                // We'll update the status indicator later after marking as read
+                messageElement.innerHTML = `
+                    <div class="message-content">${msg[2]}</div>
+                    <div class="message-meta">
+                        <span class="message-timestamp">${formatMessageTimestamp(msg[3], true)}</span>
+                        ${isSent ? '<span class="message-status-indicator unread"></span>' : '<span class="message-status-indicator read"></span>'}
+                    </div>
+                `;
+                
+                chatBody.appendChild(messageElement);
+            });
+            
+            // Scroll to bottom
+            chatBody.scrollTop = chatBody.scrollHeight;
+            
+            // Update the message input placeholder for direct messages
+            document.querySelector('.message-input').placeholder = 'Type a message...';
+            
+            // Mark messages as read for this chat
+            markMessagesAsRead(contactId, 'direct');
+        })
+        .catch(error => {
+            console.error('Error loading messages:', error);
+            chatBody.innerHTML = '<div class="error-message">Failed to load messages</div>';
+        });
+}
+
+// Update loadGroupChat to mark group messages as read
+function loadGroupChat(groupId) {
+    console.log('Loading group chat with ID:', groupId);
+    
+    // ... existing code ...
+    
+    // Mark group messages as read
+    markMessagesAsRead(groupId, 'group');
+}
+
+// Call updateUnreadCounts on page load or when socket connects
+socket.on('connect', function() {
+    console.log('Socket connected');
+    updateUnreadCounts();
+    // ... existing code ...
+});
