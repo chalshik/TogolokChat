@@ -1555,7 +1555,7 @@
                     // Get profile picture URL
                     let profilePic;
                     if (isGroup) {
-                        profilePic = entity.picture ? `/uploads/group_images/${entity.picture}` : 'Backend/static/images/contact_logo.png';
+                        profilePic = entity.picture ? `/uploads/group_images/${entity.picture}` : 'Backend/static/images/group_logo.png';
                     } else {
                         // For direct chats, use the same logic as contact list
                         profilePic = entity.profile_picture ? `/uploads/profile_photos/${entity.profile_picture}` : 'Backend/static/images/contact_logo.png';
@@ -1595,7 +1595,8 @@
 
                     chatHeader.innerHTML = `
                         <div class="profile-pic" style="cursor: pointer;">
-                            <img src="${profilePic}" alt="${isGroup ? entity.name : (entity.username || entity)}" onerror="this.src='Backend/static/images/contact_logo.png'">
+                            <img src="${profilePic}" alt="${isGroup ? entity.name : (entity.username || entity)}" 
+                                 onerror="this.src='${isGroup ? 'Backend/static/images/group_logo.png' : 'Backend/static/images/contact_logo.png'}'">
                         </div>
                         <div class="chat-header-info" style="cursor: pointer;">
                             <div class="chat-header-name">${isGroup ? entity.name : (entity.username || entity)}</div>
@@ -2849,9 +2850,7 @@
                         <label style="display: block; color: #111; margin-bottom: 5px; font-weight: bold; font-size: 15px;">Group Avatar</label>
                         <div style="display: flex; align-items: center; gap: 15px;">
                             <div id="group-avatar-preview" style="width: 80px; height: 80px; border-radius: 50%; overflow: hidden; background-color: #fff; border: 2px solid #333; display: flex; justify-content: center; align-items: center;">
-                                <svg viewBox="0 0 24 24" width="40" height="40" style="color: #222;">
-                                    <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"></path>
-                                </svg>
+                                <img src="Backend/static/images/group_logo.png" style="width: 100%; height: 100%; object-fit: cover;">
                             </div>
                             <div style="flex: 1;">
                                 <input type="file" id="group-avatar-input" accept="image/*" style="display: none;">
@@ -2949,85 +2948,7 @@
         }
         
         // Function to load contacts for group creation
-        function loadContactsForGroupCreation() {
-            const contactsList = document.getElementById('contact-selection-list');
-            
-            fetch('/chat/contacts')
-                .then(response => {
-                    if (!response.ok) {
-                        throw new Error('Failed to load contacts');
-                    }
-                    return response.json();
-                })
-                .then(contacts => {
-                    contactsList.innerHTML = '';
-                    
-                    if (contacts.length === 0) {
-                        contactsList.innerHTML = '<div style="text-align: center; color: #8696a0; padding: 20px;">No contacts found. Add contacts first to create a group.</div>';
-                        return;
-                    }
-                    
-                    // Create contact elements for selection
-                    contacts.forEach(contact => {
-                        let contactId, contactName, profilePic;
-                        
-                        // Handle different contact data formats
-                        if (Array.isArray(contact)) {
-                            contactId = contact[0];
-                            contactName = contact[1];
-                            profilePic = 'Backend/static/images/contact_logo.png'; // Default placeholder
-                        } else {
-                            contactId = contact.id;
-                            contactName = contact.username || contact.name;
-                            profilePic = contact.profile_picture ? `/uploads/profile_pics/${contact.profile_picture}` : 'Backend/static/images/contact_logo.png';
-                        }
-                        
-                        const contactElement = document.createElement('div');
-                        contactElement.className = 'contact-selection-item';
-                        contactElement.setAttribute('data-contact-id', contactId);
-                        contactElement.setAttribute('data-contact-name', contactName);
-                        
-                        // Check if this contact is already selected
-                        const isSelected = selectedMembers.has(contactId);
-                        
-                        contactElement.innerHTML = `
-                            <div style="display: flex; align-items: center; padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #222d34; transition: background-color 0.2s;">
-                                <div style="width: 45px; height: 45px; border-radius: 50%; margin-right: 15px; overflow: hidden;">
-                                    <img src="${profilePic}" alt="${contactName}" style="width: 100%; height: 100%; object-fit: cover;">
-                            </div>
-                                <div style="flex: 1;">
-                                    <div style="color: #e9edef; font-size: 16px;">${contactName}</div>
-                                </div>
-                                <div class="contact-checkbox" style="width: 24px; height: 24px; border: 2px solid ${isSelected ? '#00a884' : '#8696a0'}; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
-                                    <svg viewBox="0 0 24 24" width="18" height="18" style="display: ${isSelected ? 'block' : 'none'};">
-                                        <path fill="#00a884" d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"></path>
-                                    </svg>
-                                </div>
-                            </div>
-                        `;
-                        
-                        contactElement.addEventListener('click', function() {
-                            const contactId = this.getAttribute('data-contact-id');
-                            const contactName = this.getAttribute('data-contact-name');
-                            const isSelected = selectedMembers.has(contactId);
-                            
-                            if (isSelected) {
-                                removeSelectedMember(contactId);
-                                updateContactCheckbox(contactId, false);
-                            } else {
-                                addSelectedMember(contactId, contactName, profilePic);
-                                updateContactCheckbox(contactId, true);
-                            }
-                        });
-                        
-                        contactsList.appendChild(contactElement);
-                    });
-                })
-                .catch(error => {
-                    console.error('Error loading contacts:', error);
-                    contactsList.innerHTML = '<div style="text-align: center; color: #ff6b6b; padding: 20px;">Failed to load contacts. Please try again.</div>';
-                });
-        }
+        
         
         // Selected members for group creation
         const selectedMembers = new Map();
@@ -3212,7 +3133,7 @@
                         
                         groupElement.innerHTML = `
                             <div class="contact-avatar">
-                                <img src="${group.picture ? `/uploads/group_images/${group.picture}` : 'Backend/static/images/contact_logo.png'}" alt="${group.name}">
+                                <img src="${group.picture ? `/uploads/group_images/${group.picture}` : 'Backend/static/images/group_logo.png'}" alt="${group.name}">
                             </div>
                             <div class="contact-info">
                                 <div class="contact-name">${group.name}</div>
@@ -3482,7 +3403,7 @@
             // Get profile picture URL
             let profilePic;
             if (isGroup) {
-                profilePic = entity.picture ? `/uploads/group_images/${entity.picture}` : 'Backend/static/images/contact_logo.png';
+                profilePic = entity.picture ? `/uploads/group_images/${entity.picture}` : 'Backend/static/images/group_logo.png';
             } else {
                 // For direct chats, use the same logic as contact list
                 profilePic = entity.profile_picture ? `/uploads/profile_photos/${entity.profile_picture}` : 'Backend/static/images/contact_logo.png';
@@ -3522,7 +3443,8 @@
 
             chatHeader.innerHTML = `
                 <div class="profile-pic" style="cursor: pointer;">
-                    <img src="${profilePic}" alt="${isGroup ? entity.name : (entity.username || entity)}" onerror="this.src='Backend/static/images/contact_logo.png'">
+                    <img src="${profilePic}" alt="${isGroup ? entity.name : (entity.username || entity)}" 
+                         onerror="this.src='${isGroup ? 'Backend/static/images/group_logo.png' : 'Backend/static/images/contact_logo.png'}'">
                         </div>
                 <div class="chat-header-info" style="cursor: pointer;">
                     <div class="chat-header-name">${isGroup ? entity.name : (entity.username || entity)}</div>
@@ -5654,7 +5576,7 @@
             modal.style.alignItems = 'stretch';
             
             // Group profile picture
-            const profilePic = group.picture ? `/uploads/group_images/${group.picture}` : 'Backend/static/images/contact_logo.png';
+            const profilePic = group.picture ? `/uploads/group_images/${group.picture}` : 'Backend/static/images/group_logo.png';
             
             // Create side panel
             const panel = document.createElement('div');
