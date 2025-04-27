@@ -768,15 +768,15 @@ def register_socket_events(socketio):
                 msg_info = cursor.fetchone()
                 if msg_info:
                     sender_room = str(msg_info[0])
-                
-                # Emit status update to the original message sender
-                emit('message_status', {
-                    'message_id': message_id,
-                    'status': status,
+                    
+                    # Emit status update to the original message sender
+                    socketio.emit('message_status', {
+                        'message_id': message_id,
+                        'status': status,
                         'chat_id': updater_id,
-                    'updated_by': updater_username,
+                        'updated_by': updater_username,
                         'timestamp': current_time
-                }, room=sender_room)
+                    }, room=sender_room)
                 
             elif chat_type == 'group':
                 # Update group message status
@@ -796,12 +796,12 @@ def register_socket_events(socketio):
                 group_info = cursor.fetchone()
                 if group_info:
                     group_room = f'group_{group_info[0]}'
-                
-                emit('message_status', {
-                    'message_id': message_id,
-                    'status': status,
-                    'chat_id': chat_id,
-                    'updated_by': updater_username,
+                    
+                    socketio.emit('message_status', {
+                        'message_id': message_id,
+                        'status': status,
+                        'chat_id': chat_id,
+                        'updated_by': updater_username,
                         'user_id': updater_id,
                         'timestamp': current_time
                     }, room=group_room, include_self=False)
@@ -813,6 +813,250 @@ def register_socket_events(socketio):
             
         except Exception as e:
             print(f"Error processing status update: {str(e)}")
+            return {'status': 'error', 'message': str(e)}
+
+    @socketio.on('delete_message')
+    def handle_delete_message(data):
+        """Handle deletion of messages"""
+        try:
+            message_id = data.get('message_id')
+            chat_type = data.get('chat_type', 'direct')  # 'direct' or 'group'
+            
+            if not message_id:
+                return {'status': 'error', 'message': 'Message ID is required'}
+            
+            # Get current user info
+            user_id = session.get('user_id')
+            username = session.get('username')
+            
+            if not user_id:
+                return {'status': 'error', 'message': 'Not authenticated'}
+            
+            conn = connect_db()
+            cursor = conn.cursor()
+            
+            if chat_type == 'direct':
+                # Verify the user is the sender of the message
+                cursor.execute("""
+                    SELECT receiver_id, sender_id, message
+                    FROM messages 
+                    WHERE id = ? AND sender_id = ?
+                """, (message_id, user_id))
+                
+                msg_data = cursor.fetchone()
+                if not msg_data:
+                    conn.close()
+                    return {'status': 'error', 'message': 'Message not found or not authorized to delete'}
+                
+                receiver_id = msg_data[0]
+                original_message = msg_data[2]
+                
+                # Mark message as deleted in the database
+                cursor.execute("""
+                    UPDATE messages 
+                    SET message = '[Message deleted]', is_deleted = 1 
+                    WHERE id = ? AND sender_id = ?
+                """, (message_id, user_id))
+                
+                conn.commit()
+                
+                # Notify both the sender and receiver about the deletion
+                delete_notification = {
+                    'message_id': message_id,
+                    'deleted_by': username,
+                    'original_message': original_message,
+                    'timestamp': datetime.datetime.now(pytz.timezone('Asia/Bishkek')).isoformat()
+                }
+                
+                # Notify the receiver
+                socketio.emit('message_deleted', delete_notification, room=str(receiver_id))
+                
+                # Notify the sender (in case of multiple sessions)
+                socketio.emit('message_deleted', delete_notification, room=str(user_id))
+                
+            elif chat_type == 'group':
+                # Verify the user is the sender of the message or group admin
+                cursor.execute("""
+                    SELECT gm.group_id, gm.sender_id, gm.message, g.admin_id
+                    FROM group_messages gm
+                    JOIN groups g ON gm.group_id = g.id
+                    WHERE gm.id = ?
+                """, (message_id,))
+                
+                msg_data = cursor.fetchone()
+                if not msg_data:
+                    conn.close()
+                    return {'status': 'error', 'message': 'Message not found'}
+                
+                group_id = msg_data[0]
+                sender_id = msg_data[1]
+                original_message = msg_data[2]
+                admin_id = msg_data[3]
+                
+                # Check if user is sender or admin
+                if user_id != sender_id and user_id != admin_id:
+                    conn.close()
+                    return {'status': 'error', 'message': 'Not authorized to delete this message'}
+                
+                # Mark message as deleted
+                cursor.execute("""
+                    UPDATE group_messages 
+                    SET message = '[Message deleted]', is_deleted = 1 
+                    WHERE id = ?
+                """, (message_id,))
+                
+                conn.commit()
+                
+                # Notify all group members
+                delete_notification = {
+                    'message_id': message_id,
+                    'group_id': group_id,
+                    'deleted_by': username,
+                    'original_message': original_message,
+                    'timestamp': datetime.datetime.now(pytz.timezone('Asia/Bishkek')).isoformat()
+                }
+                
+                socketio.emit('message_deleted', delete_notification, room=f'group_{group_id}')
+            
+            conn.close()
+            return {'status': 'success', 'message': 'Message deleted'}
+            
+        except Exception as e:
+            print(f"Error deleting message: {str(e)}")
+            return {'status': 'error', 'message': str(e)}
+    
+    @socketio.on('edit_message')
+    def handle_edit_message(data):
+        """Handle editing of messages"""
+        try:
+            message_id = data.get('message_id')
+            new_message = data.get('message')
+            chat_type = data.get('chat_type', 'direct')  # 'direct' or 'group'
+            
+            if not message_id or not new_message:
+                return {'status': 'error', 'message': 'Message ID and new message content are required'}
+            
+            # Get current user info
+            user_id = session.get('user_id')
+            username = session.get('username')
+            
+            if not user_id:
+                return {'status': 'error', 'message': 'Not authenticated'}
+            
+            # Check if edit is within time limit
+            edit_time_limit = 5 * 60  # 5 minutes in seconds
+            
+            conn = connect_db()
+            cursor = conn.cursor()
+            
+            if chat_type == 'direct':
+                # Verify the user is the sender of the message
+                cursor.execute("""
+                    SELECT receiver_id, time, message 
+                    FROM messages 
+                    WHERE id = ? AND sender_id = ?
+                """, (message_id, user_id))
+                
+                msg_data = cursor.fetchone()
+                if not msg_data:
+                    conn.close()
+                    return {'status': 'error', 'message': 'Message not found or not authorized to edit'}
+                
+                receiver_id = msg_data[0]
+                message_time = msg_data[1]
+                original_message = msg_data[2]
+                
+                # Check if message is within edit time limit
+                try:
+                    msg_datetime = datetime.datetime.strptime(message_time, '%Y-%m-%d %H:%M:%S.%f%z')
+                    now = datetime.datetime.now(pytz.timezone('Asia/Bishkek'))
+                    
+                    if (now - msg_datetime).total_seconds() > edit_time_limit:
+                        conn.close()
+                        return {'status': 'error', 'message': 'Message can only be edited within 5 minutes of sending'}
+                except:
+                    # If datetime parsing fails, allow the edit
+                    pass
+                
+                # Update message in the database
+                cursor.execute("""
+                    UPDATE messages 
+                    SET message = ?, edited = 1, edit_time = ? 
+                    WHERE id = ? AND sender_id = ?
+                """, (new_message, datetime.datetime.now(pytz.timezone('Asia/Bishkek')).strftime('%Y-%m-%d %H:%M:%S'), message_id, user_id))
+                
+                conn.commit()
+                
+                # Notify both the sender and receiver about the edit
+                edit_notification = {
+                    'message_id': message_id,
+                    'new_message': new_message,
+                    'edited_by': username,
+                    'original_message': original_message,
+                    'timestamp': datetime.datetime.now(pytz.timezone('Asia/Bishkek')).isoformat()
+                }
+                
+                # Notify the receiver
+                socketio.emit('message_edited', edit_notification, room=str(receiver_id))
+                
+                # Notify the sender (in case of multiple sessions)
+                socketio.emit('message_edited', edit_notification, room=str(user_id))
+                
+            elif chat_type == 'group':
+                # Verify the user is the sender of the message
+                cursor.execute("""
+                    SELECT group_id, time, message 
+                    FROM group_messages 
+                    WHERE id = ? AND sender_id = ?
+                """, (message_id, user_id))
+                
+                msg_data = cursor.fetchone()
+                if not msg_data:
+                    conn.close()
+                    return {'status': 'error', 'message': 'Message not found or not authorized to edit'}
+                
+                group_id = msg_data[0]
+                message_time = msg_data[1]
+                original_message = msg_data[2]
+                
+                # Check if message is within edit time limit
+                try:
+                    msg_datetime = datetime.datetime.strptime(message_time, '%Y-%m-%d %H:%M:%S.%f%z')
+                    now = datetime.datetime.now(pytz.timezone('Asia/Bishkek'))
+                    
+                    if (now - msg_datetime).total_seconds() > edit_time_limit:
+                        conn.close()
+                        return {'status': 'error', 'message': 'Message can only be edited within 5 minutes of sending'}
+                except:
+                    # If datetime parsing fails, allow the edit
+                    pass
+                
+                # Update message in the database
+                cursor.execute("""
+                    UPDATE group_messages 
+                    SET message = ?, edited = 1, edit_time = ? 
+                    WHERE id = ? AND sender_id = ?
+                """, (new_message, datetime.datetime.now(pytz.timezone('Asia/Bishkek')).strftime('%Y-%m-%d %H:%M:%S'), message_id, user_id))
+                
+                conn.commit()
+                
+                # Notify all group members about the edit
+                edit_notification = {
+                    'message_id': message_id,
+                    'group_id': group_id,
+                    'new_message': new_message,
+                    'edited_by': username,
+                    'original_message': original_message,
+                    'timestamp': datetime.datetime.now(pytz.timezone('Asia/Bishkek')).isoformat()
+                }
+                
+                socketio.emit('message_edited', edit_notification, room=f'group_{group_id}')
+            
+            conn.close()
+            return {'status': 'success', 'message': 'Message edited'}
+            
+        except Exception as e:
+            print(f"Error editing message: {str(e)}")
             return {'status': 'error', 'message': str(e)}
 
 @bp.route('/chat/last_message/<int:contact_id>')
@@ -993,27 +1237,28 @@ def mark_messages_read():
         conn.commit()
         conn.close()
 
-        # Notify relevant users about the status update
-        for msg in updated_messages:
-            if chat_type == 'direct':
-                # Notify the sender that their messages were read
-                sender_room = str(msg[1])  # sender_id
-                emit('message_status', {
-                    'message_id': msg[0],  # message_id
-                    'status': 'read',
-                    'chat_id': user_id,  # the reader's id
-                    'timestamp': current_time
-                }, room=sender_room)
-            else:
-                # Notify group members about the read status
-                group_room = f'group_{msg[2]}'  # group_id
-                emit('message_status', {
-                    'message_id': msg[0],  # message_id
-                    'status': 'read',
-                    'chat_id': chat_id,
-                    'user_id': user_id,  # who read the message
-                    'timestamp': current_time
-                }, room=group_room)
+        # Notify relevant users about the status update using the global socketio instance
+        if socketio:
+            for msg in updated_messages:
+                if chat_type == 'direct':
+                    # Notify the sender that their messages were read
+                    sender_room = str(msg[1])  # sender_id
+                    socketio.emit('message_status', {
+                        'message_id': msg[0],  # message_id
+                        'status': 'read',
+                        'chat_id': user_id,  # the reader's id
+                        'timestamp': current_time
+                    }, room=sender_room)
+                else:
+                    # Notify group members about the read status
+                    group_room = f'group_{msg[2]}'  # group_id
+                    socketio.emit('message_status', {
+                        'message_id': msg[0],  # message_id
+                        'status': 'read',
+                        'chat_id': chat_id,
+                        'user_id': user_id,  # who read the message
+                        'timestamp': current_time
+                    }, room=group_room)
 
         return jsonify({'status': 'success', 'message': 'Messages marked as read'})
 

@@ -168,30 +168,24 @@ def update_profile_picture():
 
 @bp.route('/<int:user_id>/profile-picture', methods=['GET'])
 def get_user_profile_picture(user_id):
+    """Get a user's profile picture URL"""
     conn = connect_db()
     cursor = conn.cursor()
     
     try:
-        # First check the users table
         cursor.execute("SELECT profile_picture FROM users WHERE id = ?", (user_id,))
-        profile_pic = cursor.fetchone()
+        result = cursor.fetchone()
         
-        if profile_pic and profile_pic[0]:
-            return jsonify({"photo_url": f"/uploads/profile_photos/{profile_pic[0]}"}), 200
-            
-        # If not found in users table, check profile_photos table
-        cursor.execute("SELECT photo FROM profile_photos WHERE user_id = ?", (user_id,))
-        profile_pic = cursor.fetchone()
+        if result and result[0]:
+            photo_url = f"/uploads/profile_photos/{result[0]}"
+        else:
+            photo_url = "/static/images/logo_icon.png"
         
-        if profile_pic and profile_pic[0]:
-            return jsonify({"photo_url": f"/uploads/profile_photos/{profile_pic[0]}"}), 200
-            
-        # If no profile picture found, return default avatar
-        return jsonify({"photo_url": "/static/images/contact_logo.png"}), 200
-        
+        return jsonify({"photo_url": photo_url}), 200
+    
     except Exception as e:
-        return jsonify({"message": f"Error fetching profile picture: {str(e)}"}), 500
-        
+        current_app.logger.error(f"Error fetching profile picture: {e}", exc_info=True)
+        return jsonify({"error": "Failed to fetch profile picture"}), 500
+    
     finally:
-        cursor.close()
         conn.close() 

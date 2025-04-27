@@ -56,6 +56,9 @@ def create_tables():
             time DATETIME DEFAULT CURRENT_TIMESTAMP,
             status TEXT DEFAULT 'sent',
             is_edited INTEGER DEFAULT 0,
+            edited INTEGER DEFAULT 0,
+            edit_time DATETIME,
+            is_deleted INTEGER DEFAULT 0,
             delivered_at DATETIME,
             read_at DATETIME,
             FOREIGN KEY (sender_id) REFERENCES users(id) ON DELETE CASCADE,
@@ -104,6 +107,9 @@ def create_tables():
             message TEXT NOT NULL,
             time TEXT NOT NULL,
             is_edited INTEGER DEFAULT 0,
+            edited INTEGER DEFAULT 0,
+            edit_time DATETIME,
+            is_deleted INTEGER DEFAULT 0,
             timestamp DATETIME DEFAULT CURRENT_TIMESTAMP,
             FOREIGN KEY (group_id) REFERENCES groups(id) ON DELETE CASCADE
         );

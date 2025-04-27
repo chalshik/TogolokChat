@@ -306,7 +306,7 @@ def get_current_user():
         
         # Default to placeholder avatar if no photo is found
         if not photo_url:
-            photo_url = "/static/images/contact_logo.png"
+            photo_url = "/static/images/logo_icon.png"
         
         user = {
             "id": user_data[0],
@@ -481,4 +481,31 @@ def delete_user(user_id):
 
     finally:
         cursor.close()
+        conn.close()
+
+@bp.route('/user/profile-picture', methods=['GET'])
+def get_profile_picture():
+    user_id = session.get('user_id')
+    if not user_id:
+        return jsonify({"error": "Not authenticated"}), 401
+    
+    conn = connect_db()
+    cursor = conn.cursor()
+    
+    try:
+        cursor.execute("SELECT profile_picture FROM users WHERE id = ?", (user_id,))
+        result = cursor.fetchone()
+        
+        if result and result[0]:
+            photo_url = f"/uploads/profile_photos/{result[0]}"
+        else:
+            photo_url = "/static/images/logo_icon.png"
+        
+        return jsonify({"photo_url": photo_url}), 200
+    
+    except Exception as e:
+        current_app.logger.error(f"Error fetching profile picture: {e}", exc_info=True)
+        return jsonify({"error": "Failed to fetch profile picture"}), 500
+    
+    finally:
         conn.close()

@@ -988,6 +988,107 @@
             color: #333;
             font-size: 13px;
         }
+
+        .message-status-indicator {
+            display: inline-block;
+            width: 16px;
+            height: 16px;
+            margin-left: 5px;
+            position: relative;
+        }
+
+        .message-status-indicator.read {
+            /* Use double check marks for read status with blue color */
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 15' width='16' height='15'%3E%3Cpath fill='%234fc3f7' d='M15.01 3.316l-.478-.372a.365.365 0 0 0-.51.063L8.666 9.879a.32.32 0 0 1-.484.033l-.358-.325a.319.319 0 0 0-.484.032l-.378.483a.418.418 0 0 0 .036.541l1.32 1.266c.143.14.361.125.484-.033l6.272-8.048a.366.366 0 0 0-.064-.512zm-4.1 0l-.478-.372a.365.365 0 0 0-.51.063L4.566 9.879a.32.32 0 0 1-.484.033L1.891 7.769a.366.366 0 0 0-.515.006l-.423.433a.364.364 0 0 0 .006.514l3.258 3.185c.143.14.361.125.484-.033l6.272-8.048a.365.365 0 0 0-.063-.51z'%3E%3C/path%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+
+        .message-status-indicator.unread {
+            /* Use single check mark for unread/delivered status with gray color */
+            background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 15' width='16' height='15'%3E%3Cpath fill='%238696a0' d='M10.91 3.316l-.478-.372a.365.365 0 0 0-.51.063L4.566 9.879a.32.32 0 0 1-.484.033L1.891 7.769a.366.366 0 0 0-.515.006l-.423.433a.364.364 0 0 0 .006.514l3.258 3.185c.143.14.361.125.484-.033l6.272-8.048a.365.365 0 0 0-.063-.51z'%3E%3C/path%3E%3C/svg%3E");
+            background-repeat: no-repeat;
+            background-position: center;
+        }
+
+        /* Message editing and deletion styles */
+        .message-options {
+            position: absolute;
+            top: 3px;
+            right: 3px;
+            background-color: rgba(42, 57, 66, 0.9);
+            border-radius: 4px;
+            flex-direction: column;
+            display: none;
+            z-index: 100;
+            width: 120px;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+        }
+        
+        .message {
+            position: relative;
+        }
+
+        .message-menu-dots {
+            position: absolute;
+            top: 2px;
+            right: 2px;
+            width: 24px;
+            height: 24px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            cursor: pointer;
+            color: #aaa;
+            font-size: 14px;
+            z-index: 90;
+            border-radius: 12px;
+            background-color: rgba(42, 57, 66, 0.7);
+            visibility: hidden;
+        }
+
+        .message.sent:hover .message-menu-dots {
+            visibility: visible;
+        }
+        
+        .message-option {
+            width: 100%;
+            padding: 8px 12px;
+            display: flex;
+            align-items: center;
+            cursor: pointer;
+            color: white;
+            font-size: 14px;
+        }
+        
+        .message-option i {
+            margin-right: 8px;
+            font-size: 14px;
+        }
+        
+        .message-option:hover {
+            background-color: rgba(255, 255, 255, 0.2);
+        }
+        
+        .message-option.edit:hover {
+            color: #00a884;
+        }
+        
+        .message-option.delete:hover {
+            color: #f15c6d;
+        }
+        
+        .edited-indicator {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.6);
+            margin-left: 6px;
+            font-style: italic;
+        }
+        
+        .message.deleted .message-content {
+            font-style: italic;
+            color: rgba(255, 255, 255, 0.6);
+        }
     </style>
 </head>
 <body>
@@ -1210,10 +1311,10 @@
                     // Get profile picture URL
                     let profilePic;
                     if (isGroup) {
-                        profilePic = entity.picture ? `/uploads/group_images/${entity.picture}` : '/static/images/contact_logo.png';
+                        profilePic = entity.picture ? `/uploads/group_images/${entity.picture}` : '/static/images/logo_icon.png';
                     } else {
                         // For direct chats, use the same logic as contact list
-                        profilePic = entity.profile_picture ? `/uploads/profile_photos/${entity.profile_picture}` : '/static/images/contact_logo.png';
+                        profilePic = entity.profile_picture ? `/uploads/profile_photos/${entity.profile_picture}` : '/static/images/logo_icon.png';
                         
                         // If no profile picture in entity, fetch it from the API
                         if (!entity.profile_picture) {
@@ -1250,7 +1351,7 @@
 
                     chatHeader.innerHTML = `
                         <div class="profile-pic" style="cursor: pointer;">
-                            <img src="${profilePic}" alt="${isGroup ? entity.name : (entity.username || entity)}" onerror="this.src='/static/images/contact_logo.png'">
+                            <img src="${profilePic}" alt="${isGroup ? entity.name : (entity.username || entity)}" onerror="this.src='/static/images/logo_icon.png'">
                         </div>
                         <div class="chat-header-info" style="cursor: pointer;">
                             <div class="chat-header-name">${isGroup ? entity.name : (entity.username || entity)}</div>
@@ -1364,6 +1465,11 @@
                     
                     chatBody.appendChild(messageElement);
                     chatBody.scrollTop = chatBody.scrollHeight;
+                    
+                    // If this is not from current user, we should mark it as read
+                    if (!isFromCurrentUser) {
+                        markMessageAsRead(data.group_id, 'group', messageId);
+                    }
                 } else {
                     showNotification(`New message in group: ${data.message}`);
                 }
@@ -1378,6 +1484,11 @@
                 
                 chatBody.appendChild(messageElement);
                 chatBody.scrollTop = chatBody.scrollHeight;
+                
+                // If this is not from current user, we should mark it as read
+                if (!isFromCurrentUser) {
+                    markMessageAsRead(data.sender_id, 'direct', messageId);
+                }
             }
         });
 
@@ -1402,6 +1513,87 @@
                     window.onlineUsers.delete(data.user_id);
                 }
                 updateUserStatus(data.user_id, data.status === 'online');
+            });
+            
+            // Add message_status event listener to update read receipts
+            socket.on('message_status', function(data) {
+                console.log('Received message status update:', data);
+                
+                try {
+                    // First try to find the message element by ID
+                    const messageElement = document.querySelector(`.message[data-message-id="${data.message_id}"]`);
+                    if (messageElement) {
+                        console.log('Found message element for ID:', data.message_id);
+                        // Find the status indicator element within the message
+                        const statusIndicator = messageElement.querySelector('.message-status-indicator');
+                        if (statusIndicator) {
+                            console.log('Updating status indicator from unread to read');
+                            // Update the status class
+                            statusIndicator.classList.remove('unread');
+                            statusIndicator.classList.add(data.status);
+                        } else {
+                            console.warn('Status indicator not found in message element');
+                        }
+                    } else {
+                        // If message element not found, try to find just the status indicator
+                        console.log('Message element not found, trying to find status indicator directly');
+                        const statusIndicator = document.querySelector(`.message-status-indicator[data-message-id="${data.message_id}"]`);
+                        if (statusIndicator) {
+                            console.log('Found status indicator directly, updating status');
+                            statusIndicator.classList.remove('unread');
+                            statusIndicator.classList.add(data.status);
+                        } else {
+                            console.warn('No message or status indicator found for ID:', data.message_id);
+                            
+                            // As a fallback, update all unread indicators in sent messages
+                            if (data.status === 'read') {
+                                console.log('Fallback: Updating all unread indicators in the chat');
+                                const sentMessages = document.querySelectorAll('.message.sent');
+                                sentMessages.forEach(msg => {
+                                    const indicator = msg.querySelector('.message-status-indicator.unread');
+                                    if (indicator) {
+                                        indicator.classList.remove('unread');
+                                        indicator.classList.add('read');
+                                    }
+                                });
+                            }
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error updating message status:', error);
+                }
+            });
+        }
+        
+        // Helper function to mark a message as read
+        function markMessageAsRead(chatId, chatType, messageId) {
+            console.log('Marking message as read:', messageId, 'in chat:', chatId, 'type:', chatType);
+            
+            // Send read receipt for this specific message
+            socket.emit('update_message_status', {
+                message_id: messageId,
+                status: 'read',
+                chat_id: chatId,
+                chat_type: chatType
+            });
+            
+            // Also mark all messages in this chat as read (batch update)
+            fetch('/chat/mark_messages_read', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    chat_id: chatId,
+                    chat_type: chatType
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('All messages marked as read:', data);
+            })
+            .catch(error => {
+                console.error('Error marking messages as read:', error);
             });
         }
         
@@ -1606,7 +1798,7 @@
             });
         }
 
-        // Modify the startChatWithContact function to include event listeners
+        // Function to start a chat with a contact
         function startChatWithContact(contactId, displayName) {
             console.log('Starting chat with contact:', contactId, displayName);
             
@@ -1661,6 +1853,9 @@
             if (contactElement) {
                 contactElement.classList.add('contact-active');
             }
+            
+            // Mark all messages in this chat as read
+            markAllMessagesAsRead(contactId, 'direct');
         }
 
         // Helper function for Enter key press
@@ -1805,17 +2000,19 @@
             // Get message from the input
             const messageInput = document.querySelector('.message-input');
             if (messageInput) {
-                const message = messageInput.value.trim();
+            const message = messageInput.value.trim();
                 
                 // Don't send empty messages
                 if (!message) return;
-                
-                // Clear input
-                messageInput.value = '';
-                
+            
+            // Clear input
+            messageInput.value = '';
+            
                 // Create message ID and timestamp
-                const messageId = Date.now().toString() + Math.floor(Math.random() * 1000);
+                const messageId = `msg_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
                 const timestamp = new Date().toISOString();
+                
+                console.log('Sending message with ID:', messageId);
                 
                 // Create new message element
                 const chatBody = document.querySelector('.chat-body');
@@ -1833,7 +2030,7 @@
                     <div class="message-content">${message}</div>
                     <div class="message-meta">
                         <span class="message-timestamp">${formatMessageTimestamp(timestamp, true)}</span>
-                        ${isSent ? '<span class="message-status-indicator unread"></span>' : ''}
+                        ${isSent ? `<span class="message-status-indicator unread" data-message-id="${messageId}"></span>` : ''}
                     </div>
                 `;
                 
@@ -2956,25 +3153,10 @@
         
         // Function to load a group chat
         function loadGroupChat(groupId) {
-            console.log('Loading group chat with ID:', groupId);
+            console.log('Loading group chat:', groupId);
             
-            // Important: Completely reset any ongoing chat first
+            // Important: Completely reset the chat state first
             window.currentChat = null;
-            
-            // Leave any current chat room first
-            if (window.currentChat) {
-                if (window.currentChat.type === 'direct') {
-                    socket.emit('leave', { room: window.currentChat.id });
-                } else if (window.currentChat.type === 'group') {
-                    socket.emit('leave', { room: `group_${window.currentChat.id}` });
-                }
-            }
-            
-            // Show chat interface
-            const chatInterface = document.querySelector('.chat-interface');
-            if (chatInterface) {
-                chatInterface.style.display = 'flex';
-            }
             
             // Clear chat display
             const chatBody = document.querySelector('.chat-body');
@@ -2982,142 +3164,87 @@
                 chatBody.innerHTML = '<div class="loading-message" style="align-self: center; padding: 10px;">Loading group chat...</div>';
             }
             
-            // First, get the group info
+            // Get group info from server
             fetch(`/chat/group/${groupId}`)
                 .then(response => {
                     if (!response.ok) {
-                        throw new Error('Failed to load group info');
+                        throw new Error(`Failed to load group: ${response.statusText}`);
                     }
                     return response.json();
                 })
-                .then(group => {
-                    console.log('Group info loaded:', group);
-                    console.log('Group members array:', group.members);
-                    console.log('Group members count:', group.member_count);
+                .then(groupInfo => {
+                    console.log('Group info:', groupInfo);
                     
-                    // Check if members are available
-                    if (group.members && group.members.length > 0) {
-                        console.log('Found ' + group.members.length + ' members in the group data');
-                        console.log('First few members:', group.members.slice(0, 3));
-                    } else {
-                        console.warn('No members array found in the group data, or it is empty');
-                    }
-                    
-                    // IMPORTANT: Force set the chat type to group right here
+                    // Update current chat info
                     window.currentChat = {
-                        id: Number(groupId),  // Ensure it's a number
+                        id: groupInfo.id,
                         type: 'group',
-                        name: group.name,
-                        entity: group
+                        name: groupInfo.name,
+                        admin_id: groupInfo.admin_id,
+                        is_admin: groupInfo.is_admin
                     };
                     
-                    console.log('Current chat set to:', window.currentChat);
+                    console.log('Current chat set to group:', window.currentChat);
                     
-                    // Test if members data is received correctly
-                    if (group.members && group.members.length > 0) {
-                        const memberNames = group.members.map(member => member.username).join(', ');
-                        // showNotification(`Group members: ${memberNames}`, 'info', 5000); // Removed as per request
-                    } else {
-                        // showNotification(`Group has ${group.member_count} members, but member details are not available.`, 'warning', 5000); // Removed as per request
-                    }
+                    // Store as last active chat
+                    storeLastActiveChat(groupInfo.id, 'group', groupInfo.name);
                     
-                    // Store the last active chat
-                    storeLastActiveChat(groupId, 'group', group.name);
-                    
-                    // Update the chat header with group info
-                    updateChatHeader(group, true);
-                    
-                    // Force refresh header after a short delay to ensure members are shown
-                    setTimeout(() => {
-                        const chatHeader = document.querySelector('.chat-header');
-                        if (chatHeader && group.members && group.members.length > 0) {
-                            const memberNamesList = group.members.map(member => member.username).join(', ');
-                            const statusElement = chatHeader.querySelector('.chat-header-status');
-                            if (statusElement) {
-                                statusElement.textContent = memberNamesList;
-                                console.log('Directly updated header status with member names:', memberNamesList);
-                            }
-                        }
-                    }, 3000);
-                    
-                    // Join the group's Socket.IO room
-                    const roomName = `group_${groupId}`;
-                    console.log('Joining room:', roomName);
-                    socket.emit('join', { room: roomName });
+                    // Update chat header
+                    updateChatHeader(groupInfo, true);
                     
                     // Load group messages
-                    return fetch(`/chat/get_group_messages/${groupId}`)
-                        .then(response => {
-                            if (!response.ok) {
-                                throw new Error('Failed to load messages');
-                            }
-                            return response.json();
-                        })
-                        .then(messages => {
-                            // Clear loading message
-                            chatBody.innerHTML = '';
-                            
-                            // Display messages
-                            messages.forEach(msg => {
-                                const isFromCurrentUser = msg[0] == document.documentElement.getAttribute('data-user-id');
-                                const messageElement = document.createElement('div');
-                                messageElement.className = isFromCurrentUser ? 'message sent' : 'message received';
-                                
-                                const senderName = !isFromCurrentUser ? 
-                                    `<div class="message-sender" style="font-size: 12px; color: #00a884; margin-bottom: 2px;">${msg[1]}</div>` : '';
-                                
-                                messageElement.innerHTML = `
-                                    ${senderName}
-                                    <div class="message-content">${msg[2]}</div>
-                                    <div class="message-meta">
-                                        <span class="message-timestamp">${formatMessageTimestamp(msg[3], true)}</span>
-                                        ${isFromCurrentUser ? '<span class="message-status-indicator unread"></span>' : ''}
-                                    </div>
-                                `;
-                                
-                                chatBody.appendChild(messageElement);
-                            });
-                            
-                            // Scroll to bottom
-                            chatBody.scrollTop = chatBody.scrollHeight;
-                        });
-                })
-                .then(() => {
-                    // Set up message input event listeners
-                    const messageInput = document.getElementById('message-input');
-                    const sendButton = document.getElementById('send-message');
+                    loadGroupMessages(groupId);
                     
-                    if (messageInput) {
-                        // Remove existing listeners first to avoid duplicates
-                        messageInput.removeEventListener('keypress', handleEnterPress);
-                        // Add new listener
-                        messageInput.addEventListener('keypress', handleEnterPress);
-                        // Clear any existing message
-                        messageInput.value = '';
-                        // Update placeholder
-                        messageInput.placeholder = 'Type a message to the group...';
+                    // Show chat interface
+                    const chatInterface = document.querySelector('.chat-interface');
+                    if (chatInterface) {
+                        chatInterface.style.display = 'flex';
                     }
-                    
-                    if (sendButton) {
-                        // Remove existing listener first to avoid duplicates
-                        sendButton.removeEventListener('click', sendMessage);
-                        // Add new listener
-                        sendButton.addEventListener('click', sendMessage);
-                    }
-                    
-                    // Highlight the active group in the list
-                    document.querySelectorAll('.contact').forEach(c => c.classList.remove('contact-active'));
-                    const groupElement = document.querySelector(`.contact[data-group-id="${groupId}"]`);
+
+                    // Highlight active group in list
+                    document.querySelectorAll('.group-item').forEach(g => g.classList.remove('group-active'));
+                    const groupElement = document.querySelector(`.group-item[data-group-id="${groupId}"]`);
                     if (groupElement) {
-                        groupElement.classList.add('contact-active');
+                        groupElement.classList.add('group-active');
                     }
+                    
+                    // Mark all messages in this group as read
+                    markAllMessagesAsRead(groupId, 'group');
                 })
                 .catch(error => {
-                    console.error('Error loading group chat:', error);
-                    showNotification('Failed to load group chat', 'error');
+                    console.error('Error loading group:', error);
                     if (chatBody) {
-                        chatBody.innerHTML = '<div class="error-message" style="color: #ff6b6b; text-align: center; padding: 20px;">Failed to load messages. Please try again.</div>';
+                        chatBody.innerHTML = `<div class="error-message" style="align-self: center; padding: 10px; color: #f44336;">Error loading group: ${error.message}</div>`;
                     }
+                });
+        }
+        
+        // Function to mark all messages in a chat as read
+        function markAllMessagesAsRead(chatId, chatType) {
+            console.log('Marking all messages as read in chat:', chatId, 'type:', chatType);
+            
+            fetch('/chat/mark_messages_read', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    chat_id: chatId,
+                    chat_type: chatType
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                console.log('All messages marked as read:', data);
+                
+                // Update UI to show messages as read
+                document.querySelectorAll('.message-status-indicator.unread').forEach(indicator => {
+                    indicator.classList.remove('unread');
+                    indicator.classList.add('read');
+                });
+                })
+                .catch(error => {
+                console.error('Error marking all messages as read:', error);
                 });
         }
         
@@ -3144,10 +3271,10 @@
             // Get profile picture URL
             let profilePic;
             if (isGroup) {
-                profilePic = entity.picture ? `/uploads/group_images/${entity.picture}` : '/static/images/contact_logo.png';
+                profilePic = entity.picture ? `/uploads/group_images/${entity.picture}` : '/static/images/logo_icon.png';
             } else {
                 // For direct chats, use the same logic as contact list
-                profilePic = entity.profile_picture ? `/uploads/profile_photos/${entity.profile_picture}` : '/static/images/contact_logo.png';
+                profilePic = entity.profile_picture ? `/uploads/profile_photos/${entity.profile_picture}` : '/static/images/logo_icon.png';
                 
                 // If no profile picture in entity, fetch it from the API
                 if (!entity.profile_picture) {
@@ -3184,7 +3311,7 @@
 
             chatHeader.innerHTML = `
                 <div class="profile-pic" style="cursor: pointer;">
-                    <img src="${profilePic}" alt="${isGroup ? entity.name : (entity.username || entity)}" onerror="this.src='/static/images/contact_logo.png'">
+                    <img src="${profilePic}" alt="${isGroup ? entity.name : (entity.username || entity)}" onerror="this.src='/static/images/logo_icon.png'">
                         </div>
                 <div class="chat-header-info" style="cursor: pointer;">
                     <div class="chat-header-name">${isGroup ? entity.name : (entity.username || entity)}</div>
@@ -3202,59 +3329,59 @@
             const backButton = document.getElementById('back-to-group-info');
             if (backButton) {
                 backButton.addEventListener('click', function() {
-                    if (window.originalSidebarState) {
-                        sidebarContent.innerHTML = window.originalSidebarState;
-                    } else {
-                        showGroupsView();
-                    }
-                });
+                if (window.originalSidebarState) {
+                    sidebarContent.innerHTML = window.originalSidebarState;
+                } else {
+                    showGroupsView();
+                }
+            });
             }
             
             // Add event listener for add members button - ONLY if the element exists
             const addMembersButton = document.getElementById('add-selected-members');
             if (addMembersButton) {
                 addMembersButton.addEventListener('click', function() {
-                    if (selectedMembers.size > 0) {
-                        const memberIds = Array.from(selectedMembers.keys());
-                        
-                        // Send request to add members
-                        Promise.all(memberIds.map(userId => 
-                            fetch('/chat/add_to_group', {
-                                method: 'POST',
-                                headers: {
-                                    'Content-Type': 'application/json'
-                                },
-                                body: JSON.stringify({
-                                    group_id: groupId,
-                                    user_id: userId
-                                })
+                if (selectedMembers.size > 0) {
+                    const memberIds = Array.from(selectedMembers.keys());
+                    
+                    // Send request to add members
+                    Promise.all(memberIds.map(userId => 
+                        fetch('/chat/add_to_group', {
+                            method: 'POST',
+                            headers: {
+                                'Content-Type': 'application/json'
+                            },
+                            body: JSON.stringify({
+                                group_id: groupId,
+                                user_id: userId
                             })
-                            .then(response => {
-                                if (!response.ok) {
-                                    throw new Error('Network response was not ok');
-                                }
-                                return response.json();
-                            })
-                        ))
-                        .then(() => {
-                            showNotification('Members added successfully', 'success');
-                            // Close the add members view
-                            if (window.originalSidebarState) {
-                                sidebarContent.innerHTML = window.originalSidebarState;
-                            } else {
-                                showGroupsView();
-                            }
-                            // Refresh the group info
-                            loadGroupChat(groupId);
                         })
-                        .catch(error => {
-                            showNotification('Error adding members: ' + error.message, 'error');
-                            console.error('Error:', error);
-                        });
-                    } else {
-                        showNotification('Please select at least one contact', 'warning');
-                    }
-                });
+                        .then(response => {
+                            if (!response.ok) {
+                                throw new Error('Network response was not ok');
+                            }
+                            return response.json();
+                        })
+                    ))
+                    .then(() => {
+                        showNotification('Members added successfully', 'success');
+                        // Close the add members view
+                        if (window.originalSidebarState) {
+                            sidebarContent.innerHTML = window.originalSidebarState;
+                        } else {
+                            showGroupsView();
+                        }
+                        // Refresh the group info
+                        loadGroupChat(groupId);
+                    })
+                    .catch(error => {
+                        showNotification('Error adding members: ' + error.message, 'error');
+                        console.error('Error:', error);
+                    });
+                } else {
+                    showNotification('Please select at least one contact', 'warning');
+                }
+            });
             }
             
             // Only load contacts for group creation if it's actually a group
@@ -5086,123 +5213,139 @@
         }
         
         function setupMessageOptions(messageElement) {
-            console.log('Setting up message options for element:', messageElement);
+            if (!messageElement) return;
+            
             const messageContent = messageElement.querySelector('.message-content');
+            if (!messageContent) return;
+            
             const timestamp = messageElement.getAttribute('data-timestamp');
             const isSent = messageElement.classList.contains('sent');
             
-            console.log('Message details:', {
-                hasContent: !!messageContent,
-                timestamp: timestamp,
-                isSent: isSent
-            });
+            // Only setup options for sent messages (messages by the current user)
+            if (!isSent) return;
             
-            if (!isSent) {
-                console.log('Message is not sent by current user, skipping options setup');
-                return;
-            }
+            // Remove any existing menu components
+            const existingDots = messageElement.querySelector('.message-menu-dots');
+            if (existingDots) existingDots.remove();
             
+            const existingOptions = messageElement.querySelector('.message-options');
+            if (existingOptions) existingOptions.remove();
+            
+            // Create three dots menu button
+            const menuDotsButton = document.createElement('div');
+            menuDotsButton.className = 'message-menu-dots';
+            menuDotsButton.innerHTML = '<i class="fas fa-ellipsis-v"></i>';
+            messageElement.appendChild(menuDotsButton);
+            
+            // Create options dropdown
             const optionsDiv = document.createElement('div');
             optionsDiv.className = 'message-options';
             
             const editButton = document.createElement('div');
             editButton.className = 'message-option edit';
-            editButton.innerHTML = '<i class="fas fa-edit"></i>';
-            editButton.title = 'Edit message';
+            editButton.innerHTML = '<i class="fas fa-edit"></i> Edit';
             
             const deleteButton = document.createElement('div');
             deleteButton.className = 'message-option delete';
-            deleteButton.innerHTML = '<i class="fas fa-trash"></i>';
-            deleteButton.title = 'Delete message';
+            deleteButton.innerHTML = '<i class="fas fa-trash"></i> Delete';
             
             optionsDiv.appendChild(editButton);
             optionsDiv.appendChild(deleteButton);
             messageElement.appendChild(optionsDiv);
             
-            // Handle double click
-            messageElement.addEventListener('dblclick', (e) => {
-                console.log('Double click event triggered');
+            // Toggle dropdown on three dots click
+            menuDotsButton.addEventListener('click', (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 
-                console.log('Message double-clicked:', {
-                    messageId: messageElement.getAttribute('data-message-id'),
-                    content: messageContent.textContent,
-                    timestamp: messageElement.getAttribute('data-timestamp'),
-                    isSent: messageElement.classList.contains('sent')
-                });
-                
-                // Hide any other visible options
-                document.querySelectorAll('.message-options.visible').forEach(el => {
+                // Hide any other visible options first
+                document.querySelectorAll('.message-options').forEach(el => {
                     if (el !== optionsDiv) {
-                        el.classList.remove('visible');
+                        el.style.display = 'none';
                     }
                 });
                 
                 // Toggle current options
-                optionsDiv.classList.toggle('visible');
-                console.log('Options visibility toggled:', optionsDiv.classList.contains('visible'));
+                optionsDiv.style.display = optionsDiv.style.display === 'flex' ? 'none' : 'flex';
             });
             
             // Hide options when clicking outside
             document.addEventListener('click', (e) => {
                 if (!messageElement.contains(e.target)) {
-                    optionsDiv.classList.remove('visible');
+                    optionsDiv.style.display = 'none';
                 }
             });
             
-            // Handle edit
+            // Handle edit button click
             editButton.addEventListener('click', (e) => {
-                console.log('Edit button clicked');
                 e.stopPropagation();
+                
                 if (!canEditMessage(timestamp)) {
                     alert('Message can only be edited within 5 minutes of sending');
                     return;
                 }
                 
                 const messageInput = document.getElementById('message-input');
-                messageInput.value = messageContent.textContent;
-                messageInput.focus();
-                
-                // Store the message ID for editing
-                messageInput.setAttribute('data-editing-message-id', messageElement.getAttribute('data-message-id'));
-                optionsDiv.classList.remove('visible');
+                if (messageInput) {
+                    messageInput.value = messageContent.textContent;
+                    messageInput.focus();
+                    
+                    // Store the message ID for editing
+                    messageInput.setAttribute('data-editing-message-id', messageElement.getAttribute('data-message-id'));
+                    optionsDiv.style.display = 'none';
+                }
             });
             
-            // Handle delete
+            // Handle delete button click
             deleteButton.addEventListener('click', (e) => {
-                console.log('Delete button clicked');
                 e.stopPropagation();
+                
+                // Update UI to show the message as deleted
                 messageContent.textContent = 'This message was deleted';
                 messageElement.classList.add('deleted');
-                optionsDiv.remove();
                 
-                // Emit delete event to server
-                socket.emit('delete_message', {
-                    message_id: messageElement.getAttribute('data-message-id')
-                });
+                // Remove the message controls
+                optionsDiv.remove();
+                menuDotsButton.remove();
+                
+                // Determine chat type
+                const chatType = window.currentChat && window.currentChat.type ? window.currentChat.type : 'direct';
+                
+                // Prepare data for the delete event
+                const deleteData = {
+                    message_id: messageElement.getAttribute('data-message-id'),
+                    chat_type: chatType
+                };
+                
+                // Add group_id if in a group chat
+                if (chatType === 'group' && window.currentChat) {
+                    deleteData.group_id = window.currentChat.id;
+                }
+                
+                // Send delete message event to the server
+                socket.emit('delete_message', deleteData);
             });
         }
         
-        // Modify the message creation code to include timestamp
+        // Function to create a message element
         function createMessageElement(message, isSent, timestamp, messageId) {
-            console.log('Creating message element:', { message, isSent, timestamp, messageId });
             const messageElement = document.createElement('div');
             messageElement.className = isSent ? 'message sent' : 'message received';
-            messageElement.setAttribute('data-message-id', messageId);
-            messageElement.setAttribute('data-timestamp', timestamp);
+            messageElement.setAttribute('data-message-id', messageId || `msg_${Date.now()}`);
+            messageElement.setAttribute('data-timestamp', timestamp || Date.now());
             
             messageElement.innerHTML = `
                 <div class="message-content">${message}</div>
                 <div class="message-meta">
                     <span class="message-timestamp">${formatMessageTimestamp(timestamp, true)}</span>
-                    ${isSent ? '<span class="message-status-indicator unread"></span>' : ''}
+                    ${isSent ? `<span class="message-status-indicator unread" data-message-id="${messageId}"></span>` : ''}
                 </div>
             `;
             
+            // Only setup edit/delete options for messages sent by current user
             if (isSent) {
-                console.log('Setting up options for sent message');
-                setupMessageOptions(messageElement);
+                // Setup message options asynchronously to ensure DOM is ready
+                setTimeout(() => setupMessageOptions(messageElement), 0);
             }
             
             return messageElement;
@@ -5240,9 +5383,16 @@
                             editedSpan.textContent = 'edited';
                             existingMessage.querySelector('.message-timestamp').after(editedSpan);
                         }
+                        
+                        // Use edit_message socket event for editing
+                        socket.emit('edit_message', {
+                            message_id: editingMessageId,
+                            message: message,
+                            chat_type: 'group',
+                            group_id: window.currentChat.id
+                        });
+                        return; // Exit early since we've handled the edit
                     }
-                } else {
-                    // ... existing new message code ...
                 }
                 
                 socket.emit('send_message', {
@@ -5270,9 +5420,15 @@
                             editedSpan.textContent = 'edited';
                             existingMessage.querySelector('.message-timestamp').after(editedSpan);
                         }
+                        
+                        // Use edit_message socket event for editing
+                        socket.emit('edit_message', {
+                            message_id: editingMessageId,
+                            message: message,
+                            chat_type: 'direct'
+                        });
+                        return; // Exit early since we've handled the edit
                     }
-                } else {
-                    // ... existing new message code ...
                 }
                 
                 socket.emit('send_message', {
@@ -5289,178 +5445,6 @@
         // Add a diagnostic function to the debugging menu
         
         // ... existing code ...
-        // Function to show group info
-        function showGroupInfo(group) {
-            // Create a modal to display group info
-            const modal = document.createElement('div');
-            modal.className = 'modal';
-            modal.style.position = 'fixed';
-            modal.style.top = '0';
-            modal.style.left = '0';
-            modal.style.width = '100%';
-            modal.style.height = '100%';
-            modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-            modal.style.zIndex = '1000';
-            modal.style.display = 'flex';
-            modal.style.justifyContent = 'flex-end'; // Align to right side
-            modal.style.alignItems = 'stretch';
-            
-            // Group profile picture
-            const profilePic = group.picture ? `/uploads/group_images/${group.picture}` : '/api/placeholder/80/80';
-            
-            // Create side panel
-            const panel = document.createElement('div');
-            panel.className = 'group-info-panel';
-            panel.style.background = 'rgba(255, 255, 255, 0.85)'; // semi-transparent white
-            panel.style.width = '350px';
-            panel.style.maxWidth = '100%';
-            panel.style.position = 'fixed';
-            panel.style.right = '0';
-            panel.style.left = 'unset';
-            panel.style.top = '60px'; // height of .chat-header
-            panel.style.bottom = '60px'; // height of .chat-footer
-            panel.style.height = 'unset';
-            panel.style.overflowY = 'auto';
-            panel.style.transition = 'transform 0.3s ease';
-            panel.style.transform = 'translateX(100%)'; // Start offscreen
-            panel.style.borderRadius = '20px 0 0 20px';
-            panel.style.boxShadow = 'none';
-            panel.style.zIndex = '1100';
-            
-            // Check if user is admin
-            const isAdmin = group.is_admin || group.admin_id === parseInt(document.documentElement.getAttribute('data-user-id'));
-
-            panel.innerHTML = `
-                <div style="display: flex; align-items: center; padding: 15px; border-bottom: 1px solid #2a3942;">
-                    <div id="close-group-info" style="cursor: pointer; margin-right: 15px;">
-                        <svg viewBox="0 0 24 24" width="24" height="24">
-                            <path fill="currentColor" d="M19.8 11H7.5l5.6-5.6L11.7 4l-8 8 8 8 1.4-1.4L7.5 13h12.3v-2z"></path>
-                        </svg>
-                    </div>
-                    <h2 style="color: black; margin: 0; font-weight: bold;">Group Info</h2>
-                </div>
-                
-                <div style="padding: 20px; text-align: center; border-bottom: 1px solid #2a3942;">
-                    <div style="width: 150px; height: 150px; border-radius: 75px; overflow: hidden; margin: 0 auto 15px;">
-                        <img src="${profilePic}" alt="${group.name}" style="width: 100%; height: 100%; object-fit: cover;">
-                    </div>
-                    <h2 style="color: black; margin-bottom: 5px; font-weight: bold;">${group.name}</h2>
-                    <p style="color: #1a2a3a; margin-bottom: 0;">Group · ${group.member_count} members</p>
-                </div>
-                
-                ${group.description ? `
-                <div style="padding: 15px; border-bottom: 1px solid #2a3942;">
-                    <h3 style="color: black; margin-bottom: 10px; font-size: 16px; font-weight: bold;">Description</h3>
-                    <p style="color: black; margin: 0;">${group.description}</p>
-                </div>
-                ` : ''}
-                
-                ${isAdmin ? `
-                <div style="padding: 15px; border-bottom: 1px solid #2a3942;">
-                    <button id="add-members-btn" class="action-button" style="width: 160px; padding: 10px 0; background-color: #00a884; color: #fff; border: none; border-radius: 18px; cursor: pointer; font-size: 15px; font-weight: bold; margin: 0 auto 10px auto; display: block;">Add Members</button>
-                </div>
-                ` : ''}
-                
-                <div style="padding: 15px; border-bottom: 1px solid #2a3942;">
-                    <h3 style="color: black; margin-bottom: 10px; font-size: 16px; font-weight: bold;">Members</h3>
-                    <div id="group-members-list">
-                        ${group.members && group.members.length > 0 ? group.members.map(member => `
-                            <div class="group-member" data-user-id="${member.id}" style="display: flex; align-items: center; padding: 10px; border-bottom: 1px solid #2a3942; cursor: pointer;">
-                                <div style="width: 40px; height: 40px; border-radius: 20px; overflow: hidden; margin-right: 15px;">
-                                    <img src="${member.profile_picture ? `/uploads/profile_photos/${member.profile_picture}` : '/api/placeholder/40/40'}" alt="${member.username}" style="width: 100%; height: 100%; object-fit: cover;">
-                                </div>
-                                <div style="flex: 1;">
-                                    <div style="color: black; font-weight: 500;">${member.username}</div>
-                                    ${member.is_admin ? `<div style="color: #00a884; font-size: 12px; font-weight: bold;">Group Admin</div>` : ''}
-                                </div>
-                            </div>
-                        `).join('') : '<div style="text-align: center; color: #1a2a3a; padding: 10px;">No members found</div>'}
-                    </div>
-                </div>
-                
-                <div style="padding: 15px;">
-                    <div style="display: flex; justify-content: center; gap: 15px;">
-                        <button id="leave-group-btn" class="action-button" style="width: 140px; padding: 10px 0; background-color: #f15c6d; color: #fff; border: none; border-radius: 18px; cursor: pointer; font-size: 15px; font-weight: bold;">Leave Group</button>
-                        ${isAdmin ? `
-                        <button id="delete-group-btn" class="action-button" style="width: 140px; padding: 10px 0; background-color: #f15c6d; color: #fff; border: none; border-radius: 18px; cursor: pointer; font-size: 15px; font-weight: bold;">Delete Group</button>
-                        ` : ''}
-                    </div>
-                </div>
-            `;
-            
-            modal.appendChild(panel);
-            document.body.appendChild(modal);
-            
-            // Add a slight delay for animation effect
-            setTimeout(() => {
-                panel.style.transform = 'translateX(0)';
-            }, 10);
-            
-            // Close panel when button is clicked
-            document.getElementById('close-group-info').addEventListener('click', function() {
-                panel.style.transform = 'translateX(100%)';
-                setTimeout(() => {
-                    document.body.removeChild(modal);
-                }, 300);
-            });
-            
-            // Close panel when clicking outside
-            modal.addEventListener('click', function(e) {
-                if (e.target === modal) {
-                    panel.style.transform = 'translateX(100%)';
-                    setTimeout(() => {
-                        document.body.removeChild(modal);
-                    }, 300);
-                }
-            });
-            
-            // Add click event to members to view their profile
-            const memberElements = document.querySelectorAll('.group-member');
-            memberElements.forEach(element => {
-                element.addEventListener('click', function() {
-                    const userId = this.getAttribute('data-user-id');
-                    const member = group.members.find(m => m.id == userId);
-                    
-                    if (member) {
-                        // Close current panel first
-                        panel.style.transform = 'translateX(100%)';
-                        setTimeout(() => {
-                            document.body.removeChild(modal);
-                            // Show user profile
-                            showContactInfo(member);
-                        }, 300);
-                    }
-                });
-            });
-            
-            // Handle leave group action
-            document.getElementById('leave-group-btn').addEventListener('click', function() {
-                leaveGroup(group.id);
-            });
-
-            // Handle delete group action for admin
-            if (isAdmin && document.getElementById('delete-group-btn')) {
-                document.getElementById('delete-group-btn').addEventListener('click', function() {
-                    deleteGroup(group.id);
-                });
-            }
-
-            // Add members functionality (if admin)
-            const addMembersBtn = document.getElementById('add-members-btn');
-            if (addMembersBtn) {
-                addMembersBtn.addEventListener('click', function() {
-                    // Close the current panel
-                    panel.style.transform = 'translateX(100%)';
-                    setTimeout(() => {
-                        document.body.removeChild(modal);
-                        // Show add members view
-                        showAddGroupMembersView(group.id);
-                    }, 300);
-                });
-            }
-        }
-// ... existing code ...
-
         // Function to show group info
         function showGroupInfo(group) {
             // Create a modal to display group info
@@ -5691,6 +5675,157 @@
         }
 
         // ... existing code ...
+
+        // Function to load group messages
+        function loadGroupMessages(groupId) {
+            const chatBody = document.querySelector('.chat-body');
+            if (!chatBody) return;
+            
+            // Show loading message
+            chatBody.innerHTML = '<div class="loading-message" style="align-self: center; padding: 10px;">Loading messages...</div>';
+            
+            // Join the group's Socket.IO room
+            const roomName = `group_${groupId}`;
+            console.log('Joining room:', roomName);
+            socket.emit('join', { room: roomName });
+            
+            // Load messages from server
+            fetch(`/chat/get_group_messages/${groupId}`)
+                .then(response => {
+                    if (!response.ok) {
+                        throw new Error('Failed to load messages');
+                    }
+                    return response.json();
+                })
+                .then(messages => {
+                    // Clear loading message
+                    chatBody.innerHTML = '';
+                    
+                    // If no messages, show welcome message
+                    if (messages.length === 0) {
+                        const welcomeElement = document.createElement('div');
+                        welcomeElement.className = 'message system';
+                        welcomeElement.style.alignSelf = 'center';
+                        welcomeElement.style.backgroundColor = '#202c33';
+                        welcomeElement.style.padding = '10px 15px';
+                        welcomeElement.style.borderRadius = '8px';
+                        welcomeElement.style.color = '#e9edef';
+                        welcomeElement.textContent = `Start chatting in this group`;
+                        chatBody.appendChild(welcomeElement);
+                        return;
+                    }
+                    
+                    // Track date for separators
+                    let lastMessageDate = null;
+                    
+                    // Display messages
+                    messages.forEach(msg => {
+                        const senderId = msg[0];
+                        const senderUsername = msg[1];
+                        const messageText = msg[2];
+                        const timestamp = msg[3];
+                        
+                        const isFromCurrentUser = senderId == document.documentElement.getAttribute('data-user-id');
+                        const messageDate = new Date(timestamp);
+                        
+                        // Add date separator if needed
+                        if (!lastMessageDate || lastMessageDate.toDateString() !== messageDate.toDateString()) {
+                            const dateSeparator = document.createElement('div');
+                            dateSeparator.className = 'date-separator';
+                            dateSeparator.textContent = formatDateSeparator(messageDate);
+                            chatBody.appendChild(dateSeparator);
+                            lastMessageDate = messageDate;
+                        }
+                        
+                        // Generate a message ID for tracking
+                        const messageId = `history_group_${groupId}_${senderId}_${timestamp.replace(/[^0-9]/g, '')}`;
+                        
+                        const messageElement = document.createElement('div');
+                        messageElement.className = isFromCurrentUser ? 'message sent' : 'message received';
+                        messageElement.setAttribute('data-message-id', messageId);
+                        messageElement.setAttribute('data-timestamp', timestamp);
+                        
+                        if (!isFromCurrentUser) {
+                            const senderName = document.createElement('div');
+                            senderName.className = 'message-sender';
+                            senderName.style.fontSize = '12px';
+                            senderName.style.color = '#00a884';
+                            senderName.style.marginBottom = '2px';
+                            senderName.textContent = senderUsername;
+                            messageElement.appendChild(senderName);
+                        }
+                        
+                        messageElement.innerHTML += `
+                            <div class="message-content">${messageText}</div>
+                            <div class="message-meta">
+                                <span class="message-timestamp">${formatMessageTimestamp(timestamp, true)}</span>
+                                ${isFromCurrentUser ? '<span class="message-status-indicator unread"></span>' : ''}
+                            </div>
+                        `;
+                        
+                        chatBody.appendChild(messageElement);
+                    });
+                    
+                    // Scroll to bottom
+                    chatBody.scrollTop = chatBody.scrollHeight;
+                    
+                    // Set up message input event listeners
+                    const messageInput = document.querySelector('.message-input');
+                    if (messageInput) {
+                        messageInput.placeholder = 'Type a message to the group...';
+                    }
+                })
+                .catch(error => {
+                    console.error('Error loading group messages:', error);
+                    chatBody.innerHTML = '<div class="error-message" style="color: #ff6b6b; text-align: center; padding: 20px;">Failed to load messages. Please try again.</div>';
+                });
+        }
+
+        // Listen for message edited events
+        socket.on('message_edited', (data) => {
+            console.log('Message edited:', data);
+            
+            const messageElement = document.querySelector(`[data-message-id="${data.message_id}"]`);
+            if (messageElement) {
+                const contentDiv = messageElement.querySelector('.message-content');
+                contentDiv.textContent = data.new_message;
+                
+                // Add edited indicator if not already present
+                if (!messageElement.querySelector('.edited-indicator')) {
+                    const editedSpan = document.createElement('span');
+                    editedSpan.className = 'edited-indicator';
+                    editedSpan.textContent = 'edited';
+                    messageElement.querySelector('.message-timestamp').after(editedSpan);
+                }
+            }
+        });
+        
+        // Listen for message deleted events
+        socket.on('message_deleted', (data) => {
+            if (!data || !data.message_id) return;
+            
+            const messageElement = document.querySelector(`[data-message-id="${data.message_id}"]`);
+            if (messageElement) {
+                // Update UI to reflect deleted state
+                const contentDiv = messageElement.querySelector('.message-content');
+                if (contentDiv) {
+                    contentDiv.textContent = 'This message was deleted';
+                }
+                
+                messageElement.classList.add('deleted');
+                
+                // Remove message controls
+                const optionsDiv = messageElement.querySelector('.message-options');
+                if (optionsDiv) {
+                    optionsDiv.remove();
+                }
+                
+                const menuDotsButton = messageElement.querySelector('.message-menu-dots');
+                if (menuDotsButton) {
+                    menuDotsButton.remove();
+                }
+            }
+        });
     </script>
 </body>
 </html>
