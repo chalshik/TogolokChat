@@ -4176,26 +4176,255 @@
 
         // Function to format timestamp
         function formatMessageTimestamp(timestamp, isNewMessage = false) {
-            // Parse ISO format timestamp
             const messageDate = new Date(timestamp);
+            const now = new Date();
             
             // Format time in 24-hour format
-            return messageDate.toLocaleTimeString([], {
+            const time = messageDate.toLocaleTimeString([], {
                 hour: '2-digit',
                 minute: '2-digit',
                 hour12: false
             });
+            
+            return time;
         }
 
         function formatDateSeparator(date) {
-            // Parse ISO format timestamp
             const messageDate = new Date(date);
+            const today = new Date();
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
             
+            // If the message is from today
+            if (messageDate.toDateString() === today.toDateString()) {
+                return 'Today';
+            }
+            
+            // If the message is from yesterday
+            if (messageDate.toDateString() === yesterday.toDateString()) {
+                return 'Yesterday';
+            }
+            
+            // If the message is from this year
+            if (messageDate.getFullYear() === today.getFullYear()) {
+                return messageDate.toLocaleDateString([], {
+                    month: 'long',
+                    day: 'numeric'
+                });
+            }
+            
+            // If the message is from a different year
             return messageDate.toLocaleDateString([], {
                 month: 'long',
                 day: 'numeric',
                 year: 'numeric'
             });
+        }
+
+        // Function to add or update date separator
+        function addOrUpdateDateSeparator(chatBody, messageDate) {
+            const today = new Date();
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+            
+            // Find existing date separators
+            const dateSeparators = chatBody.querySelectorAll('.date-separator');
+            let needNewSeparator = true;
+            
+            // Check if we already have a separator for this date
+            for (const separator of dateSeparators) {
+                const separatorDate = new Date(separator.getAttribute('data-date'));
+                if (separatorDate.toDateString() === messageDate.toDateString()) {
+                    needNewSeparator = false;
+                    break;
+                }
+            }
+            
+            if (needNewSeparator) {
+                const dateSeparator = document.createElement('div');
+                dateSeparator.className = 'date-separator';
+                dateSeparator.setAttribute('data-date', messageDate.toISOString());
+                dateSeparator.textContent = formatDateSeparator(messageDate);
+                
+                // Find the right position to insert the separator
+                let insertPosition = null;
+                const messages = chatBody.querySelectorAll('.message');
+                
+                for (const message of messages) {
+                    const msgDate = new Date(message.getAttribute('data-timestamp'));
+                    if (msgDate > messageDate) {
+                        insertPosition = message;
+                        break;
+                    }
+                }
+                
+                if (insertPosition) {
+                    chatBody.insertBefore(dateSeparator, insertPosition);
+                } else {
+                    chatBody.appendChild(dateSeparator);
+                }
+                
+                return dateSeparator;
+            }
+            
+            return null;
+        }
+
+        // Update the addMessageToChat function to use the new date separator logic
+        function addMessageToChat(messageData, isGroup = false) {
+            const chatBody = document.querySelector('.chat-body');
+            if (!chatBody) return;
+
+            const timestamp = messageData.timestamp || Date.now();
+            const messageDate = new Date(timestamp);
+            
+            // Add or update date separator
+            addOrUpdateDateSeparator(chatBody, messageDate);
+            
+            const isFromCurrentUser = messageData.sender_id.toString() === document.documentElement.getAttribute('data-user-id');
+            const formattedTime = formatMessageTimestamp(timestamp);
+            
+            // Generate message ID
+            const messageId = isGroup ? 
+                `group_${messageData.group_id}_${messageData.sender_id}_${timestamp}_${messageData.message.substring(0, 10).replace(/\s/g, '')}` :
+                `direct_${messageData.sender_id}_${timestamp}_${messageData.message.substring(0, 10).replace(/\s/g, '')}`;
+            
+            const messageElement = document.createElement('div');
+            messageElement.className = isFromCurrentUser ? 'message sent' : 'message received';
+            messageElement.setAttribute('data-message-id', messageId);
+            messageElement.setAttribute('data-timestamp', timestamp);
+            
+            if (isGroup && !isFromCurrentUser) {
+                const profilePicUrl = messageData.sender_profile_picture || '/api/placeholder/32/32';
+                messageElement.innerHTML = `
+                    <div class="message-avatar">
+                        <img src="${profilePicUrl}" alt="${messageData.sender_username}" width="32" height="32">
+                    </div>
+                    <div class="message-bubble">
+                        <div class="message-sender" style="font-size: 12px; color: #00a884; margin-bottom: 2px;">${messageData.sender_username}</div>
+                        <div class="message-content">${messageData.message}</div>
+                        <div class="message-meta">
+                            <span class="message-timestamp">${formattedTime}</span>
+                        </div>
+                    </div>
+                `;
+            } else {
+                messageElement.innerHTML = `
+                    <div class="message-content">${messageData.message}</div>
+                    <div class="message-meta">
+                        <span class="message-timestamp">${formattedTime}</span>
+                    </div>
+                `;
+            }
+            
+            chatBody.appendChild(messageElement);
+            chatBody.scrollTop = chatBody.scrollHeight;
+        }
+
+        // Update the loadGroupMessages function to use the new date separator logic
+        function loadGroupMessages(groupId) {
+            const chatBody = document.querySelector('.chat-body');
+            chatBody.innerHTML = '';
+            
+            // Show loading indicator
+            const loadingElement = document.createElement('div');
+            loadingElement.className = 'message';
+            loadingElement.style.alignSelf = 'center';
+            loadingElement.textContent = 'Loading messages...';
+            chatBody.appendChild(loadingElement);
+            
+            // Fetch messages for this group
+            fetch(`/chat/get_group_messages/${groupId}`)
+                .then(response => response.json())
+                .then(messages => {
+                    // Remove loading indicator
+                    chatBody.innerHTML = '';
+                    
+                    if (messages.length === 0) {
+                        const welcomeElement = document.createElement('div');
+                        welcomeElement.className = 'message';
+                        welcomeElement.style.alignSelf = 'center';
+                        welcomeElement.style.backgroundColor = '#202c33';
+                        welcomeElement.style.padding = '10px 15px';
+                        welcomeElement.style.borderRadius = '8px';
+                        welcomeElement.style.color = '#e9edef';
+                        welcomeElement.textContent = `No messages yet in this group. Be the first to say hello!`;
+                        chatBody.appendChild(welcomeElement);
+                        return;
+                    }
+                    
+                    // Display each message
+                    messages.forEach(msg => {
+                        const [senderId, senderUsername, msgContent, timestamp, profilePic] = msg;
+                        const messageDate = new Date(timestamp);
+                        
+                        // Add or update date separator
+                        addOrUpdateDateSeparator(chatBody, messageDate);
+                        
+                        // Format the timestamp for the message
+                        const formattedTime = formatMessageTimestamp(timestamp);
+                        
+                        // Check if this is a sent or received message
+                        const currentUserId = document.documentElement.getAttribute('data-user-id');
+                        const isSent = senderId.toString() === currentUserId;
+                        
+                        // Get profile picture URL
+                        const profilePicUrl = profilePic ? `/uploads/profile_photos/${profilePic}` : '/api/placeholder/32/32';
+                        
+                        // Generate a stable message ID
+                        const messageId = `group_${groupId}_${senderId}_${timestamp.replace(/[^0-9]/g, '')}_${msgContent.substring(0, 10).replace(/\s/g, '')}`;
+                        
+                        // Create message element
+                        const messageElement = document.createElement('div');
+                        messageElement.className = isSent ? 'message sent' : 'message received';
+                        messageElement.setAttribute('data-message-id', messageId);
+                        messageElement.setAttribute('data-timestamp', timestamp);
+                        
+                        if (isSent) {
+                            messageElement.innerHTML = `
+                                <div class="message-content">${msgContent}</div>
+                                <div class="message-meta">
+                                    <span class="message-timestamp">${formattedTime}</span>
+                                </div>
+                            `;
+                        } else {
+                            messageElement.innerHTML = `
+                                <div class="message-avatar">
+                                    <img src="${profilePicUrl}" alt="${senderUsername}" width="32" height="32">
+                                </div>
+                                <div class="message-bubble">
+                                    <div class="message-sender" style="font-size: 12px; color: #00a884; margin-bottom: 2px;">${senderUsername}</div>
+                                    <div class="message-content">${msgContent}</div>
+                                    <div class="message-meta">
+                                        <span class="message-timestamp">${formattedTime}</span>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                        
+                        chatBody.appendChild(messageElement);
+                    });
+                    
+                    // Scroll to bottom
+                    chatBody.scrollTop = chatBody.scrollHeight;
+                    
+                    // Update the message input placeholder
+                    document.querySelector('.message-input').placeholder = 'Type a message to the group...';
+                })
+                .catch(error => {
+                    console.error('Error loading group messages:', error);
+                    chatBody.innerHTML = '';
+                    
+                    const errorElement = document.createElement('div');
+                    errorElement.className = 'message';
+                    errorElement.style.alignSelf = 'center';
+                    errorElement.style.backgroundColor = '#8B0000';
+                    errorElement.style.padding = '10px 15px';
+                    errorElement.style.borderRadius = '8px';
+                    errorElement.style.color = '#ffffff';
+                    errorElement.textContent = 'Error loading messages. Please try again.';
+                    chatBody.appendChild(errorElement);
+                });
         }
 
         // Function to update a contact's last message and timestamp
