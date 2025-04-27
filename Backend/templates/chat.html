@@ -2815,7 +2815,7 @@
                     <div class="form-group" style="margin-bottom: 15px;">
                         <label style="display: block; color: #333; margin-bottom: 5px;">Select Members</label>
                         <div style="display: flex;">
-                            <input type="text" id="search-members" style="flex: 1; padding: 10px; background-color: transparent; border: none; color: #333; border-radius: 20px;" placeholder="Search contacts">
+                            <input type="text" id="search-members" style="flex: 1; padding: 10px; background-color: #fff; border: 1px solid #333; color: #000; border-radius: 20px; outline: none; font-size: 15px;" placeholder="Search contacts" onfocus="this.style.borderColor='#00a884'" onblur="this.style.borderColor='#333'">
                         </div>
                     </div>
                 </div>
@@ -2892,24 +2892,24 @@
                 
                 <div style="padding: 15px; background-color: transparent;">
                     <div class="form-group" style="margin-bottom: 15px;">
-                        <label for="group-name" style="display: block; color: #333; margin-bottom: 5px;">Group Name</label>
-                        <input type="text" id="group-name" style="width: 100%; padding: 10px; background-color: transparent; border: none; color: #333; border-radius: 20px;" placeholder="Enter group name">
+                        <label for="group-name" style="display: block; color: #111; margin-bottom: 5px; font-weight: bold; font-size: 15px;">Group Name</label>
+                        <input type="text" id="group-name" style="width: 100%; padding: 10px; background-color: #fff; border: 1px solid #333; color: #000; border-radius: 20px; outline: none; font-size: 15px;" placeholder="Enter group name" onfocus="this.style.borderColor='#00a884'" onblur="this.style.borderColor='#333'">
                     </div>
                     
                     <div class="form-group" style="margin-bottom: 15px;">
-                        <label style="display: block; color: #333; margin-bottom: 5px;">Group Avatar</label>
+                        <label style="display: block; color: #111; margin-bottom: 5px; font-weight: bold; font-size: 15px;">Group Avatar</label>
                         <div style="display: flex; align-items: center; gap: 15px;">
-                            <div id="group-avatar-preview" style="width: 80px; height: 80px; border-radius: 50%; overflow: hidden; background-color: transparent; display: flex; justify-content: center; align-items: center;">
-                                <svg viewBox="0 0 24 24" width="40" height="40" style="color: #666;">
+                            <div id="group-avatar-preview" style="width: 80px; height: 80px; border-radius: 50%; overflow: hidden; background-color: #fff; border: 2px solid #333; display: flex; justify-content: center; align-items: center;">
+                                <svg viewBox="0 0 24 24" width="40" height="40" style="color: #222;">
                                     <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"></path>
                                 </svg>
                             </div>
                             <div style="flex: 1;">
                                 <input type="file" id="group-avatar-input" accept="image/*" style="display: none;">
-                                <button type="button" id="upload-avatar-btn" style="padding: 8px 15px; background-color: transparent; color: #333; border: 1px solid #ccc; border-radius: 20px; cursor: pointer; font-size: 14px;">
+                                <button type="button" id="upload-avatar-btn" style="padding: 8px 15px; background-color: #fff; color: #000; border: 1px solid #333; border-radius: 20px; cursor: pointer; font-size: 14px; font-weight: bold;" onmouseover="this.style.backgroundColor='#f0f0f0'" onmouseout="this.style.backgroundColor='#fff'">
                                     Upload Avatar
                                 </button>
-                                <div style="color: #666; font-size: 12px; margin-top: 5px;">
+                                <div style="color: #444; font-size: 12px; margin-top: 5px;">
                                     Recommended size: 200x200 pixels
                                 </div>
                             </div>
@@ -2917,7 +2917,7 @@
                     </div>
                     
                     <div style="background-color: transparent; padding: 15px; border-radius: 20px;">
-                        <div style="font-size: 14px; color: #666; margin-bottom: 10px;">Selected Members (${selectedMembers.size})</div>
+                        <div style="font-size: 15px; color: #111; margin-bottom: 10px; font-weight: bold;">Selected Members (${selectedMembers.size})</div>
                         <div id="selected-members-list" style="display: flex; flex-wrap: wrap; gap: 10px;">
                             ${Array.from(selectedMembers.values()).map(member => `
                                 <div style="display: flex; align-items: center; background-color: transparent; padding: 5px 10px; border-radius: 15px;">
