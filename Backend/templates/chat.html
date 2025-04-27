@@ -11,6 +11,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>TogolokChat</title>
+    <link rel="icon" href="{{ url_for('static', filename='favicon.ico') }}">
     <!-- Include Socket.IO client library -->
     <script src="https://cdn.socket.io/4.6.0/socket.io.min.js"></script>
     <!-- Add Font Awesome for eye icons -->
@@ -18,7 +19,7 @@
     <!-- Add Emoji Picker CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/emoji-picker.css') }}">
     <!-- Add Emoji Picker JavaScript -->
-    <script src="{{ url_for('static', filename='js/emoji-picker.html') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/emoji-picker.js') }}" defer></script>
     <style>
         * {
             margin: 0;
@@ -406,15 +407,6 @@
             color: #000 !important;
             margin-right: 4px !important;
             opacity: 0.5 !important;
-        }
-        
-        .message-status-indicator {
-            width: 10px !important;
-            height: 10px !important;
-            border-radius: 50% !important;
-            margin-left: 2px !important;
-            display: inline-block !important;
-            vertical-align: middle !important;
         }
         
         .message-options {
@@ -889,23 +881,6 @@
             background-color: rgba(255, 255, 255, 0.8);
         }
 
-        .message-status-indicator {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            margin-left: 5px;
-            display: inline-block;
-            vertical-align: middle;
-        }
-
-        .message-status-indicator.read {
-            background-color: #00FF00; /* Green for read messages */
-        }
-
-        .message-status-indicator.unread {
-            background-color: #808080; /* Grey for unread messages */
-        }
-
         .message-meta {
             display: flex;
             align-items: center;
@@ -922,17 +897,6 @@
             margin-right: 4px;
         }
 
-        .message-status-indicator {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            margin-left: 5px;
-            display: inline-block;
-            vertical-align: middle;
-            position: relative;
-            bottom: 0;
-        }
-
         .message-content {
             font-size: 16px;
             margin-right: 5px;
@@ -947,12 +911,6 @@
         .contact-message-container {
             display: flex;
             align-items: center;
-        }
-
-        .contact-message-container .message-status-indicator {
-            margin-right: 5px;
-            width: 8px;
-            height: 8px;
         }
 
         .contact-message {
@@ -1317,23 +1275,6 @@
             background-color: rgba(255, 255, 255, 0.8);
         }
 
-        .message-status-indicator {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            margin-left: 5px;
-            display: inline-block;
-            vertical-align: middle;
-        }
-
-        .message-status-indicator.read {
-            background-color: #00FF00; /* Green for read messages */
-        }
-
-        .message-status-indicator.unread {
-            background-color: #808080; /* Grey for unread messages */
-        }
-
         .message-meta {
             display: flex;
             align-items: center;
@@ -1350,17 +1291,6 @@
             margin-right: 4px;
         }
 
-        .message-status-indicator {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-            margin-left: 5px;
-            display: inline-block;
-            vertical-align: middle;
-            position: relative;
-            bottom: 0;
-        }
-
         .message-content {
             font-size: 16px;
             margin-right: 5px;
@@ -1375,12 +1305,6 @@
         .contact-message-container {
             display: flex;
             align-items: center;
-        }
-
-        .contact-message-container .message-status-indicator {
-            margin-right: 5px;
-            width: 8px;
-            height: 8px;
         }
 
         .contact-message {
@@ -2033,7 +1957,6 @@
                                 <div class="message-content">${msgContent}</div>
                                 <div class="message-meta">
                                     <span class="message-timestamp">${formatMessageTimestamp(timestamp, true)}</span>
-                                    ${isSent ? '<span class="message-status-indicator unread"></span>' : ''}
                                 </div>
                             `;
                             
@@ -2128,7 +2051,6 @@
                     <div class="message-content">${message}</div>
                     <div class="message-meta">
                         <span class="message-timestamp">${formatMessageTimestamp(timestamp, true)}</span>
-                        ${isSent ? '<span class="message-status-indicator unread"></span>' : ''}
                     </div>
                 `;
                 
@@ -3138,7 +3060,6 @@
                             <div class="contact-info">
                                 <div class="contact-name">${group.name}</div>
                                 <div class="contact-message-container">
-                                    <span class="message-status-indicator unread"></span>
                                     <div class="contact-status">${lastMessagePreview}</div>
                                 </div>
                             </div>
@@ -3330,7 +3251,6 @@
                                     <div class="message-content">${msg[2]}</div>
                                     <div class="message-meta">
                                         <span class="message-timestamp">${formatMessageTimestamp(msg[3], true)}</span>
-                                        ${isFromCurrentUser ? '<span class="message-status-indicator unread"></span>' : ''}
                                     </div>
                                 `;
                                 
@@ -4236,7 +4156,6 @@
                             <div class="message-content">${messageText}</div>
                             <div class="message-meta">
                                 <span class="message-timestamp">${formatMessageTimestamp(timestamp, true)}</span>
-                                ${isSent ? '<span class="message-status-indicator unread"></span>' : ''}
                             </div>
                         `;
                         
@@ -4329,7 +4248,6 @@
                     <div class="message-content">${data.message}</div>
                     <div class="message-meta">
                         <span class="message-timestamp">${formatMessageTimestamp(new Date(data.timestamp), true)}</span>
-                        ${isSent ? '<span class="message-status-indicator unread"></span>' : ''}
                     </div>
                 `;
                 chatBody.appendChild(messageElement);
@@ -4641,7 +4559,6 @@
                 <div class="contact-info">
                     <div class="contact-name">${displayName}</div>
                     <div class="contact-message-container">
-                        <span class="message-status-indicator unread"></span>
                         <div class="contact-message">${lastMessage}</div>
                     </div>
                 </div>
@@ -5466,7 +5383,6 @@
                 <div class="message-content">${message}</div>
                 <div class="message-meta">
                     <span class="message-timestamp">${formatMessageTimestamp(timestamp, true)}</span>
-                    ${isSent ? '<span class="message-status-indicator unread"></span>' : ''}
                 </div>
             `;
             
