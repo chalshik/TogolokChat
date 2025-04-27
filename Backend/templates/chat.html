@@ -6090,6 +6090,46 @@
         }
 
         // ... existing code ...
+
+        // Function to show logout confirmation
+        function showLogoutConfirmation() {
+            // Create and show logout confirmation modal
+            const modal = document.createElement('div');
+            modal.className = 'logout-modal';
+            modal.style.display = 'flex';
+            
+            modal.innerHTML = `
+                <div class="logout-modal-content">
+                    <div class="logout-modal-title">Are you sure you want to logout?</div>
+                    <div class="logout-modal-buttons">
+                        <button class="logout-modal-button logout-modal-cancel">Cancel</button>
+                        <button class="logout-modal-button logout-modal-confirm">Logout</button>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Handle cancel button
+            modal.querySelector('.logout-modal-cancel').addEventListener('click', () => {
+                modal.remove();
+            });
+            
+            // Handle confirm button
+            modal.querySelector('.logout-modal-confirm').addEventListener('click', () => {
+                fetch('/auth/logout', {
+                    method: 'POST'
+                })
+                .then(response => {
+                    if (response.ok) {
+                        window.location.href = '/';
+                    }
+                })
+                .catch(error => console.error('Error logging out:', error));
+            });
+        }
+
+        // ... existing code ...
     </script>
 </body>
 </html>
