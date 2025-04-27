@@ -1802,94 +1802,32 @@
         
         // Function to send a message
         function sendMessage() {
+            // Get message from the input
             const messageInput = document.querySelector('.message-input');
-            if (!messageInput || !messageInput.value.trim()) return;
-            
-            const message = messageInput.value.trim();
-            const timestamp = Date.now();
-            const messageId = `msg_${timestamp}_${Math.random().toString(36).substring(2, 9)}`;
-            
-            // Clear input
-            messageInput.value = '';
-            
-            if (window.currentChat.type === 'group') {
-                console.log("Sending group message to group ID:", window.currentChat.id);
+            if (messageInput) {
+                const message = messageInput.value.trim();
                 
-                // Update group list immediately for sender
-                const currentUserId = document.documentElement.getAttribute('data-user-id');
-                updateGroupListOrder(window.currentChat.id, message, currentUserId);
+                // Don't send empty messages
+                if (!message) return;
                 
-                // Immediately display the message in the chat
+                // Clear input
+                messageInput.value = '';
+                
+                // Create message ID and timestamp
+                const messageId = Date.now().toString() + Math.floor(Math.random() * 1000);
+                const timestamp = new Date().toISOString();
+                
+                // Create new message element
                 const chatBody = document.querySelector('.chat-body');
                 const messageElement = document.createElement('div');
+                
+                // Use 'sent' instead of 'my-message' for consistency with other parts of the code
                 messageElement.className = 'message sent';
                 messageElement.setAttribute('data-message-id', messageId);
                 messageElement.setAttribute('data-timestamp', timestamp);
                 
-                messageElement.innerHTML = `
-                    <div class="message-content">${message}</div>
-                    <div class="message-meta">
-                        <span class="message-timestamp">${formatMessageTimestamp(timestamp, true)}</span>
-                        ${isSent ? '<span class="message-status-indicator unread"></span>' : ''}
-                    </div>
-                `;
-                
-                chatBody.appendChild(messageElement);
-                chatBody.scrollTop = chatBody.scrollHeight;
-                
-                // Emit group message
-                socket.emit('send_message', {
-                    group_id: window.currentChat.id,
-                    message: message,
-                    timestamp: timestamp,
-                    message_id: messageId
-                });
-            } else if (window.currentChat.type === 'direct') {
-                console.log("Sending direct message to user ID:", window.currentChat.id);
-                
-                // Update contact's last message in the database for direct messages
-                fetch('/chat/update_last_message', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({
-                        contact_id: window.currentChat.id,
-                        message: message,
-                        timestamp: timestamp
-                    })
-                });
-
-                // Update the contact list immediately for the sender
-                updateContactLastMessage(window.currentChat.id, message, timestamp);
-
-                // Immediately display the message in the chat
-                const chatBody = document.querySelector('.chat-body');
-                
-                // Check if we need to add a date separator
-                const lastMessage = chatBody.lastElementChild;
-                if (lastMessage) {
-                    const lastMessageDate = new Date(lastMessage.getAttribute('data-timestamp'));
-                    const currentMessageDate = new Date(timestamp);
-                    
-                    if (lastMessageDate.toDateString() !== currentMessageDate.toDateString()) {
-                        const dateSeparator = document.createElement('div');
-                        dateSeparator.className = 'date-separator';
-                        dateSeparator.textContent = formatDateSeparator(currentMessageDate, true);
-                        chatBody.appendChild(dateSeparator);
-                    }
-                } else {
-                    // If this is the first message, add date separator
-                    const dateSeparator = document.createElement('div');
-                    dateSeparator.className = 'date-separator';
-                    dateSeparator.textContent = formatDateSeparator(new Date(timestamp), true);
-                    chatBody.appendChild(dateSeparator);
-                }
-                
-                const messageElement = document.createElement('div');
-                messageElement.className = 'message sent';
-                messageElement.setAttribute('data-message-id', messageId);
-                messageElement.setAttribute('data-timestamp', timestamp);
+                // Define isSent variable to fix the reference error
+                const isSent = true;
                 
                 messageElement.innerHTML = `
                     <div class="message-content">${message}</div>
@@ -3260,61 +3198,69 @@
                 </div>
             `;
             
-            // Add event listener for back button
-            document.getElementById('back-to-group-info').addEventListener('click', function() {
-                if (window.originalSidebarState) {
-                    sidebarContent.innerHTML = window.originalSidebarState;
-                } else {
-                    showGroupsView();
-                }
-            });
+            // Add event listener for back button - ONLY if the element exists
+            const backButton = document.getElementById('back-to-group-info');
+            if (backButton) {
+                backButton.addEventListener('click', function() {
+                    if (window.originalSidebarState) {
+                        sidebarContent.innerHTML = window.originalSidebarState;
+                    } else {
+                        showGroupsView();
+                    }
+                });
+            }
             
-            // Add event listener for add members button
-            document.getElementById('add-selected-members').addEventListener('click', function() {
-                if (selectedMembers.size > 0) {
-                    const memberIds = Array.from(selectedMembers.keys());
-                    
-                    // Send request to add members
-                    Promise.all(memberIds.map(userId => 
-                        fetch('/chat/add_to_group', {
-                            method: 'POST',
-                            headers: {
-                                'Content-Type': 'application/json'
-                            },
-                            body: JSON.stringify({
-                                group_id: groupId,
-                                user_id: userId
+            // Add event listener for add members button - ONLY if the element exists
+            const addMembersButton = document.getElementById('add-selected-members');
+            if (addMembersButton) {
+                addMembersButton.addEventListener('click', function() {
+                    if (selectedMembers.size > 0) {
+                        const memberIds = Array.from(selectedMembers.keys());
+                        
+                        // Send request to add members
+                        Promise.all(memberIds.map(userId => 
+                            fetch('/chat/add_to_group', {
+                                method: 'POST',
+                                headers: {
+                                    'Content-Type': 'application/json'
+                                },
+                                body: JSON.stringify({
+                                    group_id: groupId,
+                                    user_id: userId
+                                })
                             })
-                        })
-                        .then(response => {
-                            if (!response.ok) {
-                                throw new Error('Network response was not ok');
+                            .then(response => {
+                                if (!response.ok) {
+                                    throw new Error('Network response was not ok');
+                                }
+                                return response.json();
+                            })
+                        ))
+                        .then(() => {
+                            showNotification('Members added successfully', 'success');
+                            // Close the add members view
+                            if (window.originalSidebarState) {
+                                sidebarContent.innerHTML = window.originalSidebarState;
+                            } else {
+                                showGroupsView();
                             }
-                            return response.json();
+                            // Refresh the group info
+                            loadGroupChat(groupId);
                         })
-                    ))
-                    .then(() => {
-                        showNotification('Members added successfully', 'success');
-                        // Close the add members view
-                        if (window.originalSidebarState) {
-                            sidebarContent.innerHTML = window.originalSidebarState;
-                        } else {
-                            showGroupsView();
-                        }
-                        // Refresh the group info
-                        loadGroupChat(groupId);
-                    })
-                    .catch(error => {
-                        showNotification('Error adding members: ' + error.message, 'error');
-                        console.error('Error:', error);
-                    });
-                } else {
-                    showNotification('Please select at least one contact', 'warning');
-                }
-            });
+                        .catch(error => {
+                            showNotification('Error adding members: ' + error.message, 'error');
+                            console.error('Error:', error);
+                        });
+                    } else {
+                        showNotification('Please select at least one contact', 'warning');
+                    }
+                });
+            }
             
-            // Load contacts for selection
-            loadContactsForGroupCreation(groupId);
+            // Only load contacts for group creation if it's actually a group
+            if (isGroup) {
+                loadContactsForGroupCreation(entity.id);
+            }
         }
 
         // Function to load contacts for group creation/member addition
@@ -4110,8 +4056,15 @@
                 (data.receiver_id == window.currentChat.id)
             )) {
                 const chatBody = document.querySelector('.chat-body');
+                
+                // Define isSent before using it
+                const isSent = data.sender_id == document.documentElement.getAttribute('data-user-id');
+                
                 const messageElement = document.createElement('div');
-                messageElement.className = `message ${data.sender_id == document.documentElement.getAttribute('data-user-id') ? 'sent' : 'received'}`;
+                messageElement.className = `message ${isSent ? 'sent' : 'received'}`;
+                messageElement.setAttribute('data-message-id', data.message_id);
+                messageElement.setAttribute('data-timestamp', data.timestamp);
+                
                 messageElement.innerHTML = `
                     <div class="message-content">${data.message}</div>
                     <div class="message-meta">

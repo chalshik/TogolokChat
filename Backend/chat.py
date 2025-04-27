@@ -409,7 +409,10 @@ def add_contact():
         
         # Get the current user's info for notifications
         cursor.execute("SELECT username FROM users WHERE id = ?", (session['user_id'],))
-        current_username = cursor.fetchone()[0]
+        user_result = cursor.fetchone()
+        
+        # Check if user exists before accessing the username
+        current_username = user_result[0] if user_result else "Unknown user"
         
         # Commit the transaction
         conn.commit()
