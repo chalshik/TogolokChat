@@ -743,37 +743,70 @@ def register_socket_events(socketio):
                 print(f"Missing data for status update: {data}")
                 return {'status': 'error', 'message': 'Incomplete data for status update'}
                 
-            # For direct messages, notify the sender
+            conn = connect_db()
+            cursor = conn.cursor()
+            current_time = datetime.datetime.now(pytz.timezone('Asia/Bishkek')).strftime('%Y-%m-%d %H:%M:%S')
+
             if chat_type == 'direct':
-                # The chat_id should be the sender of the original message
-                sender_room = str(chat_id)
+                # Update direct message status
+                cursor.execute("""
+                    UPDATE messages 
+                    SET status = ?, read_at = ?
+                    WHERE id = ? AND receiver_id = ?
+                """, (status, current_time if status == 'read' else None, message_id, updater_id))
+                
+                # Get sender info for notification
+                cursor.execute("""
+                    SELECT sender_id, receiver_id 
+                    FROM messages 
+                    WHERE id = ?
+                """, (message_id,))
+                
+                msg_info = cursor.fetchone()
+                if msg_info:
+                    sender_room = str(msg_info[0])
                 
                 # Emit status update to the original message sender
                 emit('message_status', {
                     'message_id': message_id,
                     'status': status,
-                    'chat_id': updater_id,  # The updater (recipient) is the chat_id from sender's perspective
+                        'chat_id': updater_id,
                     'updated_by': updater_username,
-                    'timestamp': time.time()
+                        'timestamp': current_time
                 }, room=sender_room)
                 
-                print(f"Emitted status update to room {sender_room} for message {message_id}: {status}")
-                
             elif chat_type == 'group':
-                # For group messages, notify all group members
-                room = f'group_{chat_id}'
+                # Update group message status
+                cursor.execute("""
+                    UPDATE group_message_status 
+                    SET status = ?, read_at = ?
+                    WHERE message_id = ? AND user_id = ?
+                """, (status, current_time if status == 'read' else None, message_id, updater_id))
+                
+                # Get group info for notification
+                cursor.execute("""
+                    SELECT group_id 
+                    FROM group_messages 
+                    WHERE id = ?
+                """, (message_id,))
+                
+                group_info = cursor.fetchone()
+                if group_info:
+                    group_room = f'group_{group_info[0]}'
                 
                 emit('message_status', {
                     'message_id': message_id,
                     'status': status,
                     'chat_id': chat_id,
                     'updated_by': updater_username,
-                    'timestamp': time.time()
-                }, room=room, include_self=False)
+                        'user_id': updater_id,
+                        'timestamp': current_time
+                    }, room=group_room, include_self=False)
                 
-                print(f"Emitted group status update to room {room} for message {message_id}: {status}")
+            conn.commit()
+            conn.close()
                 
-            return {'status': 'success', 'message': 'Status update broadcast sent'}
+            return {'status': 'success', 'message': 'Status update processed'}
             
         except Exception as e:
             print(f"Error processing status update: {str(e)}")
@@ -896,3 +929,134 @@ def delete_group():
     conn.close()
     
     return jsonify({"message": "Group deleted successfully"}), 200
+
+@bp.route('/mark_messages_read', methods=['POST'])
+def mark_messages_read():
+    """Mark messages as read for a specific chat"""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'Not authenticated'}), 401
+
+        data = request.get_json()
+        chat_id = data.get('chat_id')
+        chat_type = data.get('chat_type', 'direct')  # 'direct' or 'group'
+        
+        if not chat_id:
+            return jsonify({'error': 'Chat ID is required'}), 400
+
+        conn = connect_db()
+        cursor = conn.cursor()
+        current_time = datetime.datetime.now(pytz.timezone('Asia/Bishkek')).strftime('%Y-%m-%d %H:%M:%S')
+
+        if chat_type == 'direct':
+            # Mark direct messages as read
+            cursor.execute("""
+                UPDATE messages 
+                SET status = 'read', read_at = ?
+                WHERE receiver_id = ? AND sender_id = ? AND status != 'read'
+            """, (current_time, user_id, chat_id))
+            
+            # Get the updated messages to notify the sender
+            cursor.execute("""
+                SELECT id, sender_id, receiver_id 
+                FROM messages 
+                WHERE receiver_id = ? AND sender_id = ? AND status = 'read' AND read_at = ?
+            """, (user_id, chat_id, current_time))
+            
+            updated_messages = cursor.fetchall()
+            
+        else:  # group chat
+            # Mark group messages as read
+            cursor.execute("""
+                UPDATE group_message_status 
+                SET status = 'read', read_at = ?
+                WHERE user_id = ? AND message_id IN (
+                    SELECT id FROM group_messages 
+                    WHERE group_id = ? AND sender_id != ?
+                )
+            """, (current_time, user_id, chat_id, user_id))
+            
+            # Get the updated messages to notify group members
+            cursor.execute("""
+                SELECT gm.id, gm.sender_id, gm.group_id
+                FROM group_messages gm
+                JOIN group_message_status gms ON gm.id = gms.message_id
+                WHERE gm.group_id = ? AND gms.user_id = ? AND gms.status = 'read' AND gms.read_at = ?
+            """, (chat_id, user_id, current_time))
+            
+            updated_messages = cursor.fetchall()
+
+        conn.commit()
+        conn.close()
+
+        # Notify relevant users about the status update
+        for msg in updated_messages:
+            if chat_type == 'direct':
+                # Notify the sender that their messages were read
+                sender_room = str(msg[1])  # sender_id
+                emit('message_status', {
+                    'message_id': msg[0],  # message_id
+                    'status': 'read',
+                    'chat_id': user_id,  # the reader's id
+                    'timestamp': current_time
+                }, room=sender_room)
+            else:
+                # Notify group members about the read status
+                group_room = f'group_{msg[2]}'  # group_id
+                emit('message_status', {
+                    'message_id': msg[0],  # message_id
+                    'status': 'read',
+                    'chat_id': chat_id,
+                    'user_id': user_id,  # who read the message
+                    'timestamp': current_time
+                }, room=group_room)
+
+        return jsonify({'status': 'success', 'message': 'Messages marked as read'})
+
+    except Exception as e:
+        print(f"Error marking messages as read: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+
+@bp.route('/get_unread_count', methods=['GET'])
+def get_unread_count():
+    """Get count of unread messages for the current user"""
+    try:
+        user_id = session.get('user_id')
+        if not user_id:
+            return jsonify({'error': 'Not authenticated'}), 401
+
+        conn = connect_db()
+        cursor = conn.cursor()
+
+        # Get unread direct messages count
+        cursor.execute("""
+            SELECT sender_id, COUNT(*) as count
+            FROM messages
+            WHERE receiver_id = ? AND status != 'read'
+            GROUP BY sender_id
+        """, (user_id,))
+        
+        direct_unread = {row[0]: row[1] for row in cursor.fetchall()}
+
+        # Get unread group messages count
+        cursor.execute("""
+            SELECT gm.group_id, COUNT(*) as count
+            FROM group_messages gm
+            JOIN group_message_status gms ON gm.id = gms.message_id
+            WHERE gms.user_id = ? AND gms.status != 'read'
+            GROUP BY gm.group_id
+        """, (user_id,))
+        
+        group_unread = {row[0]: row[1] for row in cursor.fetchall()}
+
+        conn.close()
+
+        return jsonify({
+            'direct': direct_unread,
+            'groups': group_unread
+        })
+
+    except Exception as e:
+        print(f"Error getting unread count: {str(e)}")
+        return jsonify({'error': str(e)}), 500
