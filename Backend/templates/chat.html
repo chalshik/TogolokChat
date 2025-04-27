@@ -5748,6 +5748,210 @@
         }
 
         // ... existing code ...
+
+        // Function to load group messages
+        function loadGroupMessages(groupId) {
+            const chatBody = document.querySelector('.chat-body');
+            chatBody.innerHTML = '';
+            
+            // Show loading indicator
+            const loadingElement = document.createElement('div');
+            loadingElement.className = 'message';
+            loadingElement.style.alignSelf = 'center';
+            loadingElement.textContent = 'Loading messages...';
+            chatBody.appendChild(loadingElement);
+            
+            // Fetch messages for this group
+            fetch(`/chat/get_group_messages/${groupId}`)
+                .then(response => response.json())
+                .then(messages => {
+                    // Remove loading indicator
+                    chatBody.innerHTML = '';
+                    
+                    if (messages.length === 0) {
+                        const welcomeElement = document.createElement('div');
+                        welcomeElement.className = 'message';
+                        welcomeElement.style.alignSelf = 'center';
+                        welcomeElement.style.backgroundColor = '#202c33';
+                        welcomeElement.style.padding = '10px 15px';
+                        welcomeElement.style.borderRadius = '8px';
+                        welcomeElement.style.color = '#e9edef';
+                        welcomeElement.textContent = `No messages yet in this group. Be the first to say hello!`;
+                        chatBody.appendChild(welcomeElement);
+                        return;
+                    }
+
+                    let lastMessageDate = null;
+                    
+                    // Display each message
+                    messages.forEach(msg => {
+                        // In group messages, we get [sender_id, sender_username, message, time, profile_picture]
+                        const [senderId, senderUsername, msgContent, timestamp, profilePic] = msg;
+                        
+                        const messageDate = new Date(timestamp);
+                        
+                        // Add date separator if this is a new day
+                        if (!lastMessageDate || lastMessageDate.toDateString() !== messageDate.toDateString()) {
+                            const dateSeparator = document.createElement('div');
+                            dateSeparator.className = 'date-separator';
+                            dateSeparator.textContent = formatDateSeparator(messageDate);
+                            chatBody.appendChild(dateSeparator);
+                            lastMessageDate = messageDate;
+                        }
+                        
+                        // Format the timestamp for the message
+                        const formattedTime = formatMessageTimestamp(timestamp);
+                        
+                        // Check if this is a sent or received message
+                        const currentUserId = document.documentElement.getAttribute('data-user-id');
+                        const isSent = senderId.toString() === currentUserId;
+                        
+                        // Get profile picture URL
+                        const profilePicUrl = profilePic ? `/uploads/profile_photos/${profilePic}` : '/api/placeholder/32/32';
+                        
+                        // Generate a stable message ID
+                        const messageId = `group_${groupId}_${senderId}_${timestamp.replace(/[^0-9]/g, '')}_${msgContent.substring(0, 10).replace(/\s/g, '')}`;
+                        
+                        // Create message element
+                        const messageElement = document.createElement('div');
+                        messageElement.className = isSent ? 'message sent' : 'message received';
+                        messageElement.setAttribute('data-message-id', messageId);
+                        messageElement.setAttribute('data-timestamp', timestamp);
+                        
+                        if (isSent) {
+                            messageElement.innerHTML = `
+                                <div class="message-content">${msgContent}</div>
+                                <div class="message-meta">
+                                    <span class="message-timestamp">${formattedTime}</span>
+                                </div>
+                            `;
+                        } else {
+                            messageElement.innerHTML = `
+                                <div class="message-avatar">
+                                    <img src="${profilePicUrl}" alt="${senderUsername}" width="32" height="32">
+                                </div>
+                                <div class="message-bubble">
+                                    <div class="message-sender" style="font-size: 12px; color: #00a884; margin-bottom: 2px;">${senderUsername}</div>
+                                    <div class="message-content">${msgContent}</div>
+                                    <div class="message-meta">
+                                        <span class="message-timestamp">${formattedTime}</span>
+                                    </div>
+                                </div>
+                            `;
+                        }
+                        
+                        chatBody.appendChild(messageElement);
+                    });
+                    
+                    // Scroll to bottom
+                    chatBody.scrollTop = chatBody.scrollHeight;
+                    
+                    // Update the message input placeholder
+                    document.querySelector('.message-input').placeholder = 'Type a message to the group...';
+                })
+                .catch(error => {
+                    console.error('Error loading group messages:', error);
+                    chatBody.innerHTML = '';
+                    
+                    const errorElement = document.createElement('div');
+                    errorElement.className = 'message';
+                    errorElement.style.alignSelf = 'center';
+                    errorElement.style.backgroundColor = '#8B0000';
+                    errorElement.style.padding = '10px 15px';
+                    errorElement.style.borderRadius = '8px';
+                    errorElement.style.color = '#ffffff';
+                    errorElement.textContent = 'Error loading messages. Please try again.';
+                    chatBody.appendChild(errorElement);
+                });
+        }
+
+        // Function to add a new message to the chat (used for both direct and group messages)
+        function addMessageToChat(messageData, isGroup = false) {
+            const chatBody = document.querySelector('.chat-body');
+            if (!chatBody) return;
+
+            const timestamp = messageData.timestamp || Date.now();
+            const messageDate = new Date(timestamp);
+            
+            // Check if we need to add a new date separator
+            const lastDateSeparator = chatBody.querySelector('.date-separator:last-child');
+            const lastMessageDate = lastDateSeparator ? new Date(lastDateSeparator.getAttribute('data-date')) : null;
+            
+            if (!lastMessageDate || lastMessageDate.toDateString() !== messageDate.toDateString()) {
+                const dateSeparator = document.createElement('div');
+                dateSeparator.className = 'date-separator';
+                dateSeparator.setAttribute('data-date', messageDate.toISOString());
+                dateSeparator.textContent = formatDateSeparator(messageDate);
+                chatBody.appendChild(dateSeparator);
+            }
+            
+            const isFromCurrentUser = messageData.sender_id.toString() === document.documentElement.getAttribute('data-user-id');
+            const formattedTime = formatMessageTimestamp(timestamp);
+            
+            // Generate message ID
+            const messageId = isGroup ? 
+                `group_${messageData.group_id}_${messageData.sender_id}_${timestamp}_${messageData.message.substring(0, 10).replace(/\s/g, '')}` :
+                `direct_${messageData.sender_id}_${timestamp}_${messageData.message.substring(0, 10).replace(/\s/g, '')}`;
+            
+            const messageElement = document.createElement('div');
+            messageElement.className = isFromCurrentUser ? 'message sent' : 'message received';
+            messageElement.setAttribute('data-message-id', messageId);
+            messageElement.setAttribute('data-timestamp', timestamp);
+            
+            if (isGroup && !isFromCurrentUser) {
+                const profilePicUrl = messageData.sender_profile_picture || '/api/placeholder/32/32';
+                messageElement.innerHTML = `
+                    <div class="message-avatar">
+                        <img src="${profilePicUrl}" alt="${messageData.sender_username}" width="32" height="32">
+                    </div>
+                    <div class="message-bubble">
+                        <div class="message-sender" style="font-size: 12px; color: #00a884; margin-bottom: 2px;">${messageData.sender_username}</div>
+                        <div class="message-content">${messageData.message}</div>
+                        <div class="message-meta">
+                            <span class="message-timestamp">${formattedTime}</span>
+                        </div>
+                    </div>
+                `;
+            } else {
+                messageElement.innerHTML = `
+                    <div class="message-content">${messageData.message}</div>
+                    <div class="message-meta">
+                        <span class="message-timestamp">${formattedTime}</span>
+                    </div>
+                `;
+            }
+            
+            chatBody.appendChild(messageElement);
+            chatBody.scrollTop = chatBody.scrollHeight;
+        }
+
+        // Update the socket.on('new_message') handler to use the new addMessageToChat function
+        socket.on('new_message', function(data) {
+            console.log('Received new_message:', data);
+            
+            const currentChatId = window.currentChat?.id;
+            const currentChatType = window.currentChat?.type;
+            const isFromCurrentUser = data.sender_id.toString() === document.documentElement.getAttribute('data-user-id');
+            
+            // Handle message display in chat
+            if (data.group_id) {
+                // Update group list order and message preview
+                updateGroupListOrder(data.group_id, data.message, data.sender_id, data.sender_username);
+                
+                if (currentChatType === 'group' && currentChatId == data.group_id) {
+                    addMessageToChat(data, true);
+                } else if (!isFromCurrentUser) {
+                    showNotification(`New message in ${data.group_name || 'group'}: ${data.message}`);
+                }
+            } else if (data.sender_id) {
+                if (currentChatType === 'direct' && 
+                    (currentChatId == data.sender_id || currentChatId == data.receiver_id)) {
+                    addMessageToChat(data, false);
+                } else if (!isFromCurrentUser) {
+                    showNotification(`New message from ${data.sender_username}: ${data.message}`);
+                }
+            }
+        });
     </script>
 </body>
 </html>
