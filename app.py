@@ -202,6 +202,11 @@ def serve_placeholder(width, height):
     )
     return response
 
+# Serve static images from Backend/static/images directory
+@app.route('/Backend/static/images/<path:filename>')
+def serve_static_images(filename):
+    return send_from_directory('Backend/static/images', filename)
+
 # Error handlers
 @app.errorhandler(404)
 def page_not_found(e):

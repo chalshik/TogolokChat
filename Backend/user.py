@@ -187,7 +187,7 @@ def get_user_profile_picture(user_id):
             return jsonify({"photo_url": f"/uploads/profile_photos/{profile_pic[0]}"}), 200
             
         # If no profile picture found, return default avatar
-        return jsonify({"photo_url": "/static/images/contact_logo.png"}), 200
+        return jsonify({"photo_url": "Backend/static/images/contact_logo.png"}), 200
         
     except Exception as e:
         return jsonify({"message": f"Error fetching profile picture: {str(e)}"}), 500

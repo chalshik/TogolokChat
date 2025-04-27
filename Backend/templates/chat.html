@@ -1555,10 +1555,10 @@
                     // Get profile picture URL
                     let profilePic;
                     if (isGroup) {
-                        profilePic = entity.picture ? `/uploads/group_images/${entity.picture}` : '/static/images/contact_logo.png';
+                        profilePic = entity.picture ? `/uploads/group_images/${entity.picture}` : 'Backend/static/images/contact_logo.png';
                     } else {
                         // For direct chats, use the same logic as contact list
-                        profilePic = entity.profile_picture ? `/uploads/profile_photos/${entity.profile_picture}` : '/static/images/contact_logo.png';
+                        profilePic = entity.profile_picture ? `/uploads/profile_photos/${entity.profile_picture}` : 'Backend/static/images/contact_logo.png';
                         
                         // If no profile picture in entity, fetch it from the API
                         if (!entity.profile_picture) {
@@ -1595,7 +1595,7 @@
 
                     chatHeader.innerHTML = `
                         <div class="profile-pic" style="cursor: pointer;">
-                            <img src="${profilePic}" alt="${isGroup ? entity.name : (entity.username || entity)}" onerror="this.src='/static/images/contact_logo.png'">
+                            <img src="${profilePic}" alt="${isGroup ? entity.name : (entity.username || entity)}" onerror="this.src='Backend/static/images/contact_logo.png'">
                         </div>
                         <div class="chat-header-info" style="cursor: pointer;">
                             <div class="chat-header-name">${isGroup ? entity.name : (entity.username || entity)}</div>
@@ -1883,58 +1883,7 @@
                 });
         }
 
-        function createContactElement(contact, userDetail = null) {
-            const contactId = contact[0];
-            const contactElement = document.createElement('div');
-            contactElement.className = 'contact';
-            contactElement.setAttribute('data-contact-id', contactId);
-            
-            let displayName = userDetail?.username || contact[1] || 'Unknown User';
-            let lastMessage = userDetail?.last_message || '';
-            let lastMessageTime = userDetail?.last_message_time || '';
-            
-            // Use data URI for default avatar
-            const defaultAvatar = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2U5ZWRlZiI+PHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgM2MyLjY3IDAgNC44NCAyLjE3IDQuODQgNC44NFMxNC42NyAxNC42OCAxMiAxNC42OCA3LjE2IDEyLjUxIDcuMTYgOS44NCA5LjMzIDUgMTIgNXptMCAxM2MtMi4zMyAwLTQuMzEtLjgtNS45My0yLjQyLjg0LTEuNzEgMi41NS0yLjg4IDQuNTItMi44OCAxLjk3IDAgMy42OCAxLjE3IDQuNTIgMi44OEMxMy42OSAxNy4yIDExLjcgMTggOS4zNyAxOHoiLz48L3N2Zz4=';
-            
-            // Fix avatar path handling
-            let profilePic;
-            if (userDetail?.profile_picture) {
-                profilePic = `/uploads/profile_photos/${userDetail.profile_picture}`;
-            } else {
-                // Try to get profile picture from profile_photos table
-                fetch(`/api/user/${contactId}/profile-picture`)
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.photo_url) {
-                            const img = contactElement.querySelector('.profile-pic img');
-                            if (img) {
-                                img.src = data.photo_url;
-                            }
-                        }
-                    })
-                    .catch(error => console.error('Error fetching profile picture:', error));
-                profilePic = defaultAvatar;
-            }
-
-            contactElement.innerHTML = `
-                <div class="profile-pic">
-                    <img src="${profilePic}" alt="${displayName}" onerror="this.src='${defaultAvatar}'">
-                </div>
-                <div class="contact-info">
-                    <div class="contact-name">${displayName}</div>
-                    <div class="contact-message-container">
-                        <span class="message-status-indicator unread"></span>
-                        <div class="contact-message">${lastMessage}</div>
-                    </div>
-                </div>
-                <div class="contact-meta">
-                    <div class="message-time">${lastMessageTime}</div>
-                </div>
-            `;
-
-            contactElement.onclick = () => startChatWithContact(contactId, displayName);
-            return contactElement;
-        }
+        
 
         function filterContacts() {
             const searchInput = document.getElementById('contact-search');
@@ -2565,7 +2514,7 @@
                 
                 const profilePic = user.profile_picture 
                     ? `/uploads/profile_photos/${user.profile_picture}` 
-                    : '/api/placeholder/40/40'; // Use placeholder API
+                    : 'Backend/static/images/contact_logo.png'; // Use placeholder API
                     
                 userElement.innerHTML = `
                     <div style="display: flex; align-items: center;">
@@ -3026,11 +2975,11 @@
                         if (Array.isArray(contact)) {
                             contactId = contact[0];
                             contactName = contact[1];
-                            profilePic = `/api/placeholder/49/49`; // Default placeholder
+                            profilePic = 'Backend/static/images/contact_logo.png'; // Default placeholder
                         } else {
                             contactId = contact.id;
                             contactName = contact.username || contact.name;
-                            profilePic = contact.profile_picture ? `/uploads/profile_pics/${contact.profile_picture}` : `/api/placeholder/49/49`;
+                            profilePic = contact.profile_picture ? `/uploads/profile_pics/${contact.profile_picture}` : 'Backend/static/images/contact_logo.png';
                         }
                         
                         const contactElement = document.createElement('div');
@@ -3263,7 +3212,7 @@
                         
                         groupElement.innerHTML = `
                             <div class="contact-avatar">
-                                <img src="${group.picture ? `/uploads/group_images/${group.picture}` : '/api/placeholder/80/80'}" alt="${group.name}">
+                                <img src="${group.picture ? `/uploads/group_images/${group.picture}` : 'Backend/static/images/contact_logo.png'}" alt="${group.name}">
                             </div>
                             <div class="contact-info">
                                 <div class="contact-name">${group.name}</div>
@@ -3533,10 +3482,10 @@
             // Get profile picture URL
             let profilePic;
             if (isGroup) {
-                profilePic = entity.picture ? `/uploads/group_images/${entity.picture}` : '/static/images/contact_logo.png';
+                profilePic = entity.picture ? `/uploads/group_images/${entity.picture}` : 'Backend/static/images/contact_logo.png';
             } else {
                 // For direct chats, use the same logic as contact list
-                profilePic = entity.profile_picture ? `/uploads/profile_photos/${entity.profile_picture}` : '/static/images/contact_logo.png';
+                profilePic = entity.profile_picture ? `/uploads/profile_photos/${entity.profile_picture}` : 'Backend/static/images/contact_logo.png';
                 
                 // If no profile picture in entity, fetch it from the API
                 if (!entity.profile_picture) {
@@ -3573,7 +3522,7 @@
 
             chatHeader.innerHTML = `
                 <div class="profile-pic" style="cursor: pointer;">
-                    <img src="${profilePic}" alt="${isGroup ? entity.name : (entity.username || entity)}" onerror="this.src='/static/images/contact_logo.png'">
+                    <img src="${profilePic}" alt="${isGroup ? entity.name : (entity.username || entity)}" onerror="this.src='Backend/static/images/contact_logo.png'">
                         </div>
                 <div class="chat-header-info" style="cursor: pointer;">
                     <div class="chat-header-name">${isGroup ? entity.name : (entity.username || entity)}</div>
@@ -3698,7 +3647,7 @@
                         
                         const profilePic = user.profile_picture ? 
                             `/uploads/profile_photos/${user.profile_picture}` : 
-                            '/api/placeholder/49/49';
+                            'Backend/static/images/contact_logo.png';
                         
                         contactElement.innerHTML = `
                             <div style="display: flex; align-items: center; padding: 10px; cursor: pointer;">
@@ -3999,7 +3948,7 @@
                             <div class="user-avatar" style="width: 50px; height: 50px; border-radius: 50%; overflow: hidden; background-color: #374045;">
                                 <img src="${user.profile_picture}" alt="${user.username}" 
                                      style="width: 100%; height: 100%; object-fit: cover;"
-                                     onerror="this.src='/api/placeholder/50/50'">
+                                     onerror="this.src='Backend/static/images/contact_logo.png'">
                             </div>
                             <div style="flex: 1;">
                                 <div style="color: #e9edef; font-weight: bold;">${user.username}</div>
@@ -4060,7 +4009,7 @@
                             <div style="width: 120px; height: 120px; border-radius: 50%; overflow: hidden; margin: 0 auto 15px;">
                                 <img src="${user.profile_picture}" alt="${user.username}" 
                                      style="width: 100%; height: 100%; object-fit: cover;"
-                                     onerror="this.src='/api/placeholder/120/120'">
+                                     onerror="this.src='Backend/static/images/contact_logo.png'">
                             </div>
                             <div style="color: #e9edef; font-size: 20px; font-weight: bold;">${user.username}</div>
                             <div style="color: #8696a0;">${user.name || 'No name set'}</div>
@@ -4596,7 +4545,7 @@
             contactList.innerHTML = sortedContacts.map(contact => `
                 <div class="contact" data-contact-id="${contact.id}" onclick="startChatWithContact(${contact.id}, '${contact.username}')">
                     <div class="profile-pic">
-                        <img src="${contact.profile_pic || '/static/default_profile.png'}" alt="${contact.username}">
+                        <img src="${contact.profile_pic || 'Backend/static/images/contact_logo.png'}" alt="${contact.username}">
                     </div>
                     <div class="contact-info">
                         <div class="contact-name">${contact.username}</div>
@@ -4741,7 +4690,7 @@
             let lastMessageTime = userDetail?.last_message_time || '';
             
             // Use data URI for default avatar
-            const defaultAvatar = 'data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyNCAyNCIgZmlsbD0iI2U5ZWRlZiI+PHBhdGggZD0iTTEyIDJDNi40OCAyIDIgNi40OCAyIDEyczQuNDggMTAgMTAgMTAgMTAtNC40OCAxMC0xMFMxNy41MiAyIDEyIDJ6bTAgM2MyLjY3IDAgNC44NCAyLjE3IDQuODQgNC44NFMxNC42NyAxNC42OCAxMiAxNC42OCA3LjE2IDEyLjUxIDcuMTYgOS44NCA5LjMzIDUgMTIgNXptMCAxM2MtMi4zMyAwLTQuMzEtLjgtNS45My0yLjQyLjg0LTEuNzEgMi41NS0yLjg4IDQuNTItMi44OCAxLjk3IDAgMy42OCAxLjE3IDQuNTIgMi44OEMxMy42OSAxNy4yIDExLjcgMTggOS4zNyAxOHoiLz48L3N2Zz4=';
+            const defaultAvatar = 'Backend/static/images/contact_logo.png';
             
             // Fix avatar path handling
             let profilePic;
@@ -4949,7 +4898,7 @@
                 .then(response => response.json())
                 .then(contactData => {
                     // Contact profile picture
-                    const profilePic = contactData.profile_picture ? `/uploads/profile_photos/${contactData.profile_picture}` : '/api/placeholder/80/80';
+                    const profilePic = contactData.profile_picture ? `/uploads/profile_photos/${contactData.profile_picture}` : 'Backend/static/images/contact_logo.png';
                     
                     // Create side panel
                     const panel = document.createElement('div');
@@ -5186,7 +5135,7 @@
                         
                         const profilePic = user.profile_picture ? 
                             `/uploads/profile_photos/${user.profile_picture}` : 
-                            '/api/placeholder/49/49';
+                            'Backend/static/images/contact_logo.png';
                         
                         contactElement.innerHTML = `
                             <div style="display: flex; align-items: center; padding: 10px; cursor: pointer;">
@@ -5420,11 +5369,11 @@
                         if (Array.isArray(contact)) {
                             contactId = contact[0];
                             contactName = contact[1];
-                            profilePic = `/api/placeholder/49/49`; // Default placeholder
+                            profilePic = 'Backend/static/images/contact_logo.png'; // Default placeholder
                         } else {
                             contactId = contact.id;
                             contactName = contact.username || contact.name;
-                            profilePic = contact.profile_picture ? `/uploads/profile_pics/${contact.profile_picture}` : `/api/placeholder/49/49`;
+                            profilePic = contact.profile_picture ? `/uploads/profile_photos/${contact.profile_picture}` : 'Backend/static/images/contact_logo.png';
                         }
                         
                         const contactElement = document.createElement('div');
@@ -5705,7 +5654,7 @@
             modal.style.alignItems = 'stretch';
             
             // Group profile picture
-            const profilePic = group.picture ? `/uploads/group_images/${group.picture}` : '/api/placeholder/80/80';
+            const profilePic = group.picture ? `/uploads/group_images/${group.picture}` : 'Backend/static/images/contact_logo.png';
             
             // Create side panel
             const panel = document.createElement('div');
@@ -5766,7 +5715,7 @@
                         ${group.members && group.members.length > 0 ? group.members.map(member => `
                             <div class="group-member" data-user-id="${member.id}" style="display: flex; align-items: center; padding: 10px; border-bottom: 1px solid #2a3942; cursor: pointer;">
                                 <div style="width: 40px; height: 40px; border-radius: 20px; overflow: hidden; margin-right: 15px;">
-                                    <img src="${member.profile_picture ? `/uploads/profile_photos/${member.profile_picture}` : '/api/placeholder/40/40'}" alt="${member.username}" style="width: 100%; height: 100%; object-fit: cover;">
+                                    <img src="${member.profile_picture ? `/uploads/profile_photos/${member.profile_picture}` : 'Backend/static/images/contact_logo.png'}" alt="${member.username}" style="width: 100%; height: 100%; object-fit: cover;">
                                 </div>
                                 <div style="flex: 1;">
                                     <div style="color: black; font-weight: 500;">${member.username}</div>
@@ -5860,176 +5809,7 @@
         }
 // ... existing code ...
 
-        // Function to show group info
-        function showGroupInfo(group) {
-            // Create a modal to display group info
-            const modal = document.createElement('div');
-            modal.className = 'modal';
-            modal.style.position = 'fixed';
-            modal.style.top = '0';
-            modal.style.left = '0';
-            modal.style.width = '100%';
-            modal.style.height = '100%';
-            modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
-            modal.style.zIndex = '1000';
-            modal.style.display = 'flex';
-            modal.style.justifyContent = 'flex-end'; // Align to right side
-            modal.style.alignItems = 'stretch';
-            
-            // Group profile picture
-            const profilePic = group.picture ? `/uploads/group_images/${group.picture}` : '/api/placeholder/80/80';
-            
-            // Create side panel
-            const panel = document.createElement('div');
-            panel.className = 'group-info-panel';
-            panel.style.background = 'rgba(255, 255, 255, 0.85)'; // semi-transparent white
-            panel.style.width = '350px';
-            panel.style.maxWidth = '100%';
-            panel.style.position = 'fixed';
-            panel.style.right = '0';
-            panel.style.left = 'unset';
-            panel.style.top = '60px'; // height of .chat-header
-            panel.style.bottom = '60px'; // height of .chat-footer
-            panel.style.height = 'unset';
-            panel.style.overflowY = 'auto';
-            panel.style.transition = 'transform 0.3s ease';
-            panel.style.transform = 'translateX(100%)'; // Start offscreen
-            panel.style.borderRadius = '20px 0 0 20px';
-            panel.style.boxShadow = 'none';
-            panel.style.zIndex = '1100';
-            
-            // Check if user is admin
-            const isAdmin = group.is_admin || group.admin_id === parseInt(document.documentElement.getAttribute('data-user-id'));
-
-            panel.innerHTML = `
-                <div style="display: flex; align-items: center; padding: 15px; border-bottom: 1px solid #2a3942;">
-                    <div id="close-group-info" style="cursor: pointer; margin-right: 15px;">
-                        <svg viewBox="0 0 24 24" width="24" height="24">
-                            <path fill="currentColor" d="M19.8 11H7.5l5.6-5.6L11.7 4l-8 8 8 8 1.4-1.4L7.5 13h12.3v-2z"></path>
-                        </svg>
-                    </div>
-                    <h2 style="color: black; margin: 0; font-weight: bold;">Group Info</h2>
-                </div>
-                
-                <div style="padding: 20px; text-align: center; border-bottom: 1px solid #2a3942;">
-                    <div style="width: 150px; height: 150px; border-radius: 75px; overflow: hidden; margin: 0 auto 15px;">
-                        <img src="${profilePic}" alt="${group.name}" style="width: 100%; height: 100%; object-fit: cover;">
-                    </div>
-                    <h2 style="color: black; margin-bottom: 5px; font-weight: bold;">${group.name}</h2>
-                    <p style="color: #1a2a3a; margin-bottom: 0;">Group · ${group.member_count} members</p>
-                </div>
-                
-                ${group.description ? `
-                <div style="padding: 15px; border-bottom: 1px solid #2a3942;">
-                    <h3 style="color: black; margin-bottom: 10px; font-size: 16px; font-weight: bold;">Description</h3>
-                    <p style="color: black; margin: 0;">${group.description}</p>
-                </div>
-                ` : ''}
-                
-                ${isAdmin ? `
-                <div style="padding: 15px; border-bottom: 1px solid #2a3942;">
-                    <button id="add-members-btn" class="action-button" style="width: 160px; padding: 10px 0; background-color: #00a884; color: #fff; border: none; border-radius: 18px; cursor: pointer; font-size: 15px; font-weight: bold; margin: 0 auto 10px auto; display: block;">Add Members</button>
-                </div>
-                ` : ''}
-                
-                <div style="padding: 15px; border-bottom: 1px solid #2a3942;">
-                    <h3 style="color: black; margin-bottom: 10px; font-size: 16px; font-weight: bold;">Members</h3>
-                    <div id="group-members-list">
-                        ${group.members && group.members.length > 0 ? group.members.map(member => `
-                            <div class="group-member" data-user-id="${member.id}" style="display: flex; align-items: center; padding: 10px; border-bottom: 1px solid #2a3942; cursor: pointer;">
-                                <div style="width: 40px; height: 40px; border-radius: 20px; overflow: hidden; margin-right: 15px;">
-                                    <img src="${member.profile_picture ? `/uploads/profile_photos/${member.profile_picture}` : '/api/placeholder/40/40'}" alt="${member.username}" style="width: 100%; height: 100%; object-fit: cover;">
-                                </div>
-                                <div style="flex: 1;">
-                                    <div style="color: black; font-weight: 500;">${member.username}</div>
-                                    ${member.is_admin ? `<div style="color: #00a884; font-size: 12px; font-weight: bold;">Group Admin</div>` : ''}
-                                </div>
-                            </div>
-                        `).join('') : '<div style="text-align: center; color: #1a2a3a; padding: 10px;">No members found</div>'}
-                    </div>
-                </div>
-                
-                <div style="padding: 15px;">
-                    <div style="display: flex; justify-content: center; gap: 15px;">
-                        <button id="leave-group-btn" class="action-button" style="width: 140px; padding: 10px 0; background-color: #f15c6d; color: #fff; border: none; border-radius: 18px; cursor: pointer; font-size: 15px; font-weight: bold;">Leave Group</button>
-                        ${isAdmin ? `
-                        <button id="delete-group-btn" class="action-button" style="width: 140px; padding: 10px 0; background-color: #f15c6d; color: #fff; border: none; border-radius: 18px; cursor: pointer; font-size: 15px; font-weight: bold;">Delete Group</button>
-                        ` : ''}
-                    </div>
-                </div>
-            `;
-            
-            modal.appendChild(panel);
-            document.body.appendChild(modal);
-            
-            // Add a slight delay for animation effect
-            setTimeout(() => {
-                panel.style.transform = 'translateX(0)';
-            }, 10);
-            
-            // Close panel when button is clicked
-            document.getElementById('close-group-info').addEventListener('click', function() {
-                panel.style.transform = 'translateX(100%)';
-                setTimeout(() => {
-                    document.body.removeChild(modal);
-                }, 300);
-            });
-            
-            // Close panel when clicking outside
-            modal.addEventListener('click', function(e) {
-                if (e.target === modal) {
-                    panel.style.transform = 'translateX(100%)';
-                    setTimeout(() => {
-                        document.body.removeChild(modal);
-                    }, 300);
-                }
-            });
-            
-            // Add click event to members to view their profile
-            const memberElements = document.querySelectorAll('.group-member');
-            memberElements.forEach(element => {
-                element.addEventListener('click', function() {
-                    const userId = this.getAttribute('data-user-id');
-                    const member = group.members.find(m => m.id == userId);
-                    
-                    if (member) {
-                        // Close current panel first
-                        panel.style.transform = 'translateX(100%)';
-                        setTimeout(() => {
-                            document.body.removeChild(modal);
-                            // Show user profile
-                            showContactInfo(member);
-                        }, 300);
-                    }
-                });
-            });
-            
-            // Handle leave group action
-            document.getElementById('leave-group-btn').addEventListener('click', function() {
-                leaveGroup(group.id);
-            });
-
-            // Handle delete group action for admin
-            if (isAdmin && document.getElementById('delete-group-btn')) {
-                document.getElementById('delete-group-btn').addEventListener('click', function() {
-                    deleteGroup(group.id);
-                });
-            }
-
-            // Add members functionality (if admin)
-            const addMembersBtn = document.getElementById('add-members-btn');
-            if (addMembersBtn) {
-                addMembersBtn.addEventListener('click', function() {
-                    // Close the current panel
-                    panel.style.transform = 'translateX(100%)';
-                    setTimeout(() => {
-                        document.body.removeChild(modal);
-                        // Show add members view
-                        showAddGroupMembersView(group.id);
-                    }, 300);
-                });
-            }
-        }
+        
 // ... existing code ...
 
         // Function to handle leaving a group

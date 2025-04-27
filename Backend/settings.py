@@ -306,7 +306,7 @@ def get_current_user():
         
         # Default to placeholder avatar if no photo is found
         if not photo_url:
-            photo_url = "/static/images/contact_logo.png"
+            photo_url = "Backend/static/images/contact_logo.png"
         
         user = {
             "id": user_data[0],
@@ -427,7 +427,7 @@ def get_user_details(user_id):
 
         # Default to placeholder avatar if no photo is found
         if not photo_url:
-            photo_url = "/api/placeholder/120/120"
+            photo_url = "Backend/static/images/contact_logo.png"
 
         return jsonify({
             "id": user[0],
