@@ -556,28 +556,436 @@
         }
         
         /* Settings Sidebar Styles */
-        .settings-sidebar {
-            width: 30%;
-            height: 100%;
-            background-color: rgba(255, 255, 255, 0.4);
-            position: fixed;
-            left: 0;
-            top: 0;
-            z-index: 1000;
-            display: flex;
-            flex-direction: column;
-            border-radius: 20px 0 0 20px;
-            margin: 60px 0 0 0;
+        /* These styles have been removed because we're using a new approach with the showSettingsSidebar function */
+        
+        /* Profile Section Styles */
+        .profile-section {
+            background-color: rgba(255, 255, 255, 0.6);
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
         }
 
-        .settings-content {
+        .profile-header {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            margin-bottom: 20px;
+        }
+
+        .profile-avatar-container {
+            position: relative;
+        }
+
+        .profile-avatar {
+            width: 100px;
+            height: 100px;
+            border-radius: 50%;
+            overflow: hidden;
+            position: relative;
+        }
+
+        .profile-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .avatar-edit {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: rgba(0, 0, 0, 0.5);
+            color: white;
+            text-align: center;
+            padding: 5px;
+            cursor: pointer;
+        }
+
+        .profile-info {
             flex: 1;
-            overflow-y: auto;
+        }
+
+        .profile-nickname {
+            color: #333;
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .profile-name input {
+            background-color: transparent;
+            border: none;
+            border-bottom: 1px solid #374045;
+            color: #333;
+            font-size: 16px;
+            padding: 5px 0;
+            width: 100%;
+            outline: none;
+        }
+
+        .profile-bio textarea {
+            background-color: transparent;
+            border: 1px solid #374045;
+            border-radius: 5px;
+            color: #333;
+            width: 100%;
+            padding: 10px;
+            resize: none;
+            height: 100px;
+            outline: none;
+        }
+
+        .profile-bio textarea:focus,
+        .profile-name input:focus {
+            border-color: #333;
+        }
+
+        /* Settings Section Styles */
+        .settings-section {
+            background-color: rgba(255, 255, 255, 0.6);
+            border-radius: 10px;
             padding: 20px;
-            margin-bottom: 60px; /* Add space for navigation */
+        }
+        
+        .settings-list {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .settings-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding: 15px;
+            color: #333;
+            cursor: pointer;
+            border-radius: 5px;
+            transition: background-color 0.2s;
+        }
+        
+        .settings-item:hover {
+            background-color: rgba(255, 255, 255, 0.8);
+        }
+        
+        .settings-item i,
+        .settings-item svg {
+            width: 24px;
+            height: 24px;
+            color: #333;
+        }
+        
+        .settings-item span {
+            font-size: 16px;
+        }
+
+        #logout-button {
+            color: #f15e6c;
+        }
+
+        #logout-button i {
+            color: #f15e6c;
+        }
+
+        /* Logout Modal Styles */
+        .logout-modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .logout-modal-content {
+            background-color: #202c33;
+            padding: 20px;
+            border-radius: 10px;
+            width: 300px;
+            text-align: center;
+        }
+
+        .logout-modal-title {
+            color: #e9edef;
+            font-size: 18px;
+            margin-bottom: 20px;
+        }
+
+        .logout-modal-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 10px;
+        }
+
+        .logout-modal-button {
+            padding: 8px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 14px;
+            border: none;
+        }
+
+        .logout-modal-cancel {
+            background-color: #374045;
+            color: #e9edef;
+        }
+
+        .logout-modal-confirm {
+            background-color: #f15e6c;
+            color: white;
+        }
+
+        /* Added for user selection */
+        .user-item.user-selected {
+            background-color: #2a3942 !important; /* Force selection background */
+        }
+
+        .add-contact-footer {
+            padding: 10px 15px;
+            background-color: transparent;
+            margin-top: auto; /* Push to bottom */
+            border-radius: 0 0 0 20px;
+        }
+
+        .add-contact-footer button {
+            width: 100%;
+            padding: 12px;
+            background-color: rgba(0, 168, 132, 0.8);
+            color: white;
+            border: none;
+            border-radius: 20px;
+            cursor: pointer;
+            font-size: 16px;
+            font-weight: bold;
+        }
+
+        .add-contact-footer button:disabled {
+            background-color: rgba(180, 180, 180, 0.6);
+            opacity: 0.7;
+            cursor: not-allowed;
+        }
+
+        /* ... existing styles ... */
+
+        .contacts-container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
             background-color: transparent;
         }
 
+        .contact-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px 0;
+            background-color: transparent;
+        }
+
+        .contact-item {
+            display: flex;
+            align-items: center;
+            padding: 10px 15px;
+            cursor: pointer;
+            border-bottom: none;
+            transition: background-color 0.2s;
+            background-color: rgba(255, 255, 255, 0.6);
+            margin: 5px;
+            border-radius: 20px;
+        }
+
+        .contact-item:hover {
+            background-color: rgba(255, 255, 255, 0.8);
+        }
+
+        .contact-avatar {
+            width: 45px;
+            height: 45px;
+            border-radius: 50%;
+            margin-right: 15px;
+            overflow: hidden;
+        }
+
+        .contact-avatar img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+
+        .contact-info {
+            flex: 1;
+        }
+
+        .contact-name {
+            color: #333;
+            font-size: 16px;
+            margin-bottom: 4px;
+        }
+
+        .contact-status {
+            color: #333;
+            font-size: 13px;
+        }
+
+        .loading-contacts {
+            text-align: center;
+            padding: 20px;
+            color: #333;
+            background-color: transparent;
+        }
+
+        .no-contacts {
+            text-align: center;
+            padding: 20px;
+            color: #333;
+            background-color: transparent;
+        }
+
+        /* Removing the duplicate sidebar-nav definition */
+        
+        .date-separator {
+            text-align: center;
+            margin: 20px 0;
+            color: #333;
+            font-size: 12.5px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        
+        .date-separator::before,
+        .date-separator::after {
+            content: '';
+            flex: 1;
+            border-bottom: 1px solid #8696a0;
+            margin: 0 10px;
+            opacity: 0.2;
+        }
+
+        /* User selection in add contacts view */
+        .user-item.user-selected {
+            background-color: rgba(255, 255, 255, 0.8) !important; /* Force selection background */
+        }
+        
+        /* Update search result styling */
+        .user-item {
+            padding: 10px 15px;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            cursor: pointer;
+            background-color: rgba(255, 255, 255, 0.6);
+            margin: 5px;
+            border-radius: 20px;
+        }
+        
+        .user-item:hover {
+            background-color: rgba(255, 255, 255, 0.8);
+        }
+
+        .message-status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-left: 5px;
+            display: inline-block;
+            vertical-align: middle;
+        }
+
+        .message-status-indicator.read {
+            background-color: #00FF00; /* Green for read messages */
+        }
+
+        .message-status-indicator.unread {
+            background-color: #808080; /* Grey for unread messages */
+        }
+
+        .message-meta {
+            display: flex;
+            align-items: center;
+            justify-content: flex-end;
+            float: right;
+            clear: both;
+            font-size: 11px;
+            margin-top: 2px;
+        }
+
+        .message-timestamp {
+            font-size: 12px;
+            color: #8696a0;
+            margin-right: 4px;
+        }
+
+        .message-status-indicator {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-left: 5px;
+            display: inline-block;
+            vertical-align: middle;
+            position: relative;
+            bottom: 0;
+        }
+
+        .message-content {
+            font-size: 16px;
+            margin-right: 5px;
+        }
+
+        .message.deleted {
+            background-color: rgba(255, 255, 255, 0.4);
+            color: #333;
+            font-style: italic;
+        }
+
+        .contact-message-container {
+            display: flex;
+            align-items: center;
+        }
+
+        .contact-message-container .message-status-indicator {
+            margin-right: 5px;
+            width: 8px;
+            height: 8px;
+        }
+
+        .contact-message {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .contact-status {
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            color: #333;
+            font-size: 13px;
+        }
+
+        /* Profile Info Panel Styles */
+        .profile-info-panel {
+            position: fixed;
+            top: 0;
+            right: -400px;
+            width: 400px;
+            height: 100%;
+            background-color: #1f2c33;
+            box-shadow: -2px 0 5px rgba(0, 0, 0, 0.1);
+            z-index: 100;
+            transition: right 0.3s ease;
+            overflow-y: auto;
+        }
+        
+        /* Settings Sidebar Styles */
+        /* These styles are no longer needed with the new approach */
+        
         /* Profile Section Styles */
         .profile-section {
             background-color: rgba(255, 255, 255, 0.6);
@@ -1060,70 +1468,7 @@
         </div>
         
         <!-- Settings Sidebar -->
-        <div class="settings-sidebar" style="display: none;">
-            <div class="sidebar-header">
-                <div class="sidebar-header-back">
-                    <svg viewBox="0 0 24 24" width="24" height="24">
-                        <path fill="currentColor" d="M19.8 11H7.5l5.6-5.6L11.7 4l-8 8 8 8 1.4-1.4L7.5 13h12.3v-2z"></path>
-                    </svg>
-                </div>
-                <div class="app-name">Profile & Settings</div>
-                <div class="close-settings">
-                    <svg viewBox="0 0 24 24" width="24" height="24">
-                        <path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path>
-                    </svg>
-                </div>
-            </div>
-            
-            <div class="settings-content">
-                <!-- Profile Section -->
-                <div class="profile-section">
-                    <div class="profile-header">
-                        <div class="profile-avatar-container">
-                            <div class="profile-avatar">
-                                <img id="profile-avatar-img" src="/api/placeholder/100/100" alt="Profile">
-                                <div class="avatar-edit">
-                                    <i class="fa-solid fa-camera"></i>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="profile-info">
-                            <div class="profile-nickname" id="profile-nickname">Loading...</div>
-                            <div class="profile-name">
-                                <input type="text" id="profile-name-input" placeholder="Your Name">
-                            </div>
-                        </div>
-                    </div>
-                    <div class="profile-bio">
-                        <textarea id="profile-bio-input" placeholder="Write something about yourself..."></textarea>
-                    </div>
-                </div>
-
-                <!-- Settings Section -->
-                <div class="settings-section">
-            <div class="settings-list">
-                <div class="settings-item" id="language-settings">
-                    <svg viewBox="0 0 24 24" width="24" height="24">
-                            <path fill="currentColor" d="M12 22.0005C5.07 22.0005 1.5 18.5205 1.5 12.0005C1.5 5.48047 5.07 2.00047 12 2.00047C18.93 2.00047 22.5 5.48047 22.5 12.0005C22.5 18.5205 18.93 22.0005 12 22.0005ZM12 3.50047C5.82 3.50047 3 6.24047 3 12.0005C3 17.7605 5.82 20.5005 12 20.5005C18.18 20.5005 21 17.7605 21 12.0005C21 6.24047 18.18 3.50047 12 3.50047ZM15.53 13.8805C15.82 13.2405 16 12.9505 16 12.0005C16 11.0505 15.82 10.7605 15.53 10.1205C15.37 9.78047 15.1 9.50047 14.79 9.27047C14.43 9.00047 14.25 8.77047 14.25 7.75047V7.50047C14.25 6.94047 13.81 6.50047 13.25 6.50047H10.75C10.19 6.50047 9.75 6.94047 9.75 7.50047V7.72047C9.75 8.69047 9.59 8.87047 9.33 9.11047C9 9.42047 8.71 9.75047 8.5 10.1705C8.19 10.8005 8 11.1505 8 12.0005C8 12.8505 8.19 13.1905 8.48 13.7905C8.71 14.1905 9 14.5305 9.34 14.8505C9.58 15.0605 9.75 15.2805 9.75 16.2405V16.5005C9.75 17.0605 10.19 17.5005 10.75 17.5005H13.25C13.81 17.5005 14.25 17.0605 14.25 16.5005V16.2405C14.25 15.2805 14.41 15.0605 14.67 14.8305C15 14.5305 15.3 14.2005 15.53 13.8805ZM12 14.0005C10.9 14.0005 10 13.1005 10 12.0005C10 10.9005 10.9 10.0005 12 10.0005C13.1 10.0005 14 10.9005 14 12.0005C14 13.1005 13.1 14.0005 12 14.0005Z"></path>
-                        </svg>
-                    <span>Change Language</span>
-                    </div>
-                <div class="settings-item" id="password-settings">
-                    <i class="fa-solid fa-key"></i>
-                    <span>Change Password</span>
-                </div>
-                <div class="settings-item" id="admin-panel">
-                    <i class="fa-solid fa-user-shield"></i>
-                    <span>Admin Panel</span>
-                        </div>
-                        <div class="settings-item" id="logout-button">
-                            <i class="fa-solid fa-right-from-bracket"></i>
-                            <span>Logout</span>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
+        <!-- This sidebar has been replaced by the new approach using showSettingsSidebar function -->
         
         <!-- Main Chat Area -->
         <div class="main-chat">
@@ -1875,7 +2220,6 @@
         navIcons.forEach(icon => {
             icon.addEventListener('click', function() {
                 const target = this.getAttribute('data-target');
-                const settingsSidebar = document.querySelector('.settings-sidebar');
                 const mainSidebarContent = document.querySelector('.sidebar-content');
 
                 // Remove active class from all nav icons
@@ -1883,33 +2227,22 @@
                 // Add active class to clicked icon
                 this.classList.add('active');
                 
-                // --- Start Fix: Hide settings sidebar if visible when switching views ---
-                if (settingsSidebar && settingsSidebar.style.display !== 'none') {
-                    settingsSidebar.style.display = 'none';
-                }
-                // --- End Fix ---
-
-                // Ensure main content area is visible for contacts/groups
-                if (mainSidebarContent && (target === 'contacts' || target === 'groups')) {
-                    mainSidebarContent.style.display = 'flex'; // Or 'block' if that was the default
+                // Ensure main content area is visible for all views
+                if (mainSidebarContent) {
+                    mainSidebarContent.style.display = 'flex';
+                    mainSidebarContent.style.flexDirection = 'column';
                 }
                 
                 console.log(`Switching to ${target} view`);
                 
                 // Handle specific targets
                 if (target === 'add') {
-                    // Show main content for add contact view
-                    if (mainSidebarContent) {
-                        mainSidebarContent.style.display = 'flex';
-                        mainSidebarContent.style.flexDirection = 'column';
-                    }
                     showAddContactModal();
                 } else if (target === 'contacts') {
-                    showMainSidebar(); // Use showMainSidebar to rebuild the contacts view
+                    showMainSidebar();
                 } else if (target === 'groups') {
                     showGroupsView();
                 } else if (target === 'settings') {
-                    // showSettingsSidebar handles hiding main content
                     showSettingsSidebar();
                 }
             });
@@ -1917,47 +2250,88 @@
         
         // Function to show settings sidebar
         function showSettingsSidebar() {
-            const settingsSidebar = document.querySelector('.settings-sidebar');
-            if (!settingsSidebar) {
-                console.error('Settings sidebar element not found');
-                return;
-            }
-            
-            // Hide main sidebar content but keep navigation
+            // Get the sidebar content
             const sidebarContent = document.querySelector('.sidebar-content');
-            if (sidebarContent) {
-                sidebarContent.style.display = "none";
-            }
             
-            // Show settings sidebar
-            settingsSidebar.style.display = "flex";
+            // Set settings tab as active
+            document.querySelectorAll('.nav-icon').forEach(i => i.classList.remove('active'));
+            document.querySelector('.nav-icon[data-target="settings"]').classList.add('active');
             
-            // Make sure navigation stays visible
-            const sidebarNav = document.querySelector('.sidebar-nav');
-            if (sidebarNav) {
-                sidebarNav.style.display = "flex";
-                // Set settings icon as active
-                document.querySelectorAll('.nav-icon').forEach(i => i.classList.remove('active'));
-                document.querySelector('.nav-icon[data-target="settings"]').classList.add('active');
-            }
+            // Update sidebar content with settings view
+            sidebarContent.innerHTML = `
+                <div class="sidebar-header">
+                    <div class="app-name">Profile & Settings</div>
+                    <div class="sidebar-header-icons">
+                        <div class="close-settings" style="cursor: pointer;">
+                            <svg viewBox="0 0 24 24" width="24" height="24">
+                                <path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Profile Section -->
+                <div class="profile-section">
+                    <div class="profile-header">
+                        <div class="profile-avatar-container">
+                            <div class="profile-avatar">
+                                <img id="profile-avatar-img" src="/api/placeholder/100/100" alt="Profile">
+                                <div class="avatar-edit">
+                                    <i class="fa-solid fa-camera"></i>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="profile-info">
+                            <div class="profile-nickname" id="profile-nickname">Loading...</div>
+                            <div class="profile-name">
+                                <input type="text" id="profile-name-input" placeholder="Your Name">
+                            </div>
+                        </div>
+                    </div>
+                    <div class="profile-bio">
+                        <textarea id="profile-bio-input" placeholder="Write something about yourself..."></textarea>
+                    </div>
+                </div>
+
+                <!-- Settings Section -->
+                <div class="settings-section">
+                    <div class="settings-list">
+                        <div class="settings-item" id="language-settings">
+                            <svg viewBox="0 0 24 24" width="24" height="24">
+                                <path fill="currentColor" d="M12 22.0005C5.07 22.0005 1.5 18.5205 1.5 12.0005C1.5 5.48047 5.07 2.00047 12 2.00047C18.93 2.00047 22.5 5.48047 22.5 12.0005C22.5 18.5205 18.93 22.0005 12 22.0005ZM12 3.50047C5.82 3.50047 3 6.24047 3 12.0005C3 17.7605 5.82 20.5005 12 20.5005C18.18 20.5005 21 17.7605 21 12.0005C21 6.24047 18.18 3.50047 12 3.50047ZM15.53 13.8805C15.82 13.2405 16 12.9505 16 12.0005C16 11.0505 15.82 10.7605 15.53 10.1205C15.37 9.78047 15.1 9.50047 14.79 9.27047C14.43 9.00047 14.25 8.77047 14.25 7.75047V7.50047C14.25 6.94047 13.81 6.50047 13.25 6.50047H10.75C10.19 6.50047 9.75 6.94047 9.75 7.50047V7.72047C9.75 8.69047 9.59 8.87047 9.33 9.11047C9 9.42047 8.71 9.75047 8.5 10.1705C8.19 10.8005 8 11.1505 8 12.0005C8 12.8505 8.19 13.1905 8.48 13.7905C8.71 14.1905 9 14.5305 9.34 14.8505C9.58 15.0605 9.75 15.2805 9.75 16.2405V16.5005C9.75 17.0605 10.19 17.5005 10.75 17.5005H13.25C13.81 17.5005 14.25 17.0605 14.25 16.5005V16.2405C14.25 15.2805 14.41 15.0605 14.67 14.8305C15 14.5305 15.3 14.2005 15.53 13.8805ZM12 14.0005C10.9 14.0005 10 13.1005 10 12.0005C10 10.9005 10.9 10.0005 12 10.0005C13.1 10.0005 14 10.9005 14 12.0005C14 13.1005 13.1 14.0005 12 14.0005Z"></path>
+                            </svg>
+                            <span>Change Language</span>
+                        </div>
+                        <div class="settings-item" id="password-settings">
+                            <i class="fa-solid fa-key"></i>
+                            <span>Change Password</span>
+                        </div>
+                        <div class="settings-item" id="admin-panel">
+                            <i class="fa-solid fa-user-shield"></i>
+                            <span>Admin Panel</span>
+                        </div>
+                        <div class="settings-item" id="logout-button">
+                            <i class="fa-solid fa-right-from-bracket"></i>
+                            <span>Logout</span>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            // Make sure the sidebar content is visible
+            sidebarContent.style.display = "flex";
+            sidebarContent.style.flexDirection = "column";
             
             // Add event listeners
-            const backButton = settingsSidebar.querySelector('.sidebar-header-back');
-            const closeButton = settingsSidebar.querySelector('.close-settings');
-            const languageSettings = settingsSidebar.querySelector('#language-settings');
-            const passwordSettings = settingsSidebar.querySelector('#password-settings');
-            const adminPanel = settingsSidebar.querySelector('#admin-panel');
-            
-            if (backButton) {
-                backButton.addEventListener("click", () => {
-                    settingsSidebar.style.display = "none";
-                    showMainSidebar();
-                });
-            }
+            const closeButton = sidebarContent.querySelector('.close-settings');
+            const languageSettings = sidebarContent.querySelector('#language-settings');
+            const passwordSettings = sidebarContent.querySelector('#password-settings');
+            const adminPanel = sidebarContent.querySelector('#admin-panel');
+            const logoutButton = sidebarContent.querySelector('#logout-button');
+            const avatarEdit = sidebarContent.querySelector('.avatar-edit');
             
             if (closeButton) {
                 closeButton.addEventListener("click", () => {
-                    settingsSidebar.style.display = "none";
                     showMainSidebar();
                 });
             }
@@ -1975,6 +2349,21 @@
                     loadAdminPanel();
                 });
             }
+            
+            if (logoutButton) {
+                logoutButton.addEventListener("click", () => {
+                    showLogoutConfirmation();
+                });
+            }
+            
+            if (avatarEdit) {
+                avatarEdit.addEventListener("click", () => {
+                    openProfilePictureUpload();
+                });
+            }
+            
+            // Load user profile data
+            loadProfileData();
         }
         
         // Function to show the add contact modal
@@ -2415,34 +2804,34 @@
                     <div style="display: flex; align-items: center;">
                         <div id="back-to-groups" style="margin-right: 15px; cursor: pointer;">
                             <svg viewBox="0 0 24 24" width="24" height="24">
-                                <path fill="white" d="M19 11H7.83l4.88-4.88c.39-.39.39-1.03 0-1.42-.39-.39-1.02-.39-1.41 0l-6.59 6.59c-.39.39-.39 1.02 0 1.41l6.59 6.59c.39.39 1.02.39 1.41 0 .39-.39.39-1.02 0-1.41L7.83 13H19c.55 0 1-.45 1-1s-.45-1-1-1z"></path>
+                                <path fill="currentColor" d="M19 11H7.83l4.88-4.88c.39-.39.39-1.03 0-1.42-.39-.39-1.02-.39-1.41 0l-6.59 6.59c-.39.39-.39 1.02 0 1.41l6.59 6.59c.39.39 1.02.39 1.41 0 .39-.39.39-1.02 0-1.41L7.83 13H19c.55 0 1-.45 1-1s-.45-1-1-1z"></path>
                             </svg>
                         </div>
-                        <div class="app-name" style="color: white;">Select Contacts</div>
+                        <div class="app-name">Select Contacts</div>
                     </div>
                 </div>
                 
                 <div style="padding: 15px; background-color: transparent;">
                     <div class="form-group" style="margin-bottom: 15px;">
-                        <label style="display: block; color: white; margin-bottom: 5px; text-shadow: 1px 1px 2px rgba(0,0,0,0.8);">Select Members</label>
+                        <label style="display: block; color: #333; margin-bottom: 5px;">Select Members</label>
                         <div style="display: flex;">
-                            <input type="text" id="search-members" style="flex: 1; padding: 10px; background-color: rgba(255, 255, 255, 0.2); border: none; color: white; border-radius: 20px;" placeholder="Search contacts">
+                            <input type="text" id="search-members" style="flex: 1; padding: 10px; background-color: transparent; border: none; color: #333; border-radius: 20px;" placeholder="Search contacts">
                         </div>
                     </div>
                 </div>
                 
-                <div style="padding: 10px 15px; background-color: transparent; border-bottom: 1px solid rgba(255, 255, 255, 0.2);">
-                    <div style="color: white; font-size: 14px; margin-bottom: 5px; text-shadow: 1px 1px 2px rgba(0,0,0,0.8);">Selected Contacts (<span id="selected-count">0</span>)</div>
+                <div style="padding: 10px 15px; background-color: transparent; border-bottom: 1px solid rgba(0, 0, 0, 0.1);">
+                    <div style="color: #333; font-size: 14px; margin-bottom: 5px;">Selected Contacts (<span id="selected-count">0</span>)</div>
                     <div id="selected-members" style="display: flex; flex-wrap: wrap; gap: 5px;"></div>
                 </div>
                 
                 <div id="contact-selection-list" style="overflow-y: auto; flex: 1; background-color: transparent;">
-                    <div style="text-align: center; color: white; padding: 20px; text-shadow: 1px 1px 2px rgba(0,0,0,0.8);">
+                    <div style="text-align: center; color: #666; padding: 20px;">
                         Loading contacts...
                     </div>
                 </div>
                 
-                <div style="padding: 15px; background-color: transparent; border-top: 1px solid rgba(255, 255, 255, 0.2);">
+                <div style="padding: 15px; background-color: transparent; border-top: 1px solid rgba(0, 0, 0, 0.1);">
                     <button id="next-step-btn" style="width: 100%; padding: 12px; background-color: rgba(0, 168, 132, 0.8); color: white; border: none; border-radius: 20px; cursor: pointer; font-size: 16px; font-weight: bold; opacity: 0.5;" disabled>
                         Next
                     </button>
@@ -2494,46 +2883,46 @@
                     <div style="display: flex; align-items: center;">
                         <div id="back-to-contact-selection" style="margin-right: 15px; cursor: pointer;">
                             <svg viewBox="0 0 24 24" width="24" height="24">
-                                <path fill="white" d="M19 11H7.83l4.88-4.88c.39-.39.39-1.03 0-1.42-.39-.39-1.02-.39-1.41 0l-6.59 6.59c-.39.39-.39 1.02 0 1.41l6.59 6.59c.39.39 1.02.39 1.41 0 .39-.39.39-1.02 0-1.41L7.83 13H19c.55 0 1-.45 1-1s-.45-1-1-1z"></path>
+                                <path fill="currentColor" d="M19 11H7.83l4.88-4.88c.39-.39.39-1.03 0-1.42-.39-.39-1.02-.39-1.41 0l-6.59 6.59c-.39.39-.39 1.02 0 1.41l6.59 6.59c.39.39 1.02.39 1.41 0 .39-.39.39-1.02 0-1.41L7.83 13H19c.55 0 1-.45 1-1s-.45-1-1-1z"></path>
                             </svg>
                         </div>
-                        <div class="app-name" style="color: white;">Group Details</div>
+                        <div class="app-name">Group Details</div>
                     </div>
                 </div>
                 
                 <div style="padding: 15px; background-color: transparent;">
                     <div class="form-group" style="margin-bottom: 15px;">
-                        <label for="group-name" style="display: block; color: white; margin-bottom: 5px; text-shadow: 1px 1px 2px rgba(0,0,0,0.8);">Group Name</label>
-                        <input type="text" id="group-name" style="width: 100%; padding: 10px; background-color: rgba(255, 255, 255, 0.2); border: none; color: white; border-radius: 20px;" placeholder="Enter group name">
+                        <label for="group-name" style="display: block; color: #333; margin-bottom: 5px;">Group Name</label>
+                        <input type="text" id="group-name" style="width: 100%; padding: 10px; background-color: transparent; border: none; color: #333; border-radius: 20px;" placeholder="Enter group name">
                     </div>
                     
                     <div class="form-group" style="margin-bottom: 15px;">
-                        <label style="display: block; color: white; margin-bottom: 5px; text-shadow: 1px 1px 2px rgba(0,0,0,0.8);">Group Avatar</label>
+                        <label style="display: block; color: #333; margin-bottom: 5px;">Group Avatar</label>
                         <div style="display: flex; align-items: center; gap: 15px;">
-                            <div id="group-avatar-preview" style="width: 80px; height: 80px; border-radius: 50%; overflow: hidden; background-color: rgba(255, 255, 255, 0.2); display: flex; justify-content: center; align-items: center;">
-                                <svg viewBox="0 0 24 24" width="40" height="40" style="color: white;">
+                            <div id="group-avatar-preview" style="width: 80px; height: 80px; border-radius: 50%; overflow: hidden; background-color: transparent; display: flex; justify-content: center; align-items: center;">
+                                <svg viewBox="0 0 24 24" width="40" height="40" style="color: #666;">
                                     <path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 3c1.66 0 3 1.34 3 3s-1.34 3-3 3-3-1.34-3-3 1.34-3 3-3zm0 14.2c-2.5 0-4.71-1.28-6-3.22.03-1.99 4-3.08 6-3.08 1.99 0 5.97 1.09 6 3.08-1.29 1.94-3.5 3.22-6 3.22z"></path>
                                 </svg>
                             </div>
                             <div style="flex: 1;">
                                 <input type="file" id="group-avatar-input" accept="image/*" style="display: none;">
-                                <button type="button" id="upload-avatar-btn" style="padding: 8px 15px; background-color: rgba(255, 255, 255, 0.3); color: white; border: 1px solid rgba(255, 255, 255, 0.5); border-radius: 20px; cursor: pointer; font-size: 14px;">
+                                <button type="button" id="upload-avatar-btn" style="padding: 8px 15px; background-color: transparent; color: #333; border: 1px solid #ccc; border-radius: 20px; cursor: pointer; font-size: 14px;">
                                     Upload Avatar
                                 </button>
-                                <div style="color: white; font-size: 12px; margin-top: 5px; text-shadow: 1px 1px 2px rgba(0,0,0,0.8);">
+                                <div style="color: #666; font-size: 12px; margin-top: 5px;">
                                     Recommended size: 200x200 pixels
                                 </div>
                             </div>
                         </div>
                     </div>
                     
-                    <div style="background-color: rgba(255, 255, 255, 0.1); padding: 15px; border-radius: 20px;">
-                        <div style="font-size: 14px; color: white; margin-bottom: 10px; text-shadow: 1px 1px 2px rgba(0,0,0,0.8);">Selected Members (${selectedMembers.size})</div>
+                    <div style="background-color: transparent; padding: 15px; border-radius: 20px;">
+                        <div style="font-size: 14px; color: #666; margin-bottom: 10px;">Selected Members (${selectedMembers.size})</div>
                         <div id="selected-members-list" style="display: flex; flex-wrap: wrap; gap: 10px;">
                             ${Array.from(selectedMembers.values()).map(member => `
-                                <div style="display: flex; align-items: center; background-color: rgba(255, 255, 255, 0.2); padding: 5px 10px; border-radius: 15px;">
+                                <div style="display: flex; align-items: center; background-color: transparent; padding: 5px 10px; border-radius: 15px;">
                                     <img src="${member.profilePic}" alt="${member.name}" style="width: 20px; height: 20px; border-radius: 50%; margin-right: 5px;">
-                                    <span style="color: white; font-size: 14px;">${member.name}</span>
+                                    <span style="color: #333; font-size: 14px;">${member.name}</span>
                                 </div>
                             `).join('')}
                         </div>
@@ -2541,7 +2930,7 @@
                 </div>
                 
                 <div style="padding: 15px; background-color: transparent; border-top: 1px solid rgba(0, 0, 0, 0.1);">
-                    <button id="create-group-btn" style="width: 100%; padding: 12px; background-color: rgba(0, 168, 132, 0.8); color: white; border: none; border-radius: 20px; cursor: pointer; font-size: 16px; font-weight: bold; opacity: 0.5; box-shadow: 0 2px 5px rgba(0,0,0,0.3);" disabled>
+                    <button id="create-group-btn" style="width: 100%; padding: 12px; background-color: rgba(0, 168, 132, 0.8); color: white; border: none; border-radius: 20px; cursor: pointer; font-size: 16px; font-weight: bold; opacity: 0.5;" disabled>
                         Create Group
                     </button>
                 </div>
@@ -2625,7 +3014,7 @@
                     contactsList.innerHTML = '';
                     
                     if (contacts.length === 0) {
-                        contactsList.innerHTML = '<div style="text-align: center; color: white; padding: 20px; text-shadow: 1px 1px 2px rgba(0,0,0,0.8);">No contacts found. Add contacts first to create a group.</div>';
+                        contactsList.innerHTML = '<div style="text-align: center; color: #8696a0; padding: 20px;">No contacts found. Add contacts first to create a group.</div>';
                         return;
                     }
                     
@@ -2653,14 +3042,14 @@
                         const isSelected = selectedMembers.has(contactId);
                         
                         contactElement.innerHTML = `
-                            <div style="display: flex; align-items: center; padding: 10px 15px; cursor: pointer; border-bottom: 1px solid rgba(255, 255, 255, 0.2); transition: background-color 0.2s; background-color: rgba(255, 255, 255, 0.1); margin: 5px; border-radius: 10px;">
-                                <div style="width: 45px; height: 45px; border-radius: 50%; margin-right: 15px; overflow: hidden; background-color: rgba(255, 255, 255, 0.2);">
+                            <div style="display: flex; align-items: center; padding: 10px 15px; cursor: pointer; border-bottom: 1px solid #222d34; transition: background-color 0.2s;">
+                                <div style="width: 45px; height: 45px; border-radius: 50%; margin-right: 15px; overflow: hidden;">
                                     <img src="${profilePic}" alt="${contactName}" style="width: 100%; height: 100%; object-fit: cover;">
                             </div>
                                 <div style="flex: 1;">
-                                    <div style="color: white; font-size: 16px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">${contactName}</div>
+                                    <div style="color: #e9edef; font-size: 16px;">${contactName}</div>
                                 </div>
-                                <div class="contact-checkbox" style="width: 24px; height: 24px; border: 2px solid ${isSelected ? '#00a884' : 'rgba(255, 255, 255, 0.5)'}; border-radius: 50%; display: flex; justify-content: center; align-items: center; background-color: ${isSelected ? 'rgba(0, 168, 132, 0.3)' : 'transparent'};">
+                                <div class="contact-checkbox" style="width: 24px; height: 24px; border: 2px solid ${isSelected ? '#00a884' : '#8696a0'}; border-radius: 50%; display: flex; justify-content: center; align-items: center;">
                                     <svg viewBox="0 0 24 24" width="18" height="18" style="display: ${isSelected ? 'block' : 'none'};">
                                         <path fill="#00a884" d="M9 16.2L4.8 12l-1.4 1.4L9 19 21 7l-1.4-1.4L9 16.2z"></path>
                                     </svg>
@@ -2687,7 +3076,7 @@
                 })
                 .catch(error => {
                     console.error('Error loading contacts:', error);
-                    contactsList.innerHTML = '<div style="text-align: center; color: white; padding: 20px; text-shadow: 1px 1px 2px rgba(0,0,0,0.8);">Failed to load contacts. Please try again.</div>';
+                    contactsList.innerHTML = '<div style="text-align: center; color: #ff6b6b; padding: 20px;">Failed to load contacts. Please try again.</div>';
                 });
         }
         
@@ -2837,7 +3226,7 @@
                     groupsList.innerHTML = '';
                     
                     if (groups.length === 0) {
-                        groupsList.innerHTML = '<div class="no-groups" style="color: white; text-shadow: 1px 1px 2px rgba(0,0,0,0.8); text-align: center; padding: 20px;">No groups found. Create a new group to get started.</div>';
+                        groupsList.innerHTML = '<div class="no-groups" style="color: #8696a0; text-align: center; padding: 20px;">No groups found. Create a new group to get started.</div>';
                         return;
                     }
                     
@@ -2915,7 +3304,7 @@
                 })
                 .catch(error => {
                     console.error('Error loading groups:', error);
-                    groupsList.innerHTML = '<div class="error" style="color: white; text-shadow: 1px 1px 2px rgba(0,0,0,0.8); text-align: center; padding: 20px;">Failed to load groups. Please try again.</div>';
+                    groupsList.innerHTML = '<div class="error" style="color: #8696a0; text-align: center; padding: 20px;">Failed to load groups. Please try again.</div>';
                 });
         }
         
@@ -4412,106 +4801,117 @@
         // Handle profile name updates
         const nameInput = document.getElementById('profile-name-input');
         let nameTimeout;
-        nameInput.addEventListener('input', () => {
-            clearTimeout(nameTimeout);
-            nameTimeout = setTimeout(() => {
-                const newName = nameInput.value;
-                fetch('/api/user/update-profile', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ name: newName })
-                })
-                .catch(error => console.error('Error updating name:', error));
-            }, 500);
-        });
+        if (nameInput) {
+            nameInput.addEventListener('input', () => {
+                clearTimeout(nameTimeout);
+                nameTimeout = setTimeout(() => {
+                    const newName = nameInput.value;
+                    fetch('/api/user/update-profile', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ name: newName })
+                    })
+                    .catch(error => console.error('Error updating name:', error));
+                }, 500);
+            });
+        }
 
         // Handle profile bio updates
         const bioInput = document.getElementById('profile-bio-input');
         let bioTimeout;
-        bioInput.addEventListener('input', () => {
-            clearTimeout(bioTimeout);
-            bioTimeout = setTimeout(() => {
-                const newBio = bioInput.value;
-                fetch('/api/user/update-profile', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ bio: newBio })
-                })
-                .catch(error => console.error('Error updating bio:', error));
-            }, 500);
-        });
+        if (bioInput) {
+            bioInput.addEventListener('input', () => {
+                clearTimeout(bioTimeout);
+                bioTimeout = setTimeout(() => {
+                    const newBio = bioInput.value;
+                    fetch('/api/user/update-profile', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json',
+                        },
+                        body: JSON.stringify({ bio: newBio })
+                    })
+                    .catch(error => console.error('Error updating bio:', error));
+                }, 500);
+            });
+        }
 
         // Handle profile picture updates
         const avatarEdit = document.querySelector('.avatar-edit');
-        avatarEdit.addEventListener('click', () => {
-            const input = document.createElement('input');
-            input.type = 'file';
-            input.accept = 'image/*';
-            input.onchange = (e) => {
-                const file = e.target.files[0];
-                if (file) {
-                    const formData = new FormData();
-                    formData.append('profile_picture', file);
-                    
-                    fetch('/api/user/update-profile-picture', {
-                        method: 'POST',
-                        body: formData
-                    })
-                    .then(response => response.json())
-                    .then(data => {
-                        if (data.success) {
-                            document.getElementById('profile-avatar-img').src = `/uploads/profile_photos/${data.filename}`;
-                        }
-                    })
-                    .catch(error => console.error('Error updating profile picture:', error));
-                }
-            };
-            input.click();
-        });
+        if (avatarEdit) {
+            avatarEdit.addEventListener('click', () => {
+                const input = document.createElement('input');
+                input.type = 'file';
+                input.accept = 'image/*';
+                input.onchange = (e) => {
+                    const file = e.target.files[0];
+                    if (file) {
+                        const formData = new FormData();
+                        formData.append('profile_picture', file);
+                        
+                        fetch('/api/user/update-profile-picture', {
+                            method: 'POST',
+                            body: formData
+                        })
+                        .then(response => response.json())
+                        .then(data => {
+                            if (data.success) {
+                                document.getElementById('profile-avatar-img').src = `/uploads/profile_photos/${data.filename}`;
+                            }
+                        })
+                        .catch(error => console.error('Error updating profile picture:', error));
+                    }
+                };
+                input.click();
+            });
+        }
 
         // Handle logout
-        document.getElementById('logout-button').addEventListener('click', () => {
-            // Create and show logout confirmation modal
-            const modal = document.createElement('div');
-            modal.className = 'logout-modal';
-            modal.style.display = 'flex';
-            
-            modal.innerHTML = `
-                <div class="logout-modal-content">
-                    <div class="logout-modal-title">Are you sure you want to logout?</div>
-                    <div class="logout-modal-buttons">
-                        <button class="logout-modal-button logout-modal-cancel">Cancel</button>
-                        <button class="logout-modal-button logout-modal-confirm">Logout</button>
+        const logoutButton = document.getElementById('logout-button');
+        if (logoutButton) {
+            logoutButton.addEventListener('click', () => {
+                // Create and show logout confirmation modal
+                const modal = document.createElement('div');
+                modal.className = 'logout-modal';
+                modal.style.display = 'flex';
+                
+                modal.innerHTML = `
+                    <div class="logout-modal-content">
+                        <div class="logout-modal-title">Are you sure you want to logout?</div>
+                        <div class="logout-modal-buttons">
+                            <button class="logout-modal-button logout-modal-cancel">Cancel</button>
+                            <button class="logout-modal-button logout-modal-confirm">Logout</button>
+                        </div>
                     </div>
-                </div>
-            `;
-            
-            document.body.appendChild(modal);
-            
-            // Handle cancel button
-            modal.querySelector('.logout-modal-cancel').addEventListener('click', () => {
-                modal.remove();
+                `;
+                
+                document.body.appendChild(modal);
+                
+                // Handle cancel button
+                modal.querySelector('.logout-modal-cancel').addEventListener('click', () => {
+                    modal.remove();
+                });
+                
+                // Handle confirm button
+                modal.querySelector('.logout-modal-confirm').addEventListener('click', () => {
+                    fetch('/auth/logout', {
+                        method: 'POST'
+                    })
+                    .then(response => {
+                        if (response.ok) {
+                            window.location.href = '/';
+                        }
+                    })
+                    .catch(error => console.error('Error logging out:', error));
+                });
             });
-            
-            // Handle confirm button
-            modal.querySelector('.logout-modal-confirm').addEventListener('click', () => {
-                fetch('/auth/logout', {
-                    method: 'POST'
-                })
-                .then(response => {
-                    if (response.ok) {
-                        window.location.href = '/';
-                    }
-                })
-                .catch(error => console.error('Error logging out:', error));
-            });
-        });
+        }
 
         // Load profile data when settings sidebar is opened
+        // The observer below is no longer needed since we now call loadProfileData directly in showSettingsSidebar
+        /* 
         const settingsSidebar = document.querySelector('.settings-sidebar');
         const observer = new MutationObserver((mutations) => {
             mutations.forEach((mutation) => {
@@ -4526,8 +4926,7 @@
         observer.observe(settingsSidebar, {
             attributes: true
         });
-
-        // ... existing code ...
+        */
 
         // Function to show contact info sidebar
         function showContactInfo(contact) {
@@ -4935,7 +5334,7 @@
                     const memberElement = document.createElement('div');
                     memberElement.style.display = 'flex';
                     memberElement.style.alignItems = 'center';
-                    memberElement.style.background = 'rgba(255, 255, 255, 0.2)';
+                    memberElement.style.background = '#2a3942';
                     memberElement.style.padding = '5px 10px';
                     memberElement.style.borderRadius = '15px';
                     memberElement.style.marginRight = '5px';
@@ -4943,9 +5342,9 @@
                     
                     memberElement.innerHTML = `
                         <img src="${member.profilePic}" alt="${member.name}" style="width: 20px; height: 20px; border-radius: 50%; margin-right: 5px;">
-                        <span style="color: white; font-size: 14px; text-shadow: 1px 1px 2px rgba(0,0,0,0.5);">${member.name}</span>
+                        <span style="color: #e9edef; font-size: 14px;">${member.name}</span>
                         <div class="remove-member" style="margin-left: 5px; cursor: pointer;">
-                            <svg viewBox="0 0 24 24" width="16" height="16" style="color: white;">
+                            <svg viewBox="0 0 24 24" width="16" height="16" style="color: #8696a0;">
                                 <path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path>
                             </svg>
                         </div>
@@ -4968,8 +5367,7 @@
             if (contactElement) {
                 const checkbox = contactElement.querySelector('.contact-checkbox');
                 const checkmark = checkbox.querySelector('svg');
-                checkbox.style.borderColor = isSelected ? '#00a884' : 'rgba(255, 255, 255, 0.5)';
-                checkbox.style.backgroundColor = isSelected ? 'rgba(0, 168, 132, 0.3)' : 'transparent';
+                checkbox.style.borderColor = isSelected ? '#00a884' : '#8696a0';
                 checkmark.style.display = isSelected ? 'block' : 'none';
             }
         }
@@ -5010,7 +5408,6 @@
                     contactsList.innerHTML = '';
                     
                     if (contacts.length === 0) {
-                        contactsList.innerHTML = '<div style="text-align: center; color: white; padding: 20px; text-shadow: 1px 1px 2px rgba(0,0,0,0.8);">No contacts found. Add contacts first to create a group.</div>';
                         contactsList.innerHTML = '<div style="text-align: center; color: #8696a0; padding: 20px;">No contacts found. Add contacts first to create a group.</div>';
                         return;
                     }
