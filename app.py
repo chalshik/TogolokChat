@@ -207,6 +207,11 @@ def serve_placeholder(width, height):
 def serve_static_images(filename):
     return send_from_directory(os.path.join(app.root_path, 'Backend/static/images'), filename)
 
+# Add a specific route for Backend/static/images path (for backward compatibility)
+@app.route('/Backend/static/images/<path:filename>')
+def serve_backend_static_images(filename):
+    return send_from_directory(os.path.join(app.root_path, 'Backend/static/images'), filename)
+
 # Serve language JSON files
 @app.route('/languages/<path:filename>')
 def serve_language_files(filename):
