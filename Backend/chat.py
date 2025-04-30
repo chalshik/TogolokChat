@@ -738,6 +738,9 @@ def register_socket_events(socketio):
                     room = f'group_{group_id}'
                     emit('new_message', message_data, room=room)
                     
+                    # Also emit to sender's room so sender sees message immediately
+                    emit('new_message', message_data, room=str(sender_id))
+                    
                     return {'status': 'success', 'message': 'Group message sent', 'data': message_data}
                     
                 except Exception as e:
@@ -785,6 +788,9 @@ def register_socket_events(socketio):
                     
                     # Emit to receiver's room
                     emit('new_message', message_data, room=str(receiver_id))
+                    
+                    # Also emit to sender's room so sender sees message immediately
+                    emit('new_message', message_data, room=str(sender_id))
                     
                     return {'status': 'success', 'message': 'Message sent', 'data': message_data}
                     

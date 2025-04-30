@@ -2014,41 +2014,38 @@
         
         // Function to send a message
         function sendMessage() {
-            // Get message from the input
             const messageInput = document.querySelector('.message-input');
-            if (messageInput) {
-                const message = messageInput.value.trim();
-                
-                // Don't send empty messages
-                if (!message) return;
-                
-                // Clear input
-                messageInput.value = '';
-                
-                // Create message ID and timestamp
-                const messageId = Date.now().toString() + Math.floor(Math.random() * 1000);
-                const timestamp = new Date().toISOString();
-                
-                // Prepare message data based on chat type
-                const messageData = {
-                    message: message,
-                    timestamp: timestamp,
-                    message_id: messageId
-                };
+            if (!messageInput) return;
 
-                // Add appropriate fields based on chat type
-                if (window.currentChat.type === 'group') {
-                    messageData.group_id = window.currentChat.id;
-                    console.log('Sending group message:', messageData);
-                } else {
-                    messageData.receiver_id = window.currentChat.id;
-                    console.log('Sending direct message:', messageData);
-                }
+            const message = messageInput.value.trim();
+            if (!message) return;
+            messageInput.value = '';
 
-                // Emit message through socket
-                socket.emit('send_message', messageData, (response) => {
-                    console.log('Message send response:', response);
-                });
+            const messageId = Date.now().toString() + Math.floor(Math.random() * 1000);
+            const timestamp = new Date().toISOString();
+
+            const messageData = { message, timestamp, message_id: messageId };
+
+            if (window.currentChat.type === 'group') {
+                messageData.group_id = window.currentChat.id;
+                socket.emit('send_message', messageData);
+            } else {
+                // Direct chat: immediate UI update
+                messageData.receiver_id = window.currentChat.id;
+                addMessageToChat({
+                    ...messageData,
+                    sender_id: parseInt(document.documentElement.getAttribute('data-user-id')),
+                    sender_username: 'You',
+                    status: 'sent',
+                    chat_type: 'direct'
+                }, false);
+                // Update sidebar preview
+                updateContactLastMessage(
+                    messageData.receiver_id,
+                    messageData.message,
+                    messageData.timestamp
+                );
+                socket.emit('send_message', messageData);
             }
         }
 
