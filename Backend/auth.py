@@ -197,8 +197,3 @@ def verify_secret_word():
 def logout():
     session.clear()
     return jsonify({"message": "Logout successful"}), 200
-
-
-@bp.route("/favicon.ico")
-def favicon():
-    return "", 204

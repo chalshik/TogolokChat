@@ -1,60 +1,45 @@
-from flask import Blueprint, request, jsonify, send_from_directory, session
-from Backend.db import connect_db
+from flask import Blueprint, request, jsonify, session, redirect, url_for, send_from_directory
 import os
 from werkzeug.utils import secure_filename
+from Backend.db import connect_db
+from datetime import datetime
+from Backend.utils import allowed_file, PROFILE_PHOTOS_FOLDER
 
-# Create blueprint with a unique name
-bp = Blueprint("settings", __name__)
-
-# Settings for uploads
-UPLOAD_FOLDER = 'uploads/profile_photos'
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
-
-# Function to check if the file extension is allowed
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+bp = Blueprint("settings", __name__, url_prefix="/api")
 
 @bp.route('/change_password', methods=['POST'])
 def change_password():
     # Check if user is authenticated
     if 'user_id' not in session:
         return jsonify({"message": "Not authenticated"}), 401
-
+    
     data = request.get_json()
-    old_password = data.get("old_password")
-    new_password = data.get("new_password")
-
-    if not old_password or not new_password:
-        return jsonify({"message": "Both old and new passwords are required"}), 400
-
+    current_password = data.get('current_password')
+    new_password = data.get('new_password')
+    
+    if not current_password or not new_password:
+        return jsonify({"message": "Current and new password are required"}), 400
+    
     conn = connect_db()
     cursor = conn.cursor()
-
+    
+    # Verify current password
+    cursor.execute("SELECT password FROM users WHERE id = ?", (session['user_id'],))
+    user = cursor.fetchone()
+    
+    if not user or user[0] != current_password:
+        conn.close()
+        return jsonify({"message": "Current password is incorrect"}), 400
+    
+    # Update password
     try:
-        # Get user's current password
-        cursor.execute("SELECT password FROM users WHERE id = ?", (session['user_id'],))
-        user = cursor.fetchone()
-        
-        if not user:
-            return jsonify({"message": "User not found"}), 404
-
-        stored_password = user[0]
-
-        if stored_password != old_password:
-            return jsonify({"message": "Current password is incorrect"}), 400
-
-        # Update password
         cursor.execute("UPDATE users SET password = ? WHERE id = ?", (new_password, session['user_id']))
         conn.commit()
-
-        return jsonify({"message": "Password changed successfully!"}), 200
-
+        return jsonify({"message": "Password updated successfully"}), 200
     except Exception as e:
         conn.rollback()
-        return jsonify({"message": f"Failed to change password: {str(e)}"}), 500
-
+        return jsonify({"message": f"Error updating password: {str(e)}"}), 500
     finally:
-        cursor.close()
         conn.close()
 
 @bp.route('/users', methods=['GET'])
@@ -112,11 +97,11 @@ def set_profile_photo():
 
     if photo and allowed_file(photo.filename):
         # Create directory if it doesn't exist
-        os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+        os.makedirs(PROFILE_PHOTOS_FOLDER, exist_ok=True)
         
         # Save the file securely
         filename = secure_filename(photo.filename)
-        file_path = os.path.join(UPLOAD_FOLDER, filename)
+        file_path = os.path.join(PROFILE_PHOTOS_FOLDER, filename)
         photo.save(file_path)
 
         # Connect to the database
@@ -168,7 +153,7 @@ def get_profile_photo():
 # Serve uploaded profile photos in this Blueprint
 @bp.route('/uploads/profile_photos/<filename>')
 def uploaded_file(filename):
-    return send_from_directory('uploads/profile_photos', filename)
+    return send_from_directory(PROFILE_PHOTOS_FOLDER, filename)
 
 # Create a route without /api prefix to serve uploaded profile photos
 @bp.route('/get-profile-photo/<filename>', methods=['GET']) 
@@ -229,15 +214,14 @@ def update_profile_avatar():
     
     if avatar and allowed_file(avatar.filename):
         # Create directory if it doesn't exist
-        os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+        os.makedirs(PROFILE_PHOTOS_FOLDER, exist_ok=True)
         
         # Generate a unique filename (user_id + timestamp + original extension)
-        from datetime import datetime
         timestamp = datetime.now().strftime("%Y%m%d%H%M%S")
         ext = avatar.filename.rsplit('.', 1)[1].lower()
         filename = f"user_{user_id}_{timestamp}.{ext}"
         
-        file_path = os.path.join(UPLOAD_FOLDER, filename)
+        file_path = os.path.join(PROFILE_PHOTOS_FOLDER, filename)
         avatar.save(file_path)
         
         conn = connect_db()
@@ -461,7 +445,7 @@ def delete_user(user_id):
         cursor.execute("SELECT profile_picture FROM users WHERE id = ?", (user_id,))
         profile_pic = cursor.fetchone()
         if profile_pic and profile_pic[0]:
-            pic_path = os.path.join(UPLOAD_FOLDER, profile_pic[0])
+            pic_path = os.path.join(PROFILE_PHOTOS_FOLDER, profile_pic[0])
             if os.path.exists(pic_path):
                 os.remove(pic_path)
 

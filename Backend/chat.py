@@ -279,21 +279,6 @@ def add_to_group():
     conn.commit()
     return jsonify({"message": "User added to group"}), 200
 
-@bp.route("/send_group_message", methods=["POST"])
-def send_group_message():
-    auth = require_auth()
-    if auth: return auth
-    
-    data = request.get_json()
-    conn = connect_db()
-    cursor = conn.cursor()
-    cursor.execute("""
-        INSERT INTO group_messages (group_id, sender_id, message, time)
-        VALUES (?, ?, ?, datetime('now'))
-    """, (data['group_id'], session['user_id'], data['message']))
-    conn.commit()
-    return jsonify({"message": "Group message sent"}), 200
-
 @bp.route("/get_group_messages/<int:group_id>", methods=["GET"])
 def get_group_messages(group_id):
     auth = require_auth()
@@ -302,28 +287,77 @@ def get_group_messages(group_id):
     conn = connect_db()
     cursor = conn.cursor()
     
-    # Check if user is a member of the group
-    cursor.execute("""
-        SELECT 1 FROM group_members 
-        WHERE group_id = ? AND user_id = ?
-    """, (group_id, session['user_id']))
-    
-    if not cursor.fetchone():
-        return jsonify({"message": "Not a member of this group"}), 403
-    
-    # Get messages with sender username
-    cursor.execute("""
-        SELECT gm.sender_id, u.username, gm.message, gm.time 
-        FROM group_messages gm
-        JOIN users u ON gm.sender_id = u.id
-        WHERE gm.group_id = ? 
-        ORDER BY gm.time ASC
-    """, (group_id,))
-    
-    messages = cursor.fetchall()
-    conn.close()
-    
-    return jsonify(messages), 200
+    try:
+        # Check if user is a member of the group
+        cursor.execute("""
+            SELECT 1 FROM group_members 
+            WHERE group_id = ? AND user_id = ?
+        """, (group_id, session['user_id']))
+        
+        if not cursor.fetchone():
+            return jsonify({"message": "Not a member of this group"}), 403
+        
+        # Get messages with sender username and message status
+        cursor.execute("""
+            SELECT 
+                gm.id as message_id,
+                gm.sender_id,
+                u.username as sender_username,
+                gm.message,
+                gm.time,
+                COALESCE(gms.status, 'delivered') as status,
+                gms.read_at
+            FROM group_messages gm
+            JOIN users u ON gm.sender_id = u.id
+            LEFT JOIN group_message_status gms ON gm.id = gms.message_id AND gms.user_id = ?
+            WHERE gm.group_id = ? 
+            ORDER BY gm.time ASC
+        """, (session['user_id'], group_id))
+        
+        messages = []
+        for row in cursor.fetchall():
+            messages.append({
+                'message_id': row[0],
+                'sender_id': row[1],
+                'sender_username': row[2],
+                'message': row[3],
+                'time': row[4],
+                'status': row[5],
+                'read_at': row[6],
+                'chat_type': 'group',
+                'group_id': group_id
+            })
+        
+        # Mark unread messages as read
+        cursor.execute("""
+            UPDATE group_message_status 
+            SET status = 'read', read_at = datetime('now')
+            WHERE user_id = ? 
+            AND message_id IN (
+                SELECT id FROM group_messages 
+                WHERE group_id = ? AND sender_id != ?
+            )
+            AND status != 'read'
+        """, (session['user_id'], group_id, session['user_id']))
+        
+        # Notify other members about read status
+        if socketio:
+            room = f'group_{group_id}'
+            emit('message_status_update', {
+                'user_id': session['user_id'],
+                'group_id': group_id,
+                'status': 'read',
+                'timestamp': datetime.datetime.utcnow().isoformat()
+            }, room=room)
+        
+        conn.commit()
+        return jsonify(messages), 200
+        
+    except Exception as e:
+        print(f"Error fetching group messages: {str(e)}")
+        return jsonify({'error': str(e)}), 500
+    finally:
+        conn.close()
 
 # --- Contacts --- 
 @bp.route("/contacts", methods=["GET"])
@@ -626,107 +660,133 @@ def register_socket_events(socketio):
         sender_id = session.get('user_id')
         sender_username = session.get('username')
         
-        # Get message details from data
-        receiver_username = data.get('receiver_username')
-        receiver_id = data.get('receiver_id')
-        message = data.get('message')
-        group_id = data.get('group_id')
-        message_id = data.get('message_id', str(int(time.time())) + str(sender_id))
-        
-        if not sender_id:
+        if not sender_id or not sender_username:
             return {'status': 'error', 'message': 'Not authenticated'}
         
-        if not message:
-            return {'status': 'error', 'message': 'No message provided'}
+        message = data.get('message')
+        group_id = data.get('group_id')
+        receiver_id = data.get('receiver_id')
         
-        # Get current time in Kyrgyzstan timezone
-        kyrgyzstan_tz = pytz.timezone('Asia/Bishkek')
-        current_time = datetime.datetime.now(kyrgyzstan_tz)
+        if not message:
+            return {'status': 'error', 'message': 'Message is required'}
+        
+        # Get current time in UTC
+        current_time = datetime.datetime.utcnow()
         
         try:
+            conn = connect_db()
+            cursor = conn.cursor()
+            
             if group_id:
-                # Group message
-                room = f'group_{group_id}'
+                # Check if user is member of the group
+                cursor.execute("""
+                    SELECT 1 FROM group_members 
+                    WHERE group_id = ? AND user_id = ?
+                """, (group_id, sender_id))
                 
-                # Store the message in the database with Kyrgyzstan time
-                conn = connect_db()
-                cursor = conn.cursor()
+                if not cursor.fetchone():
+                    return {'status': 'error', 'message': 'Not a member of this group'}
                 
+                # Insert group message
                 cursor.execute("""
                     INSERT INTO group_messages (group_id, sender_id, message, time)
                     VALUES (?, ?, ?, ?)
-                """, (group_id, sender_id, message, current_time))
+                    RETURNING id
+                """, (group_id, sender_id, message, current_time.isoformat()))
+                
+                result = cursor.fetchone()
+                message_id = result[0] if result else cursor.lastrowid
+                
+                # Get all group members
+                cursor.execute("""
+                    SELECT user_id FROM group_members
+                    WHERE group_id = ?
+                """, (group_id,))
+                
+                members = cursor.fetchall()
+                
+                # Insert message status for all members
+                for member in members:
+                    member_id = member[0]
+                    status = 'delivered' if member_id != sender_id else 'read'
+                    cursor.execute("""
+                        INSERT INTO group_message_status 
+                        (message_id, user_id, status, read_at)
+                        VALUES (?, ?, ?, ?)
+                    """, (message_id, member_id, status, 
+                          current_time.isoformat() if member_id == sender_id else None))
                 
                 conn.commit()
-                conn.close()
                 
-                # Emit message to the entire group room
-                emit('new_message', {
+                # Emit message to the group room
+                room = f'group_{group_id}'
+                message_data = {
+                    'message_id': message_id,
                     'sender_id': sender_id,
                     'sender_username': sender_username,
                     'message': message,
                     'group_id': group_id,
                     'timestamp': current_time.isoformat(),
-                    'message_id': message_id
-                }, room=room)
+                    'status': 'sent',
+                    'chat_type': 'group'
+                }
                 
-                return {'status': 'success', 'message': 'Group message sent'}
-            
-            elif receiver_username or receiver_id:
-                # Direct message - find the best room to emit to
-                target_room = None
+                # Emit to the group room
+                emit('new_message', message_data, room=room)
                 
-                # Prioritize receiver_id if available
-                if receiver_id:
-                    target_room = str(receiver_id)
-                # Otherwise use username
-                elif receiver_username:
-                    # Look up the user ID from username
-                    conn = connect_db()
-                    cursor = conn.cursor()
-                    
-                    cursor.execute("SELECT id FROM users WHERE username = ?", (receiver_username,))
-                    result = cursor.fetchone()
-                    
-                    if result:
-                        receiver_id = result[0]
-                        target_room = str(receiver_id)
-                    
-                    conn.close()
+                # Also emit to sender's room to ensure they receive it
+                emit('new_message', message_data, room=str(sender_id))
                 
-                if not target_room:
-                    return {'status': 'error', 'message': 'Could not determine recipient'}
+                return {'status': 'success', 'message': 'Group message sent', 'data': message_data}
                 
-                # Store the message in the database with Kyrgyzstan time
-                conn = connect_db()
-                cursor = conn.cursor()
+            else:
+                # Direct message handling
+                if not receiver_id:
+                    return {'status': 'error', 'message': 'Receiver ID is required'}
                 
+                # Store the message in the database
                 cursor.execute("""
                     INSERT INTO messages (sender_id, receiver_id, message, time)
                     VALUES (?, ?, ?, ?)
-                """, (sender_id, receiver_id, message, current_time))
+                    RETURNING id
+                """, (sender_id, receiver_id, message, current_time.isoformat()))
+                
+                result = cursor.fetchone()
+                message_id = result[0] if result else cursor.lastrowid
+                
+                # Insert initial message status
+                cursor.execute("""
+                    INSERT INTO message_status (message_id, user_id, status)
+                    VALUES (?, ?, 'delivered')
+                """, (message_id, receiver_id))
                 
                 conn.commit()
-                conn.close()
                 
-                # Send to the recipient with Kyrgyzstan time
+                # Prepare message data
                 message_data = {
+                    'message_id': message_id,
                     'sender_id': sender_id,
                     'sender_username': sender_username,
                     'receiver_id': receiver_id,
                     'message': message,
                     'timestamp': current_time.isoformat(),
-                    'message_id': message_id
+                    'status': 'sent',
+                    'chat_type': 'direct'
                 }
                 
-                emit('new_message', message_data, room=target_room)
-                return {'status': 'success', 'message': 'Message sent'}
-            
-            return {'status': 'error', 'message': 'Invalid message type'}
-            
+                # Emit to receiver's room
+                emit('new_message', message_data, room=str(receiver_id))
+                # Also emit to sender's room
+                emit('new_message', message_data, room=str(sender_id))
+                
+                return {'status': 'success', 'message': 'Message sent', 'data': message_data}
+        
         except Exception as e:
             print(f"Error sending message: {str(e)}")
-            return {'status': 'error', 'message': 'Failed to send message'}
+            return {'status': 'error', 'message': str(e)}
+        finally:
+            if conn:
+                conn.close()
 
     @socketio.on('update_message_status')
     def handle_status_update(data):
@@ -1113,3 +1173,45 @@ def get_unread_count():
     except Exception as e:
         print(f"Error getting unread count: {str(e)}")
         return jsonify({'error': str(e)}), 500
+
+@bp.route("/get_nonmember_contacts/<int:group_id>", methods=["GET"])
+def get_nonmember_contacts(group_id):
+    auth = require_auth()
+    if auth: return auth
+    
+    conn = connect_db()
+    cursor = conn.cursor()
+    
+    try:
+        # Get current group members
+        cursor.execute("""
+            SELECT user_id FROM group_members WHERE group_id = ?
+        """, (group_id,))
+        member_ids = {row[0] for row in cursor.fetchall()}
+        
+        # Get all contacts of the current user that are not in the group
+        cursor.execute("""
+            SELECT u.id, u.username, u.profile_picture
+            FROM contacts c
+            JOIN users u ON c.contact_id = u.id
+            WHERE c.user_id = ? AND u.id NOT IN (
+                SELECT user_id FROM group_members WHERE group_id = ?
+            )
+        """, (session['user_id'], group_id))
+        
+        contacts = []
+        for row in cursor.fetchall():
+            contact = {
+                'id': row[0],
+                'username': row[1],
+                'profile_picture': row[2]
+            }
+            contacts.append(contact)
+        
+        return jsonify(contacts), 200
+        
+    except Exception as e:
+        current_app.logger.error(f"Error getting non-member contacts: {str(e)}")
+        return jsonify({"message": "Error getting non-member contacts"}), 500
+    finally:
+        conn.close()

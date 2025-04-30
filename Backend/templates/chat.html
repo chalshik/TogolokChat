@@ -2033,13 +2033,10 @@
                 const chatBody = document.querySelector('.chat-body');
                 const messageElement = document.createElement('div');
                 
-                // Use 'sent' instead of 'my-message' for consistency with other parts of the code
+                // Use 'sent' instead of 'my-message' for consistency
                 messageElement.className = 'message sent';
                 messageElement.setAttribute('data-message-id', messageId);
                 messageElement.setAttribute('data-timestamp', timestamp);
-                
-                // Define isSent variable to fix the reference error
-                const isSent = true;
                 
                 messageElement.innerHTML = `
                     <div class="message-content">${message}</div>
@@ -2051,13 +2048,24 @@
                 chatBody.appendChild(messageElement);
                 chatBody.scrollTop = chatBody.scrollHeight;
 
-                // Emit direct message
-                socket.emit('send_message', {
-                    receiver_id: window.currentChat.id,
+                // Prepare message data based on chat type
+                const messageData = {
                     message: message,
                     timestamp: timestamp,
                     message_id: messageId
-                });
+                };
+
+                // Add appropriate fields based on chat type
+                if (window.currentChat.type === 'group') {
+                    messageData.group_id = window.currentChat.id;
+                    console.log('Sending group message:', messageData);
+                } else {
+                    messageData.receiver_id = window.currentChat.id;
+                    console.log('Sending direct message:', messageData);
+                }
+
+                // Emit message through socket
+                socket.emit('send_message', messageData);
             }
         }
 
@@ -3541,17 +3549,8 @@
                 });
         }
 
-        // Function to show language settings
-        function showLanguageSettings() {
-            // Create a simple notification since this feature is not fully implemented
-            showNotification('Language settings feature is coming soon!', 'info');
-        }
-
-        // Function to show password change settings
-        function showPasswordSettings() {
-            // Create a simple notification since this feature is not fully implemented
-            showNotification('Password change feature is coming soon!', 'info');
-        }
+      
+        
 
         function showMainSidebar() {
             // Set contacts tab as active
@@ -6189,6 +6188,416 @@
                 }
             }
         });
+
+        // ... existing code ...
+
+        // Function to show Add Group Members View
+        function showAddGroupMembersView(groupId) {
+            // Create overlay container
+            const overlay = document.createElement('div');
+            overlay.className = 'modal';
+            overlay.style.position = 'fixed';
+            overlay.style.top = '0';
+            overlay.style.left = '0';
+            overlay.style.width = '100%';
+            overlay.style.height = '100%';
+            overlay.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+            overlay.style.zIndex = '1000';
+            overlay.style.display = 'flex';
+            overlay.style.justifyContent = 'flex-end';
+            overlay.style.alignItems = 'stretch';
+            
+            // Create add members sidebar
+            const sidebar = document.createElement('div');
+            sidebar.className = 'group-info-panel';
+            sidebar.style.background = 'rgba(255, 255, 255, 0.85)';
+            sidebar.style.width = '350px';
+            sidebar.style.maxWidth = '100%';
+            sidebar.style.position = 'fixed';
+            sidebar.style.right = '0';
+            sidebar.style.left = 'unset';
+            sidebar.style.top = '60px';
+            sidebar.style.bottom = '60px';
+            sidebar.style.height = 'unset';
+            sidebar.style.overflowY = 'auto';
+            sidebar.style.transition = 'transform 0.3s ease';
+            sidebar.style.transform = 'translateX(100%)';
+            sidebar.style.borderRadius = '20px 0 0 20px';
+            sidebar.style.boxShadow = 'none';
+            sidebar.style.zIndex = '1100';
+            
+            // Create header
+            const header = document.createElement('div');
+            header.style.display = 'flex';
+            header.style.alignItems = 'center';
+            header.style.padding = '15px';
+            header.style.borderBottom = '1px solid #2a3942';
+            
+            // Back button
+            const backButton = document.createElement('div');
+            backButton.id = 'close-add-members';
+            backButton.style.cursor = 'pointer';
+            backButton.style.marginRight = '15px';
+            backButton.innerHTML = `
+                <svg viewBox="0 0 24 24" width="24" height="24">
+                    <path fill="currentColor" d="M19.8 11H7.5l5.6-5.6L11.7 4l-8 8 8 8 1.4-1.4L7.5 13h12.3v-2z"></path>
+                </svg>
+            `;
+            
+            // Header title
+            const headerTitle = document.createElement('h2');
+            headerTitle.textContent = 'Add group members';
+            headerTitle.style.color = 'black';
+            headerTitle.style.margin = '0';
+            headerTitle.style.fontWeight = 'bold';
+            
+            header.appendChild(backButton);
+            header.appendChild(headerTitle);
+            
+            // Create search container
+            const searchContainer = document.createElement('div');
+            searchContainer.style.padding = '15px';
+            searchContainer.style.borderBottom = '1px solid #2a3942';
+            
+            // Search input
+            const searchInput = document.createElement('input');
+            searchInput.type = 'text';
+            searchInput.placeholder = 'Search contacts...';
+            searchInput.style.width = '100%';
+            searchInput.style.backgroundColor = '#f0f2f5';
+            searchInput.style.border = 'none';
+            searchInput.style.borderRadius = '8px';
+            searchInput.style.padding = '8px 12px';
+            searchInput.style.color = '#111b21';
+            searchInput.style.fontSize = '14px';
+            
+            searchContainer.appendChild(searchInput);
+            
+            // Create contacts list container
+            const contactsContainer = document.createElement('div');
+            contactsContainer.style.flex = '1';
+            contactsContainer.style.overflowY = 'auto';
+            contactsContainer.style.padding = '15px';
+            
+            // Loading indicator
+            const loadingElement = document.createElement('div');
+            loadingElement.textContent = 'Loading contacts...';
+            loadingElement.style.padding = '16px';
+            loadingElement.style.textAlign = 'center';
+            loadingElement.style.color = '#111b21';
+            
+            contactsContainer.appendChild(loadingElement);
+            
+            // Create action buttons container
+            const actionsContainer = document.createElement('div');
+            actionsContainer.style.padding = '15px';
+            actionsContainer.style.borderTop = '1px solid #2a3942';
+            actionsContainer.style.display = 'flex';
+            actionsContainer.style.justifyContent = 'flex-end';
+            
+            // Add button
+            const addButton = document.createElement('button');
+            addButton.textContent = 'Add to group';
+            addButton.disabled = true;
+            addButton.style.backgroundColor = '#00a884';
+            addButton.style.color = '#ffffff';
+            addButton.style.border = 'none';
+            addButton.style.borderRadius = '4px';
+            addButton.style.padding = '8px 16px';
+            addButton.style.cursor = 'pointer';
+            addButton.style.opacity = '0.5';
+            addButton.style.fontWeight = 'bold';
+            
+            actionsContainer.appendChild(addButton);
+            
+            // Append all elements to sidebar
+            sidebar.appendChild(header);
+            sidebar.appendChild(searchContainer);
+            sidebar.appendChild(contactsContainer);
+            sidebar.appendChild(actionsContainer);
+            
+            // Append sidebar to overlay
+            overlay.appendChild(sidebar);
+            
+            // Append overlay to body
+            document.body.appendChild(overlay);
+            
+            // Initialize selected contacts array
+            const selectedContacts = [];
+
+            // Function to update add button state
+            function updateAddButton() {
+                if (selectedContacts.length > 0) {
+                    addButton.disabled = false;
+                    addButton.style.opacity = '1';
+                } else {
+                    addButton.disabled = true;
+                    addButton.style.opacity = '0.5';
+                }
+            }
+
+            // Function to create contact element
+            function createContactElement(contact) {
+                const contactElement = document.createElement('div');
+                contactElement.setAttribute('data-contact-id', contact.id);
+                contactElement.setAttribute('data-contact-name', contact.username);
+                contactElement.style.display = 'flex';
+                contactElement.style.alignItems = 'center';
+                contactElement.style.padding = '12px 16px';
+                contactElement.style.cursor = 'pointer';
+                contactElement.style.transition = 'background-color 0.2s';
+                
+                // Profile picture with proper path
+                const profilePic = contact.profile_picture ? 
+                    `/uploads/profile_photos/${contact.profile_picture}` : 
+                    '/static/images/contact_logo.png';
+                
+                contactElement.innerHTML = `
+                    <div class="contact-checkbox" style="
+                        width: 20px;
+                        height: 20px;
+                        border: 2px solid #8696a0;
+                        border-radius: 4px;
+                        margin-right: 12px;
+                        display: flex;
+                        align-items: center;
+                        justify-content: center;
+                    ">
+                        <svg viewBox="0 0 24 24" width="16" height="16" style="display: none;">
+                            <path fill="#00a884" d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z"/>
+                        </svg>
+                    </div>
+                    <div class="contact-avatar" style="
+                        width: 40px;
+                        height: 40px;
+                        border-radius: 50%;
+                        margin-right: 12px;
+                        overflow: hidden;
+                    ">
+                        <img src="${profilePic}" alt="${contact.username}" style="
+                            width: 100%;
+                            height: 100%;
+                            object-fit: cover;
+                        " onerror="this.src='/static/images/contact_logo.png'">
+                    </div>
+                    <div class="contact-name" style="
+                        color: #111b21;
+                        font-size: 14px;
+                    ">${contact.username}</div>
+                `;
+                
+                // Add hover effect
+                contactElement.addEventListener('mouseover', () => {
+                    contactElement.style.backgroundColor = 'rgba(0, 0, 0, 0.05)';
+                });
+                
+                contactElement.addEventListener('mouseout', () => {
+                    contactElement.style.backgroundColor = 'transparent';
+                });
+                
+                // Add click handler
+                contactElement.addEventListener('click', () => {
+                    const checkbox = contactElement.querySelector('.contact-checkbox');
+                    const checkmark = checkbox.querySelector('svg');
+                    const isSelected = selectedContacts.includes(contact.id);
+                    
+                    if (isSelected) {
+                        // Remove from selected contacts
+                        const index = selectedContacts.indexOf(contact.id);
+                        if (index > -1) {
+                            selectedContacts.splice(index, 1);
+                        }
+                        checkbox.style.borderColor = '#8696a0';
+                        checkmark.style.display = 'none';
+                    } else {
+                        // Add to selected contacts
+                        selectedContacts.push(contact.id);
+                        checkbox.style.borderColor = '#00a884';
+                        checkmark.style.display = 'block';
+                    }
+                    
+                    updateAddButton();
+                });
+                
+                return contactElement;
+            }
+
+            // Function to filter contacts
+            function filterContacts(searchTerm) {
+                const contactElements = contactsContainer.querySelectorAll('div[data-contact-name]');
+                let hasVisibleContacts = false;
+                
+                contactElements.forEach(element => {
+                    const name = element.getAttribute('data-contact-name').toLowerCase();
+                    const shouldShow = name.includes(searchTerm.toLowerCase());
+                    element.style.display = shouldShow ? 'flex' : 'none';
+                    if (shouldShow) hasVisibleContacts = true;
+                });
+
+                // Show/hide no results message
+                let noResultsMsg = contactsContainer.querySelector('.no-results-message');
+                if (!hasVisibleContacts) {
+                    if (!noResultsMsg) {
+                        noResultsMsg = document.createElement('div');
+                        noResultsMsg.className = 'no-results-message';
+                        noResultsMsg.style.padding = '16px';
+                        noResultsMsg.style.textAlign = 'center';
+                        noResultsMsg.style.color = '#111b21';
+                        contactsContainer.appendChild(noResultsMsg);
+                    }
+                    noResultsMsg.textContent = searchTerm ? `No contacts found for "${searchTerm}"` : 'No contacts available';
+                    noResultsMsg.style.display = 'block';
+                } else if (noResultsMsg) {
+                    noResultsMsg.style.display = 'none';
+                }
+            }
+
+            // Function to load non-member contacts
+            function loadNonMemberContacts() {
+                fetch(`/chat/get_nonmember_contacts/${groupId}`)
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Network response was not ok');
+                        }
+                        return response.json();
+                    })
+                    .then(contacts => {
+                        contactsContainer.innerHTML = '';
+                        
+                        if (!contacts || contacts.length === 0) {
+                            const noContactsElement = document.createElement('div');
+                            noContactsElement.textContent = 'No contacts available to add';
+                            noContactsElement.style.padding = '16px';
+                            noContactsElement.style.textAlign = 'center';
+                            noContactsElement.style.color = '#111b21';
+                            contactsContainer.appendChild(noContactsElement);
+                            return;
+                        }
+                        
+                        contacts.forEach(contact => {
+                            const contactElement = createContactElement(contact);
+                            contactsContainer.appendChild(contactElement);
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error loading non-member contacts:', error);
+                        contactsContainer.innerHTML = '';
+                        
+                        const errorElement = document.createElement('div');
+                        errorElement.textContent = 'Error loading contacts. Please try again.';
+                        errorElement.style.padding = '16px';
+                        errorElement.style.textAlign = 'center';
+                        errorElement.style.color = '#111b21';
+                        errorElement.style.backgroundColor = '#ffebee';
+                        errorElement.style.margin = '16px';
+                        errorElement.style.borderRadius = '4px';
+                        
+                        contactsContainer.appendChild(errorElement);
+                    });
+            }
+            
+            // Load contacts
+            loadNonMemberContacts();
+            
+            // Add search functionality
+            searchInput.addEventListener('input', (e) => {
+                filterContacts(e.target.value);
+            });
+
+            // Add animation after a small delay
+            requestAnimationFrame(() => {
+                sidebar.style.transform = 'translateX(0)';
+            });
+            
+            // Close sidebar when clicking back button
+            backButton.addEventListener('click', () => {
+                sidebar.style.transform = 'translateX(100%)';
+                setTimeout(() => {
+                    document.body.removeChild(overlay);
+                }, 300);
+            });
+            
+            // Close sidebar when clicking outside
+            overlay.addEventListener('click', (e) => {
+                if (e.target === overlay) {
+                    sidebar.style.transform = 'translateX(100%)';
+                    setTimeout(() => {
+                        document.body.removeChild(overlay);
+                    }, 300);
+                }
+            });
+
+            // Add click event to add button
+            addButton.addEventListener('click', () => {
+                if (selectedContacts.length === 0) {
+                    showNotification('Please select at least one contact to add', 'warning');
+                    return;
+                }
+
+                // Add selected members to the group
+                Promise.all(selectedContacts.map(userId => 
+                    fetch('/chat/add_to_group', {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({
+                            group_id: groupId,
+                            user_id: userId
+                        })
+                    })
+                    .then(response => {
+                        if (!response.ok) {
+                            throw new Error('Failed to add member');
+                        }
+                        return response.json();
+                    })
+                ))
+                .then(() => {
+                    showNotification('Members added successfully', 'success');
+                    // Close the add members view with animation
+                    sidebar.style.transform = 'translateX(100%)';
+                    setTimeout(() => {
+                        document.body.removeChild(overlay);
+                        // Refresh the group info to show new members
+                        loadGroupChat(groupId);
+                    }, 300);
+                })
+                .catch(error => {
+                    console.error('Error adding members:', error);
+                    showNotification('Error adding members. Please try again.', 'error');
+                });
+            });
+        }
+
+        // Function to load group messages
+        
+        // Function to add a new message to the chat (used for both direct and group messages)
+        function openProfilePictureUpload() {
+            const input = document.createElement('input');
+            input.type = 'file';
+            input.accept = 'image/*';
+            input.onchange = (e) => {
+                const file = e.target.files[0];
+                if (file) {
+                    const formData = new FormData();
+                    formData.append('profile_picture', file);
+                    
+                    fetch('/api/user/update-profile-picture', {
+                        method: 'POST',
+                        body: formData
+                    })
+                    .then(response => response.json())
+                    .then(data => {
+                        if (data.success) {
+                            document.getElementById('profile-avatar-img').src = `/uploads/profile_photos/${data.filename}`;
+                        }
+                    })
+                    .catch(error => console.error('Error updating profile picture:', error));
+                }
+            };
+            input.click();
+        }
     </script>
 </body>
 </html>

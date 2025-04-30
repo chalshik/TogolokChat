@@ -3,17 +3,9 @@ from werkzeug.utils import secure_filename
 import os
 from Backend.db import connect_db
 from Backend.auth import is_authenticated
+from Backend.utils import allowed_file, PROFILE_PHOTOS_FOLDER
 
 bp = Blueprint("user", __name__, url_prefix="/api/user")
-
-UPLOAD_FOLDER = 'uploads/profile_photos'
-ALLOWED_EXTENSIONS = {'png', 'jpg', 'jpeg', 'gif'}
-
-if not os.path.exists(UPLOAD_FOLDER):
-    os.makedirs(UPLOAD_FOLDER)
-
-def allowed_file(filename):
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
 
 @bp.route('/profile', methods=['GET'])
 def get_profile():
@@ -105,7 +97,7 @@ def update_profile_picture():
 
     user_id = session.get('user_id')
     filename = secure_filename(f"{user_id}_{file.filename}")
-    filepath = os.path.join(UPLOAD_FOLDER, filename)
+    filepath = os.path.join(PROFILE_PHOTOS_FOLDER, filename)
 
     print(f"Processing profile picture update for user {user_id}")
     print(f"Saving file to: {filepath}")
@@ -115,13 +107,13 @@ def update_profile_picture():
 
     try:
         # Ensure upload directory exists
-        os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+        os.makedirs(PROFILE_PHOTOS_FOLDER, exist_ok=True)
         
         # Remove old profile picture if it exists
         cursor.execute("SELECT profile_picture FROM users WHERE id = ?", (user_id,))
         old_picture = cursor.fetchone()
         if old_picture and old_picture[0]:
-            old_filepath = os.path.join(UPLOAD_FOLDER, old_picture[0])
+            old_filepath = os.path.join(PROFILE_PHOTOS_FOLDER, old_picture[0])
             if os.path.exists(old_filepath):
                 try:
                     os.remove(old_filepath)
