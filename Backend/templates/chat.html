@@ -2029,25 +2029,6 @@
                 const messageId = Date.now().toString() + Math.floor(Math.random() * 1000);
                 const timestamp = new Date().toISOString();
                 
-                // Create new message element
-                const chatBody = document.querySelector('.chat-body');
-                const messageElement = document.createElement('div');
-                
-                // Use 'sent' instead of 'my-message' for consistency
-                messageElement.className = 'message sent';
-                messageElement.setAttribute('data-message-id', messageId);
-                messageElement.setAttribute('data-timestamp', timestamp);
-                
-                messageElement.innerHTML = `
-                    <div class="message-content">${message}</div>
-                    <div class="message-meta">
-                        <span class="message-timestamp">${formatMessageTimestamp(timestamp, true)}</span>
-                    </div>
-                `;
-                
-                chatBody.appendChild(messageElement);
-                chatBody.scrollTop = chatBody.scrollHeight;
-
                 // Prepare message data based on chat type
                 const messageData = {
                     message: message,
@@ -2065,7 +2046,9 @@
                 }
 
                 // Emit message through socket
-                socket.emit('send_message', messageData);
+                socket.emit('send_message', messageData, (response) => {
+                    console.log('Message send response:', response);
+                });
             }
         }
 
@@ -3140,18 +3123,6 @@
         function loadGroupChat(groupId) {
             console.log('Loading group chat with ID:', groupId);
             
-            // Important: Completely reset any ongoing chat first
-            window.currentChat = null;
-            
-            // Leave any current chat room first
-            if (window.currentChat) {
-                if (window.currentChat.type === 'direct') {
-                    socket.emit('leave', { room: window.currentChat.id });
-                } else if (window.currentChat.type === 'group') {
-                    socket.emit('leave', { room: `group_${window.currentChat.id}` });
-                }
-            }
-            
             // Show chat interface
             const chatInterface = document.querySelector('.chat-interface');
             if (chatInterface) {
@@ -3174,85 +3145,56 @@
                 })
                 .then(group => {
                     console.log('Group info loaded:', group);
-                    console.log('Group members array:', group.members);
-                    console.log('Group members count:', group.member_count);
                     
-                    // Check if members are available
-                    if (group.members && group.members.length > 0) {
-                        console.log('Found ' + group.members.length + ' members in the group data');
-                        console.log('First few members:', group.members.slice(0, 3));
-                    } else {
-                        console.warn('No members array found in the group data, or it is empty');
-                    }
-                    
-                    // IMPORTANT: Force set the chat type to group right here
+                    // IMPORTANT: Set the current chat type to group
                     window.currentChat = {
-                        id: Number(groupId),  // Ensure it's a number
+                        id: Number(groupId),
                         type: 'group',
                         name: group.name,
                         entity: group
                     };
                     
-                    console.log('Current chat set to:', window.currentChat);
-                    
-                    // Test if members data is received correctly
-                    if (group.members && group.members.length > 0) {
-                        const memberNames = group.members.map(member => member.username).join(', ');
-                        // showNotification(`Group members: ${memberNames}`, 'info', 5000); // Removed as per request
-                    } else {
-                        // showNotification(`Group has ${group.member_count} members, but member details are not available.`, 'warning', 5000); // Removed as per request
-                    }
-                    
-                    // Store the last active chat
-                    storeLastActiveChat(groupId, 'group', group.name);
-                    
-                    // Update the chat header with group info
+                    // Update chat header with group info
                     updateChatHeader(group, true);
                     
-                    // Force refresh header after a short delay to ensure members are shown
-                    setTimeout(() => {
-                        const chatHeader = document.querySelector('.chat-header');
-                        if (chatHeader && group.members && group.members.length > 0) {
-                            const memberNamesList = group.members.map(member => member.username).join(', ');
-                            const statusElement = chatHeader.querySelector('.chat-header-status');
-                            if (statusElement) {
-                                statusElement.textContent = memberNamesList;
-                                console.log('Directly updated header status with member names:', memberNamesList);
-                            }
-                        }
-                    }, 3000);
+                    // Join the group's socket room
+                    socket.emit('join', { room: `group_${groupId}` });
                     
-                    // Join the group's Socket.IO room
-                    const roomName = `group_${groupId}`;
-                    console.log('Joining room:', roomName);
-                    socket.emit('join', { room: roomName });
-                    
-                    // Load group messages
+                    // Now load the messages
                     return fetch(`/chat/get_group_messages/${groupId}`)
                         .then(response => {
                             if (!response.ok) {
                                 throw new Error('Failed to load messages');
                             }
                             return response.json();
+                        });
                         })
                         .then(messages => {
+                    console.log('Group messages loaded:', messages);
+                    
                             // Clear loading message
+                    if (chatBody) {
                             chatBody.innerHTML = '';
+                    }
                             
                             // Display messages
+                    if (messages && messages.length > 0) {
                             messages.forEach(msg => {
-                                const isFromCurrentUser = msg[0] == document.documentElement.getAttribute('data-user-id');
                                 const messageElement = document.createElement('div');
-                                messageElement.className = isFromCurrentUser ? 'message sent' : 'message received';
+                            const isMyMessage = msg.sender_id === parseInt(document.documentElement.getAttribute('data-user-id'));
                                 
-                                const senderName = !isFromCurrentUser ? 
-                                    `<div class="message-sender" style="font-size: 12px; color: #00a884; margin-bottom: 2px;">${msg[1]}</div>` : '';
+                            messageElement.className = `message ${isMyMessage ? 'sent' : 'received'}`;
+                            messageElement.setAttribute('data-message-id', msg.message_id);
+                            messageElement.setAttribute('data-timestamp', msg.time);
                                 
                                 messageElement.innerHTML = `
-                                    ${senderName}
-                                    <div class="message-content">${msg[2]}</div>
+                                <div class="message-content">
+                                    ${!isMyMessage ? `<div class="message-sender">${msg.sender_username}</div>` : ''}
+                                    ${msg.message}
+                                </div>
                                     <div class="message-meta">
-                                        <span class="message-timestamp">${formatMessageTimestamp(msg[3], true)}</span>
+                                    <span class="message-timestamp">${formatMessageTimestamp(msg.time)}</span>
+                                    ${isMyMessage ? `<span class="message-status">${msg.status}</span>` : ''}
                                     </div>
                                 `;
                                 
@@ -3261,41 +3203,13 @@
                             
                             // Scroll to bottom
                             chatBody.scrollTop = chatBody.scrollHeight;
-                        });
-                })
-                .then(() => {
-                    // Set up message input event listeners
-                    const messageInput = document.getElementById('message-input');
-                    const sendButton = document.getElementById('send-message');
-                    
-                    if (messageInput) {
-                        // Remove existing listeners first to avoid duplicates
-                        messageInput.removeEventListener('keypress', handleEnterPress);
-                        // Add new listener
-                        messageInput.addEventListener('keypress', handleEnterPress);
-                        // Clear any existing message
-                        messageInput.value = '';
-                        // Update placeholder
-                        messageInput.placeholder = 'Type a message to the group...';
-                    }
-                    
-                    if (sendButton) {
-                        // Remove existing listener first to avoid duplicates
-                        sendButton.removeEventListener('click', sendMessage);
-                        // Add new listener
-                        sendButton.addEventListener('click', sendMessage);
-                    }
-                    
-                    // Highlight the active group in the list
-                    document.querySelectorAll('.contact').forEach(c => c.classList.remove('contact-active'));
-                    const groupElement = document.querySelector(`.contact[data-group-id="${groupId}"]`);
-                    if (groupElement) {
-                        groupElement.classList.add('contact-active');
+                    } else {
+                        // Show empty state
+                        chatBody.innerHTML = '<div class="no-messages" style="text-align: center; padding: 20px; color: #8696a0;">No messages yet</div>';
                     }
                 })
                 .catch(error => {
                     console.error('Error loading group chat:', error);
-                    showNotification('Failed to load group chat', 'error');
                     if (chatBody) {
                         chatBody.innerHTML = '<div class="error-message" style="color: #ff6b6b; text-align: center; padding: 20px;">Failed to load messages. Please try again.</div>';
                     }
@@ -6598,6 +6512,92 @@
             };
             input.click();
         }
+
+        // Socket event listeners
+        socket.on('connect', () => {
+            console.log('Connected to socket server');
+        });
+
+        socket.on('new_message', (data) => {
+            console.log('Received new message:', data);
+            
+            // Check if this message belongs to the current chat
+            const isCurrentChat = (data.chat_type === 'group' && window.currentChat?.type === 'group' && data.group_id === window.currentChat.id) ||
+                                 (data.chat_type === 'direct' && window.currentChat?.type === 'direct' && 
+                                  (data.sender_id === window.currentChat.id || data.receiver_id === window.currentChat.id));
+            
+            if (isCurrentChat) {
+                const chatBody = document.querySelector('.chat-body');
+                if (!chatBody) return;
+                
+                const messageElement = document.createElement('div');
+                const isMyMessage = data.sender_id === parseInt(document.documentElement.getAttribute('data-user-id'));
+                
+                messageElement.className = `message ${isMyMessage ? 'sent' : 'received'}`;
+                messageElement.setAttribute('data-message-id', data.message_id);
+                messageElement.setAttribute('data-timestamp', data.timestamp);
+                
+                messageElement.innerHTML = `
+                    <div class="message-content">
+                        ${!isMyMessage ? `<div class="message-sender">${data.sender_username}</div>` : ''}
+                        ${data.message}
+                    </div>
+                    <div class="message-meta">
+                        <span class="message-timestamp">${formatMessageTimestamp(data.timestamp)}</span>
+                        ${isMyMessage ? `<span class="message-status">${data.status || 'sent'}</span>` : ''}
+                    </div>
+                `;
+                
+                chatBody.appendChild(messageElement);
+                chatBody.scrollTop = chatBody.scrollHeight;
+                
+                // If it's not our message, mark it as read
+                if (!isMyMessage) {
+                    socket.emit('update_message_status', {
+                        message_id: data.message_id,
+                        chat_id: data.chat_type === 'group' ? data.group_id : data.sender_id,
+                        chat_type: data.chat_type,
+                        status: 'read'
+                    });
+                }
+            }
+        });
+
+        socket.on('message_status', (data) => {
+            console.log('Message status update:', data);
+            
+            const messageElement = document.querySelector(`[data-message-id="${data.message_id}"]`);
+            if (messageElement) {
+                const statusElement = messageElement.querySelector('.message-status');
+                if (statusElement) {
+                    statusElement.textContent = data.status;
+                }
+            }
+        });
+
+        socket.on('message_status_update', (data) => {
+            console.log('Group message status update:', data);
+            
+            // Update status for all messages in the group
+            if (window.currentChat?.type === 'group' && window.currentChat.id === data.group_id) {
+                const messages = document.querySelectorAll('.message.sent');
+                messages.forEach(messageElement => {
+                    const statusElement = messageElement.querySelector('.message-status');
+                    if (statusElement) {
+                        statusElement.textContent = data.status;
+                    }
+                });
+            }
+        });
+
+        // Clear existing handlers for 'new_message' to prevent duplication
+        socket.removeAllListeners('new_message');
+
+        // Now define a single handler
+        socket.on('new_message', (data) => {
+            console.log('Received new message:', data);
+            // ... existing handler code ...
+        });
     </script>
 </body>
 </html>

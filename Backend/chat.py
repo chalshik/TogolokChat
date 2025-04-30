@@ -687,99 +687,111 @@ def register_socket_events(socketio):
                 if not cursor.fetchone():
                     return {'status': 'error', 'message': 'Not a member of this group'}
                 
-                # Insert group message
-                cursor.execute("""
-                    INSERT INTO group_messages (group_id, sender_id, message, time)
-                    VALUES (?, ?, ?, ?)
-                    RETURNING id
-                """, (group_id, sender_id, message, current_time.isoformat()))
+                # Start transaction
+                cursor.execute("BEGIN TRANSACTION")
                 
-                result = cursor.fetchone()
-                message_id = result[0] if result else cursor.lastrowid
-                
-                # Get all group members
-                cursor.execute("""
-                    SELECT user_id FROM group_members
-                    WHERE group_id = ?
-                """, (group_id,))
-                
-                members = cursor.fetchall()
-                
-                # Insert message status for all members
-                for member in members:
-                    member_id = member[0]
-                    status = 'delivered' if member_id != sender_id else 'read'
+                try:
+                    # Insert group message
                     cursor.execute("""
-                        INSERT INTO group_message_status 
-                        (message_id, user_id, status, read_at)
+                        INSERT INTO group_messages (group_id, sender_id, message, time)
                         VALUES (?, ?, ?, ?)
-                    """, (message_id, member_id, status, 
-                          current_time.isoformat() if member_id == sender_id else None))
-                
-                conn.commit()
-                
-                # Emit message to the group room
-                room = f'group_{group_id}'
-                message_data = {
-                    'message_id': message_id,
-                    'sender_id': sender_id,
-                    'sender_username': sender_username,
-                    'message': message,
-                    'group_id': group_id,
-                    'timestamp': current_time.isoformat(),
-                    'status': 'sent',
-                    'chat_type': 'group'
-                }
-                
-                # Emit to the group room
-                emit('new_message', message_data, room=room)
-                
-                # Also emit to sender's room to ensure they receive it
-                emit('new_message', message_data, room=str(sender_id))
-                
-                return {'status': 'success', 'message': 'Group message sent', 'data': message_data}
+                    """, (group_id, sender_id, message, current_time.isoformat()))
+                    
+                    # Get the message ID
+                    message_id = cursor.lastrowid
+                    
+                    # Get all group members
+                    cursor.execute("""
+                        SELECT user_id FROM group_members
+                        WHERE group_id = ?
+                    """, (group_id,))
+                    
+                    members = cursor.fetchall()
+                    
+                    # Insert message status for all members
+                    for member in members:
+                        member_id = member[0]
+                        status = 'delivered' if member_id != sender_id else 'read'
+                        cursor.execute("""
+                            INSERT INTO group_message_status 
+                            (message_id, user_id, status, read_at)
+                            VALUES (?, ?, ?, ?)
+                        """, (message_id, member_id, status, 
+                              current_time.isoformat() if member_id == sender_id else None))
+                    
+                    # Commit the transaction
+                    conn.commit()
+                    
+                    # Prepare message data for socket emission
+                    message_data = {
+                        'message_id': message_id,
+                        'sender_id': sender_id,
+                        'sender_username': sender_username,
+                        'message': message,
+                        'group_id': group_id,
+                        'timestamp': current_time.isoformat(),
+                        'status': 'sent',
+                        'chat_type': 'group'
+                    }
+                    
+                    # Emit to the group room
+                    room = f'group_{group_id}'
+                    emit('new_message', message_data, room=room)
+                    
+                    return {'status': 'success', 'message': 'Group message sent', 'data': message_data}
+                    
+                except Exception as e:
+                    # Rollback transaction on error
+                    conn.rollback()
+                    raise e
                 
             else:
                 # Direct message handling
                 if not receiver_id:
                     return {'status': 'error', 'message': 'Receiver ID is required'}
                 
-                # Store the message in the database
-                cursor.execute("""
-                    INSERT INTO messages (sender_id, receiver_id, message, time)
-                    VALUES (?, ?, ?, ?)
-                    RETURNING id
-                """, (sender_id, receiver_id, message, current_time.isoformat()))
+                # Start transaction
+                cursor.execute("BEGIN TRANSACTION")
                 
-                result = cursor.fetchone()
-                message_id = result[0] if result else cursor.lastrowid
-                
-                # Insert initial message status
-                cursor.execute("""
-                    INSERT INTO message_status (message_id, user_id, status)
-                    VALUES (?, ?, 'delivered')
-                """, (message_id, receiver_id))
-                
-                conn.commit()
-                
-                # Prepare message data
-                message_data = {
-                    'message_id': message_id,
-                    'sender_id': sender_id,
-                    'sender_username': sender_username,
-                    'receiver_id': receiver_id,
-                    'message': message,
-                    'timestamp': current_time.isoformat(),
-                    'status': 'sent',
-                    'chat_type': 'direct'
-                }
-                
-                # Emit to receiver's room
-                emit('new_message', message_data, room=str(receiver_id))
-                # Also emit to sender's room
-                emit('new_message', message_data, room=str(sender_id))
-                
-                return {'status': 'success', 'message': 'Message sent', 'data': message_data}
+                try:
+                    # Store the message in the database
+                    cursor.execute("""
+                        INSERT INTO messages (sender_id, receiver_id, message, time)
+                        VALUES (?, ?, ?, ?)
+                    """, (sender_id, receiver_id, message, current_time.isoformat()))
+                    
+                    message_id = cursor.lastrowid
+                    
+                    # Insert initial message status
+                    cursor.execute("""
+                        INSERT INTO message_status (message_id, user_id, status)
+                        VALUES (?, ?, 'delivered')
+                    """, (message_id, receiver_id))
+                    
+                    # Commit the transaction
+                    conn.commit()
+                    
+                    # Prepare message data
+                    message_data = {
+                        'message_id': message_id,
+                        'sender_id': sender_id,
+                        'sender_username': sender_username,
+                        'receiver_id': receiver_id,
+                        'message': message,
+                        'timestamp': current_time.isoformat(),
+                        'status': 'sent',
+                        'chat_type': 'direct'
+                    }
+                    
+                    # Emit to receiver's room
+                    emit('new_message', message_data, room=str(receiver_id))
+                    
+                    return {'status': 'success', 'message': 'Message sent', 'data': message_data}
+                    
+                except Exception as e:
+                    # Rollback transaction on error
+                    conn.rollback()
+                    raise e
         
         except Exception as e:
             print(f"Error sending message: {str(e)}")
