@@ -16,7 +16,9 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment.min.js"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/emoji-picker.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/translation.css') }}">
     <script src="{{ url_for('static', filename='js/emoji-picker.js') }}" defer></script>
+    <script src="{{ url_for('static', filename='js/translation.js') }}" defer></script>
     <script src="{{ url_for('static', filename='js/language-manager.js') }}"></script>
     <style>
         * {
@@ -4946,7 +4948,7 @@
                     document.body.appendChild(modal);
                     
                     // Add a slight delay for animation effect
-                    setTimeout(() => {
+            setTimeout(() => {
                         panel.style.transform = 'translateX(0)';
                     }, 10);
                     
@@ -5537,6 +5539,9 @@
                 console.log('Setting up options for sent message');
                 setupMessageOptions(messageElement);
             }
+            
+            // Add translation button to all messages
+            addTranslationButton(messageElement);
             
             return messageElement;
         }
@@ -6594,6 +6599,42 @@
         socket.on('new_message', (data) => {
             console.log('Received new message:', data);
             // ... existing handler code ...
+        });
+    </script>
+    
+    <!-- Translation initialization -->
+    <script>
+        document.addEventListener('DOMContentLoaded', function() {
+            // Initialize translation features for existing messages
+            setTimeout(() => {
+                // Check if translation.js is loaded
+                if (typeof addTranslationButton === 'function') {
+                    // Add translation buttons to all existing messages
+                    const messages = document.querySelectorAll('.message');
+                    messages.forEach(message => {
+                        addTranslationButton(message);
+                    });
+                    
+                    // Observer to add translation buttons to new messages
+                    const chatObserver = new MutationObserver(mutations => {
+                        mutations.forEach(mutation => {
+                            if (mutation.type === 'childList') {
+                                mutation.addedNodes.forEach(node => {
+                                    if (node.nodeType === 1 && node.classList.contains('message')) {
+                                        addTranslationButton(node);
+                                    }
+                                });
+                            }
+                        });
+                    });
+                    
+                    // Start observing the chat body
+                    const chatBody = document.querySelector('.chat-body');
+                    if (chatBody) {
+                        chatObserver.observe(chatBody, { childList: true });
+                    }
+                }
+            }, 1000); // Delay to ensure translation.js is loaded
         });
     </script>
 </body>
