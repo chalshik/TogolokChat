@@ -3636,14 +3636,30 @@
                         </svg>
                     </div>
                 </div>
-                <div style="margin-bottom: 20px; position: relative;">
-                    <input type="text" id="admin-search" placeholder="Search users..." 
-                        style="width: 100%; padding: 8px 32px 8px 8px; background-color: #2a3942; color: #e9edef; 
-                        border: 1px solid #374045; border-radius: 4px; font-size: 14px;">
-                    <svg viewBox="0 0 24 24" width="20" height="20" 
-                        style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); color: #8696a0;">
-                        <path fill="currentColor" d="M15.009 13.805h-.636l-.22-.219a5.184 5.184 0 0 0 1.256-3.386 5.207 5.207 0 1 0-5.207 5.208 5.183 5.183 0 0 0 3.385-1.255l.221.22v.635l4.004 3.999 1.194-1.195-3.997-4.007zm-4.808 0a3.605 3.605 0 1 1 0-7.21 3.605 3.605 0 0 1 0 7.21z"></path>
-                    </svg>
+                <div style="margin-bottom: 20px;">
+                    <div style="display: flex; gap: 10px; margin-bottom: 10px;">
+                        <div style="flex: 1;">
+                            <label style="color: #e9edef; display: block; margin-bottom: 5px;">Start Date</label>
+                            <input type="date" id="start-date-filter" 
+                                style="width: 100%; padding: 8px; background-color: #2a3942; color: #e9edef; 
+                                border: 1px solid #374045; border-radius: 4px; font-size: 14px;">
+                        </div>
+                        <div style="flex: 1;">
+                            <label style="color: #e9edef; display: block; margin-bottom: 5px;">End Date</label>
+                            <input type="date" id="end-date-filter" 
+                                style="width: 100%; padding: 8px; background-color: #2a3942; color: #e9edef; 
+                                border: 1px solid #374045; border-radius: 4px; font-size: 14px;">
+                        </div>
+                    </div>
+                    <div style="position: relative;">
+                        <input type="text" id="admin-search" placeholder="Search users..." 
+                            style="width: 100%; padding: 8px 32px 8px 8px; background-color: #2a3942; color: #e9edef; 
+                            border: 1px solid #374045; border-radius: 4px; font-size: 14px;">
+                        <svg viewBox="0 0 24 24" width="20" height="20" 
+                            style="position: absolute; right: 8px; top: 50%; transform: translateY(-50%); color: #8696a0;">
+                            <path fill="currentColor" d="M15.009 13.805h-.636l-.22-.219a5.184 5.184 0 0 0 1.256-3.386 5.207 5.207 0 1 0-5.207 5.208 5.183 5.183 0 0 0 3.385-1.255l.221.22v.635l4.004 3.999 1.194-1.195-3.997-4.007zm-4.808 0a3.605 3.605 0 1 1 0-7.21 3.605 3.605 0 0 1 0 7.21z"></path>
+                        </svg>
+                    </div>
                 </div>
                 <div class="user-list" style="display: flex; flex-direction: column; gap: 10px;">
                     Loading users...
@@ -3658,6 +3674,68 @@
             closeButton.addEventListener('click', () => {
                 document.body.removeChild(modal);
             });
+            
+            // Function to load users with filters
+            function loadUsers() {
+                const startDate = document.getElementById('start-date-filter').value;
+                const endDate = document.getElementById('end-date-filter').value;
+                
+                let url = '/api/users';
+                const params = new URLSearchParams();
+                if (startDate) params.append('start_date', startDate);
+                if (endDate) params.append('end_date', endDate);
+                
+                if (params.toString()) {
+                    url += '?' + params.toString();
+                }
+                
+                fetch(url)
+                    .then(response => response.json())
+                    .then(data => {
+                        const userList = panel.querySelector('.user-list');
+                        userList.innerHTML = ''; // Clear loading message
+
+                        data.users.forEach(user => {
+                            const userCard = document.createElement('div');
+                            userCard.style.backgroundColor = '#2a3942';
+                            userCard.style.padding = '15px';
+                            userCard.style.borderRadius = '8px';
+                            userCard.style.cursor = 'pointer';
+                            userCard.style.display = 'flex';
+                            userCard.style.alignItems = 'center';
+                            userCard.style.gap = '15px';
+
+                            const registrationDate = user.registration_date ? new Date(user.registration_date).toLocaleDateString() : 'N/A';
+
+                            userCard.innerHTML = `
+                                <div class="user-avatar" style="width: 50px; height: 50px; border-radius: 50%; overflow: hidden; background-color: #374045;">
+                                    <img src="${user.profile_picture}" alt="${user.username}" 
+                                         style="width: 100%; height: 100%; object-fit: cover;"
+                                         onerror="this.src='/static/images/contact_logo.png'">
+                                </div>
+                                <div style="flex: 1;">
+                                    <div style="color: #e9edef; font-weight: bold;">${user.username}</div>
+                                    <div style="color: #8696a0; font-size: 14px;">${user.email}</div>
+                                    <div style="color: #8696a0; font-size: 12px;">Registered: ${registrationDate}</div>
+                                </div>
+                            `;
+
+                            userCard.addEventListener('click', () => showUserDetailsModal(user.id));
+                            userList.appendChild(userCard);
+                        });
+                    })
+                    .catch(error => {
+                        console.error('Error loading users:', error);
+                        panel.querySelector('.user-list').innerHTML = 'Error loading users';
+                    });
+            }
+            
+            // Add date filter event listeners
+            const startDateFilter = panel.querySelector('#start-date-filter');
+            const endDateFilter = panel.querySelector('#end-date-filter');
+            
+            startDateFilter.addEventListener('change', loadUsers);
+            endDateFilter.addEventListener('change', loadUsers);
             
             // Add search functionality
             const searchInput = panel.querySelector('#admin-search');
@@ -3675,43 +3753,8 @@
                 });
             });
             
-            // Load users
-            fetch('/api/users')
-                .then(response => response.json())
-                .then(data => {
-                    const userList = panel.querySelector('.user-list');
-                    userList.innerHTML = ''; // Clear loading message
-
-                    data.users.forEach(user => {
-                        const userCard = document.createElement('div');
-                        userCard.style.backgroundColor = '#2a3942';
-                        userCard.style.padding = '15px';
-                        userCard.style.borderRadius = '8px';
-                        userCard.style.cursor = 'pointer';
-                        userCard.style.display = 'flex';
-                        userCard.style.alignItems = 'center';
-                        userCard.style.gap = '15px';
-
-                        userCard.innerHTML = `
-                            <div class="user-avatar" style="width: 50px; height: 50px; border-radius: 50%; overflow: hidden; background-color: #374045;">
-                                <img src="${user.profile_picture}" alt="${user.username}" 
-                                     style="width: 100%; height: 100%; object-fit: cover;"
-                                     onerror="this.src='/static/images/contact_logo.png'">
-                            </div>
-                            <div style="flex: 1;">
-                                <div style="color: #e9edef; font-weight: bold;">${user.username}</div>
-                                <div style="color: #8696a0; font-size: 14px;">${user.email}</div>
-                            </div>
-                        `;
-
-                        userCard.addEventListener('click', () => showUserDetailsModal(user.id));
-                        userList.appendChild(userCard);
-                    });
-                })
-                .catch(error => {
-                    console.error('Error loading users:', error);
-                    panel.querySelector('.user-list').innerHTML = 'Error loading users';
-                });
+            // Initial load of users
+            loadUsers();
         }
 
         function showUserDetailsModal(userId) {
@@ -3767,15 +3810,15 @@
                             <div style="color: #e9edef;">${user.bio || 'No bio set'}</div>
                         </div>
                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 20px;">
-                            <div style="background-color: #2a3942; padding: 15px; border-radius: 8px; text-align: center;">
+                            <div style="background-color: #2a3942; padding: 15px; border-radius: 8px; text-align: center; cursor: pointer;" onclick="showUserGroupsModal(${user.id})">
                                 <div style="color: #8696a0;">Groups</div>
                                 <div style="color: #e9edef; font-size: 18px;">${user.group_count || 0}</div>
-                </div>
-                            <div style="background-color: #2a3942; padding: 15px; border-radius: 8px; text-align: center;">
+                            </div>
+                            <div style="background-color: #2a3942; padding: 15px; border-radius: 8px; text-align: center; cursor: pointer;" onclick="showUserReportersModal(${user.id})">
                                 <div style="color: #8696a0;">Complaints</div>
                                 <div style="color: #e9edef; font-size: 18px;">${user.complaint_count || 0}</div>
-                    </div>
-                </div>
+                            </div>
+                        </div>
                         <div style="background-color: #2a3942; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
                             <div style="color: #8696a0;">Registration Date</div>
                             <div style="color: #e9edef;">${new Date(user.registration_date).toLocaleDateString()}</div>
@@ -3826,6 +3869,183 @@
                     showNotification('Error deleting user', 'error');
                 });
             }
+        }
+
+        function showUserGroupsModal(userId) {
+            // Check if user has admin access
+            if (!hasAdminAccess()) {
+                showAdminPasswordPrompt();
+                return;
+            }
+
+            fetch(`/api/users/${userId}/groups`)
+                .then(response => response.json())
+                .then(data => {
+                    const modal = document.createElement('div');
+                    modal.className = 'modal user-groups-modal';
+                    modal.style.position = 'fixed';
+                    modal.style.top = '0';
+                    modal.style.left = '0';
+                    modal.style.width = '100%';
+                    modal.style.height = '100%';
+                    modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+                    modal.style.zIndex = '1002'; // Higher than user details modal
+                    modal.style.display = 'flex';
+                    modal.style.justifyContent = 'center';
+                    modal.style.alignItems = 'center';
+
+                    const panel = document.createElement('div');
+                    panel.style.backgroundColor = '#1f2c33';
+                    panel.style.padding = '20px';
+                    panel.style.borderRadius = '8px';
+                    panel.style.width = '400px';
+                    panel.style.maxWidth = '90%';
+                    panel.style.maxHeight = '80vh';
+                    panel.style.overflowY = 'auto';
+
+                    panel.innerHTML = `
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h2 style="color: #e9edef; margin: 0;">User Groups</h2>
+                            <div class="close-button" style="cursor: pointer;">
+                                <svg viewBox="0 0 24 24" width="24" height="24">
+                                    <path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path>
+                                </svg>
+                            </div>
+                        </div>
+                        <div class="groups-list" style="color: #e9edef;">
+                            ${data.groups && data.groups.length > 0 
+                                ? data.groups.map(group => `
+                                    <div style="display: flex; align-items: center; padding: 12px; background-color: #2a3942; border-radius: 8px; margin-bottom: 10px;">
+                                        <div style="width: 40px; height: 40px; border-radius: 50%; overflow: hidden; margin-right: 15px;">
+                                            <img src="${group.picture ? `/uploads/group_images/${group.picture}` : '/static/images/group_logo.png'}" 
+                                                 style="width: 100%; height: 100%; object-fit: cover;"
+                                                 onerror="this.src='/static/images/group_logo.png'">
+                                        </div>
+                                        <div style="flex-grow: 1;">
+                                            <div style="font-weight: bold;">${group.name}</div>
+                                            <div style="color: #8696a0; font-size: 12px;">
+                                                ${group.member_count} members
+                                                ${group.is_admin ? ' • Admin' : ''}
+                                            </div>
+                                        </div>
+                                    </div>
+                                `).join('')
+                                : '<div style="text-align: center; padding: 20px; color: #8696a0;">User is not a member of any groups</div>'
+                            }
+                        </div>
+                    `;
+
+                    modal.appendChild(panel);
+                    document.body.appendChild(modal);
+
+                    // Add close button event listener
+                    const closeButton = panel.querySelector('.close-button');
+                    closeButton.addEventListener('click', () => {
+                        document.body.removeChild(modal);
+                    });
+
+                    // Close when clicking outside
+                    modal.addEventListener('click', (e) => {
+                        if (e.target === modal) {
+                            document.body.removeChild(modal);
+                        }
+                    });
+                })
+                .catch(error => {
+                    console.error('Error loading user groups:', error);
+                    showNotification('Error loading user groups', 'error');
+                });
+        }
+
+        function showUserReportersModal(userId) {
+            // Check if user has admin access
+            if (!hasAdminAccess()) {
+                showAdminPasswordPrompt();
+                return;
+            }
+
+            fetch(`/api/users/${userId}/reporters`)
+                .then(response => response.json())
+                .then(data => {
+                    const modal = document.createElement('div');
+                    modal.className = 'modal user-reporters-modal';
+                    modal.style.position = 'fixed';
+                    modal.style.top = '0';
+                    modal.style.left = '0';
+                    modal.style.width = '100%';
+                    modal.style.height = '100%';
+                    modal.style.backgroundColor = 'rgba(0, 0, 0, 0.5)';
+                    modal.style.zIndex = '1002'; // Higher than user details modal
+                    modal.style.display = 'flex';
+                    modal.style.justifyContent = 'center';
+                    modal.style.alignItems = 'center';
+
+                    const panel = document.createElement('div');
+                    panel.style.backgroundColor = '#1f2c33';
+                    panel.style.padding = '20px';
+                    panel.style.borderRadius = '8px';
+                    panel.style.width = '450px';
+                    panel.style.maxWidth = '90%';
+                    panel.style.maxHeight = '80vh';
+                    panel.style.overflowY = 'auto';
+
+                    // Build panel content
+                    let panelContent = `
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                            <h2 style="color: #e9edef; margin: 0;">Users Who Reported</h2>
+                            <div class="close-button" style="cursor: pointer;">
+                                <svg viewBox="0 0 24 24" width="24" height="24">
+                                    <path fill="currentColor" d="M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z"></path>
+                                </svg>
+                            </div>
+                        </div>
+                    `;
+
+                    if (data.reporters && data.reporters.length > 0) {
+                        panelContent += `<div style="display: flex; flex-direction: column; gap: 10px;">`;
+                        
+                        data.reporters.forEach(reporter => {
+                            panelContent += `
+                                <div style="background-color: #2a3942; padding: 15px; border-radius: 8px; display: flex; align-items: center; gap: 15px;">
+                                    <div style="width: 40px; height: 40px; border-radius: 50%; overflow: hidden; background-color: #374045;">
+                                        <img src="${reporter.profile_picture}" alt="${reporter.username}" 
+                                             style="width: 100%; height: 100%; object-fit: cover;"
+                                             onerror="this.src='/static/images/contact_logo.png'">
+                                    </div>
+                                    <div style="flex: 1;">
+                                        <div style="color: #e9edef; font-weight: bold;">${reporter.username}</div>
+                                        <div style="color: #8696a0; font-size: 14px;">${reporter.email}</div>
+                                    </div>
+                                </div>
+                            `;
+                        });
+                        
+                        panelContent += `</div>`;
+                    } else {
+                        panelContent += `<div style="color: #e9edef; text-align: center; padding: 20px;">No reports found</div>`;
+                    }
+
+                    panel.innerHTML = panelContent;
+                    modal.appendChild(panel);
+                    document.body.appendChild(modal);
+
+                    // Add close button event listener
+                    const closeButton = panel.querySelector('.close-button');
+                    closeButton.addEventListener('click', () => {
+                        document.body.removeChild(modal);
+                    });
+
+                    // Close when clicking outside
+                    modal.addEventListener('click', (e) => {
+                        if (e.target === modal) {
+                            document.body.removeChild(modal);
+                        }
+                    });
+                })
+                .catch(error => {
+                    console.error('Error loading user reporters:', error);
+                    showNotification('Error loading user reporters', 'error');
+                });
         }
 
         // Function to show language settings modal
@@ -4635,17 +4855,13 @@
                     chatBody.appendChild(messageElement);
                     chatBody.scrollTop = chatBody.scrollHeight;
                 }
-            } else if (currentChatType === 'direct' && (currentChatId == data.sender_id || currentChatId == data.receiver_id)) {
-                const chatBody = document.querySelector('.chat-body');
-                const messageElement = createMessageElement(
-                    data.message,
-                    isFromCurrentUser,
-                    timestamp,
-                    messageId
-                );
-                
-                chatBody.appendChild(messageElement);
-                chatBody.scrollTop = chatBody.scrollHeight;
+            } else if (data.sender_id) {
+                if (currentChatType === 'direct' && 
+                    (currentChatId == data.sender_id || currentChatId == data.receiver_id)) {
+                    addMessageToChat(data, false);
+                } else if (!isFromCurrentUser) {
+                    showNotification(`New message from ${data.sender_username}: ${data.message}`);
+                }
             }
         });
 
