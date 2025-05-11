@@ -1233,3 +1233,52 @@ def get_nonmember_contacts(group_id):
         return jsonify({"message": "Error getting non-member contacts"}), 500
     finally:
         conn.close()
+
+@bp.route("/get_admin_stats", methods=["GET"])
+def get_admin_stats():
+    """Get admin dashboard statistics including total users and groups"""
+    auth = require_auth()
+    if auth: return auth
+    
+    # Check if user has admin access (this can be implemented based on your requirements)
+    
+    conn = connect_db()
+    cursor = conn.cursor()
+    
+    try:
+        # Get total number of users
+        cursor.execute("SELECT COUNT(*) FROM users")
+        total_users = cursor.fetchone()[0]
+        
+        # Get total number of groups
+        cursor.execute("SELECT COUNT(*) FROM groups")
+        total_groups = cursor.fetchone()[0]
+        
+        # Get users registered in the last 30 days
+        cursor.execute("""
+            SELECT COUNT(*) FROM users 
+            WHERE registration_date >= datetime('now', '-30 days')
+        """)
+        new_users = cursor.fetchone()[0]
+        
+        # Get total number of messages
+        cursor.execute("""
+            SELECT
+                (SELECT COUNT(*) FROM messages) +
+                (SELECT COUNT(*) FROM group_messages)
+            AS total_messages
+        """)
+        total_messages = cursor.fetchone()[0]
+        
+        return jsonify({
+            "total_users": total_users,
+            "total_groups": total_groups,
+            "new_users_last_30_days": new_users,
+            "total_messages": total_messages
+        }), 200
+        
+    except Exception as e:
+        current_app.logger.error(f"Error getting admin stats: {str(e)}")
+        return jsonify({"message": "Error getting admin statistics"}), 500
+    finally:
+        conn.close()
