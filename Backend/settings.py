@@ -48,10 +48,37 @@ def get_all_users():
     cursor = conn.cursor()
     
     try:
-        cursor.execute("""
-            SELECT u.id, u.username, u.email, u.profile_picture
+        # Get date filter parameters
+        start_date = request.args.get('start_date')
+        end_date = request.args.get('end_date')
+        
+        query = """
+            SELECT u.id, u.username, u.email, u.profile_picture, u.registration_date
             FROM users u
-        """)
+            WHERE 1=1
+        """
+        params = []
+        
+        # Ensure dates are in correct format and handle timezone
+        if start_date:
+            try:
+                # Convert to datetime to validate format
+                datetime.strptime(start_date, '%Y-%m-%d')
+                query += " AND date(u.registration_date) >= date(?)"
+                params.append(start_date)
+            except ValueError:
+                return jsonify({"message": "Invalid start date format. Use YYYY-MM-DD"}), 400
+        
+        if end_date:
+            try:
+                # Convert to datetime to validate format
+                datetime.strptime(end_date, '%Y-%m-%d')
+                query += " AND date(u.registration_date) <= date(?)"
+                params.append(end_date)
+            except ValueError:
+                return jsonify({"message": "Invalid end date format. Use YYYY-MM-DD"}), 400
+            
+        cursor.execute(query, params)
         users = cursor.fetchall()
         
         user_list = []
@@ -71,11 +98,23 @@ def get_all_users():
             if not photo_url:
                 photo_url = "/api/placeholder/50/50"
             
+            # Format the registration date for JSON response
+            registration_date = user[4]
+            if registration_date:
+                try:
+                    # Try to parse and format the date consistently
+                    formatted_date = datetime.strptime(registration_date, '%Y-%m-%d').strftime('%Y-%m-%d')
+                except ValueError:
+                    formatted_date = registration_date
+            else:
+                formatted_date = None
+            
             user_list.append({
                 "id": user[0],
                 "username": user[1],
                 "email": user[2],
-                "profile_picture": photo_url
+                "profile_picture": photo_url,
+                "registration_date": formatted_date
             })
 
         return jsonify({"users": user_list}), 200
@@ -465,4 +504,93 @@ def delete_user(user_id):
 
     finally:
         cursor.close()
+        conn.close()
+
+@bp.route('/users/<int:user_id>/groups', methods=['GET'])
+def get_user_groups(user_id):
+    # Check if user is authenticated
+    if 'user_id' not in session:
+        return jsonify({"message": "Not authenticated"}), 401
+
+    conn = connect_db()
+    cursor = conn.cursor()
+
+    try:
+        # Get groups that the user is a member of
+        cursor.execute("""
+            SELECT g.id, g.group_name, g.admin_id, g.group_picture,
+                  (SELECT COUNT(*) FROM group_members WHERE group_id = g.id) as member_count
+            FROM groups g
+            JOIN group_members gm ON g.id = gm.group_id
+            WHERE gm.user_id = ?
+            ORDER BY g.group_name
+        """, (user_id,))
+        
+        groups = []
+        for row in cursor.fetchall():
+            groups.append({
+                'id': row[0],
+                'name': row[1],
+                'admin_id': row[2],
+                'picture': row[3],
+                'member_count': row[4],
+                'is_admin': row[2] == user_id
+            })
+        
+        return jsonify({"groups": groups}), 200
+
+    except Exception as e:
+        return jsonify({"message": f"Error getting user groups: {str(e)}"}), 500
+
+    finally:
+        conn.close()
+
+@bp.route('/users/<int:user_id>/reporters', methods=['GET'])
+def get_user_reporters(user_id):
+    # Check if user is authenticated
+    if 'user_id' not in session:
+        return jsonify({"message": "Not authenticated"}), 401
+
+    conn = connect_db()
+    cursor = conn.cursor()
+
+    try:
+        # Get users who reported this user
+        cursor.execute("""
+            SELECT u.id, u.username, u.email, u.profile_picture
+            FROM users u
+            JOIN complaints c ON u.id = c.reporter_id
+            WHERE c.reported_user_id = ?
+        """, (user_id,))
+        
+        reporters = []
+        for row in cursor.fetchall():
+            # Get profile photo if available
+            photo_url = None
+            if row[3]:  # if profile_picture is not None
+                photo_url = f"/uploads/profile_photos/{row[3]}"
+            else:
+                # Check if there's an entry in the profile_photos table
+                cursor.execute("SELECT photo FROM profile_photos WHERE user_id = ?", (row[0],))
+                photo_result = cursor.fetchone()
+                if photo_result:
+                    photo_url = f"/uploads/profile_photos/{photo_result[0]}"
+            
+            # Default to placeholder avatar if no photo is found
+            if not photo_url:
+                photo_url = "Backend/static/images/contact_logo.png"
+                
+            reporters.append({
+                "id": row[0],
+                "username": row[1],
+                "email": row[2],
+                "profile_picture": photo_url
+            })
+        
+        return jsonify({"reporters": reporters}), 200
+
+    except Exception as e:
+        return jsonify({"message": f"Error getting user reporters: {str(e)}"}), 500
+
+    finally:
         conn.close()
